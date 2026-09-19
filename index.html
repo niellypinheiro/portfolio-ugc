@@ -13,10 +13,10 @@
 <style>
 /* ==========================================================================
    DIÁRIO DE COURO
-   Paleta: couro #8a5a33, papel creme #f6efe2, bordô #6d2434, dourado #c9a227
+   Paleta: couro #c89116, papel creme #f6efe2, bordô #6d2434, dourado #c9a227
    ========================================================================== */
 :root{
-  --couro:#8a5a33; --couro-esc:#3a2415; --couro-mais-esc:#26160c;
+  --couro:#c89116; --couro-esc:#3a2415; --couro-mais-esc:#26160c;
   --papel:#f6efe2; --papel-2:#efe4cf;
   --bordo:#6d2434; --bordo-esc:#4f1825;
   --ouro:#c9a227; --ouro-claro:#f0d77f;
@@ -46,7 +46,8 @@ h2 em,h1 em{font-style:italic;font-weight:500;color:var(--bordo)}
 ::selection{background:var(--bordo);color:var(--papel)}
 [hidden]{display:none!important}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-:focus-visible{outline:3px solid var(--ouro-claro);outline-offset:3px;border-radius:4px}
+:focus-visible{outline:3px solid var(--tinta);outline-offset:3px;border-radius:4px}
+.topo :focus-visible,.rodape :focus-visible{outline-color:var(--ouro-claro)}
 .papel :focus-visible{outline-color:var(--bordo)}
 .pular{position:fixed;left:12px;top:-70px;z-index:200;background:var(--papel);color:var(--bordo);padding:10px 16px;border-radius:6px;font-weight:600;transition:top .2s}
 .pular:focus{top:12px}
@@ -62,7 +63,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     radial-gradient(circle at 70% 70%,rgba(255,230,190,.1) 0 1px,transparent 2px) 4px 5px/11px 11px,
     var(--couro)}
 /* costura em volta da capa */
-body::after{content:"";position:fixed;inset:6px;z-index:0;pointer-events:none;border:2px dashed rgba(240,215,127,.36);border-radius:12px}
+body::after{content:"";position:fixed;inset:6px;z-index:0;pointer-events:none;border:2px dashed rgba(255,240,200,.55);border-radius:12px}
 @media (min-width:700px){body::after{inset:12px;border-radius:16px}}
 main,.rodape{position:relative;z-index:1}
 
@@ -73,7 +74,7 @@ main,.rodape{position:relative;z-index:1}
   background-image:linear-gradient(90deg,rgba(0,0,0,.2),rgba(255,255,255,.14) 45%,rgba(0,0,0,.14));
   animation:balanca 7s ease-in-out infinite alternate}
 .f1{right:58px;height:84px;background-color:#6d2434}
-.f2{right:41px;height:106px;background-color:#c9a227;animation-duration:8.5s;animation-delay:-2s}
+.f2{right:41px;height:106px;background-color:#4a2c17;animation-duration:8.5s;animation-delay:-2s}
 .f3{right:24px;height:70px;background-color:#e6d8bb;animation-duration:6.5s;animation-delay:-4s}
 @keyframes balanca{from{transform:rotate(-1.4deg)}to{transform:rotate(1.4deg)}}
 .elastico{position:fixed;top:0;bottom:0;right:6px;width:10px;z-index:45;pointer-events:none;
@@ -125,14 +126,14 @@ main,.rodape{position:relative;z-index:1}
 .secao{padding-block:clamp(36px,6vw,72px)}
 .eyebrow{font:600 clamp(1.4rem,3vw,1.7rem)/1.2 var(--fonte-legenda);color:var(--bordo)}
 .cab-papel{text-align:center;margin-bottom:clamp(26px,4vw,42px)}
-.cab-couro{text-align:center;margin-bottom:clamp(28px,4vw,46px);color:var(--papel);text-shadow:0 1px 0 rgba(0,0,0,.35)}
-.cab-couro .eyebrow{color:var(--ouro-claro)}
-.cab-couro h2 em{color:var(--ouro-claro)}
+.cab-couro{text-align:center;margin-bottom:clamp(28px,4vw,46px);color:var(--tinta);text-shadow:0 1px 0 rgba(255,236,190,.45)}
+.cab-couro .eyebrow{color:var(--bordo-esc)}
+.cab-couro h2 em{color:var(--bordo)}
 .ornamento{display:block;position:relative;height:14px;width:min(180px,60%);margin:14px auto;
   background:linear-gradient(90deg,transparent,var(--ouro) 18%,var(--ouro) 82%,transparent) center/100% 1px no-repeat}
 .ornamento::after{content:"";position:absolute;left:50%;top:50%;width:9px;height:9px;background:var(--ouro);transform:translate(-50%,-50%) rotate(45deg);box-shadow:0 0 0 4px var(--orn-vao,var(--papel))}
-.cab-couro .ornamento{--orn-vao:transparent;background-image:linear-gradient(90deg,transparent,var(--ouro-claro) 18%,var(--ouro-claro) 82%,transparent)}
-.cab-couro .ornamento::after{background:var(--ouro-claro)}
+.cab-couro .ornamento{--orn-vao:transparent;background-image:linear-gradient(90deg,transparent,var(--bordo) 18%,var(--bordo) 82%,transparent)}
+.cab-couro .ornamento::after{background:var(--bordo)}
 .ornamento.esq{margin-left:0}
 
 /* ---------- botões ---------- */
@@ -140,8 +141,8 @@ main,.rodape{position:relative;z-index:1}
 .btn:hover{transform:translateY(-2px)}
 .btn-creme{background:var(--papel);color:var(--bordo);border-color:var(--ouro);box-shadow:0 6px 14px -6px rgba(0,0,0,.5)}
 .btn-creme:hover{background:#fff8ea}
-.btn-claro{color:var(--papel);border-color:rgba(246,239,226,.8);background:rgba(38,20,10,.25)}
-.btn-claro:hover{background:rgba(246,239,226,.14)}
+.btn-claro{color:var(--tinta);border-color:var(--tinta);background:rgba(255,255,255,.18)}
+.btn-claro:hover{background:rgba(43,26,16,.12)}
 .btn-bordo{background:var(--bordo);color:var(--papel);border-color:var(--bordo)}
 .btn-bordo:hover{background:var(--bordo-esc)}
 .btn-contorno{color:var(--bordo);border-color:var(--bordo);background:transparent}
@@ -172,20 +173,20 @@ main,.rodape{position:relative;z-index:1}
 
 /* ---------- 1. capa ---------- */
 .capa{position:relative;padding-top:calc(var(--topo-h) + clamp(30px,6vw,72px))}
-.capa::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 80% at 28% 45%,rgba(38,20,10,.62),transparent 72%)}
+.capa::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 80% at 28% 45%,rgba(255,228,160,.32),transparent 72%)}
 .capa-grade{position:relative;display:grid;grid-template-columns:1fr;gap:clamp(36px,5vw,72px);align-items:center;padding-bottom:clamp(44px,6vw,72px)}
 @media (min-width:900px){.capa-grade{grid-template-columns:1.2fr .8fr}}
-.capa-etiqueta{font:600 .85rem/1.3 var(--fonte-corpo);letter-spacing:.22em;text-transform:uppercase;color:var(--ouro-claro)}
-.capa h1{font-size:clamp(3.7rem,13vw,8.6rem);line-height:.9;color:var(--papel);text-shadow:0 -1px 0 rgba(0,0,0,.45),0 2px 0 rgba(255,235,200,.16);margin:.18em 0 .24em}
+.capa-etiqueta{font:600 .85rem/1.3 var(--fonte-corpo);letter-spacing:.22em;text-transform:uppercase;color:var(--bordo-esc)}
+.capa h1{font-size:clamp(3.7rem,13vw,8.6rem);line-height:.9;color:var(--tinta);text-shadow:0 2px 0 rgba(255,236,190,.55);margin:.18em 0 .24em}
 .capa h1 span{display:block}
-.capa h1 em{color:var(--ouro-claro);background:linear-gradient(180deg,#fbeeb4 0%,#e6c453 50%,#d0a52a 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35));padding-right:.05em}
-.capa-frase{font-size:clamp(1.12rem,2.4vw,1.4rem);line-height:1.5;color:rgba(246,239,226,.95);max-width:34ch;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.capa h1 em{color:var(--bordo);padding-right:.05em}
+.capa-frase{font-size:clamp(1.12rem,2.4vw,1.4rem);line-height:1.5;color:var(--tinta);max-width:34ch}
 .capa-botoes{display:flex;flex-wrap:wrap;gap:14px;margin-top:clamp(22px,3vw,32px)}
 .capa-numeros{display:flex;margin-top:clamp(28px,4vw,44px)}
-.capa-numeros li{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px;padding:0 clamp(10px,2.4vw,28px);border-left:1px solid rgba(240,215,127,.55)}
+.capa-numeros li{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px;padding:0 clamp(10px,2.4vw,28px);border-left:1px solid rgba(43,26,16,.55)}
 .capa-numeros li:first-child{padding-left:0;border-left:0}
-.capa-numeros .contador{font:600 clamp(2rem,5vw,3rem)/1 var(--fonte-titulo);color:var(--papel);text-shadow:0 1px 2px rgba(0,0,0,.4)}
-.capa-numeros .rot{font-size:clamp(.66rem,2.3vw,.78rem);letter-spacing:.08em;text-transform:uppercase;line-height:1.3;color:rgba(246,239,226,.92)}
+.capa-numeros .contador{font:600 clamp(2rem,5vw,3rem)/1 var(--fonte-titulo);color:var(--tinta)}
+.capa-numeros .rot{font-size:clamp(.66rem,2.3vw,.78rem);letter-spacing:.08em;text-transform:uppercase;line-height:1.3;color:var(--tinta)}
 .capa-foto{justify-self:center;width:min(100%,330px)}
 @media (min-width:900px){.capa-foto{width:min(100%,380px)}}
 .capa-foto .foto-moldura{transform:rotate(1.6deg)}
@@ -337,7 +338,7 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 .fechar svg{width:20px;height:20px}
 
 /* ---------- 8. rodapé ---------- */
-.rodape{margin-top:clamp(28px,5vw,64px);padding:60px 0 44px;text-align:center;color:var(--papel);background:linear-gradient(180deg,rgba(38,22,12,0),rgba(38,22,12,.82) 45%)}
+.rodape{margin-top:clamp(28px,5vw,64px);padding:72px 0 44px;text-align:center;color:var(--papel);background:linear-gradient(180deg,rgba(38,22,12,0),rgba(38,22,12,.96) 35%)}
 .rodape-nome{font:600 clamp(2rem,5vw,2.8rem)/1 var(--fonte-titulo)}
 .rodape-nome em{color:var(--ouro-claro);font-weight:500}
 .redes{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 26px;margin:22px 0}
