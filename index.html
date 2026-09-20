@@ -711,7 +711,7 @@ const NICHOS = [
 ];
 
 /* TRABALHOS da galeria.
-   Cada nicho vira um carrossel, um abaixo do outro, na ordem dos nichos (Beleza, Moda, Comida, Casa e decoração, Tech).
+   Cada nicho vira um carrossel, um abaixo do outro, na ordem da lista NICHOS acima (Casa e decoração, Gastronomia, Tech, Beleza, Moda).
    Dentro de cada nicho vale a ordem em que você escrever aqui.
    nicho: um dos ids acima.
    video: link do vídeo no YouTube (Shorts ou vídeo comum). Ele toca dentro do próprio site.
@@ -719,24 +719,24 @@ const NICHOS = [
    formato: "video" (9:16) ou "foto" (4:5). Só vale quando não há link de vídeo.
    imagem: nome do arquivo da imagem (vazio = degradê).  link: endereço do trabalho (vazio = sem link). */
 const TRABALHOS = [
-  /* BELEZA */
-  { nicho: "beleza", formato: "video", titulo: "Trabalho 01", marca: "Marca 01", imagem: "", link: "" },
-  { nicho: "beleza", formato: "foto",  titulo: "Trabalho 02", marca: "Marca 02", imagem: "", link: "" },
-  { nicho: "beleza", formato: "video", titulo: "Trabalho 03", marca: "Marca 03", imagem: "", link: "" },
-  /* MODA */
-  { nicho: "moda", formato: "foto",  titulo: "Trabalho 04", marca: "Marca 04", imagem: "", link: "" },
-  { nicho: "moda", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
-  /* COMIDA */
-  { nicho: "gastronomia", formato: "video", titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
-  { nicho: "gastronomia", formato: "foto",  titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
   /* CASA E DECORAÇÃO */
   { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",   marca: "Vídeo 1" },
   { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM", marca: "Vídeo 1" },
   { nicho: "casa", video: "https://youtube.com/shorts/I9iv1-c6LiQ", titulo: "AZULIM", marca: "Vídeo 2" },
-  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",   marca: "Vídeo 2" },  /* ATENÇÃO: este está Privado no YouTube, mude para Não listado */
+  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",   marca: "Vídeo 2" },
+  /* GASTRONOMIA */
+  { nicho: "gastronomia", formato: "video", titulo: "Trabalho 01", marca: "Marca 01", imagem: "", link: "" },
+  { nicho: "gastronomia", formato: "foto",  titulo: "Trabalho 02", marca: "Marca 02", imagem: "", link: "" },
   /* TECH */
-  { nicho: "tech", formato: "video", titulo: "Trabalho 08", marca: "Marca 08", imagem: "", link: "" },
-  { nicho: "tech", formato: "foto",  titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" }
+  { nicho: "tech", formato: "video", titulo: "Trabalho 03", marca: "Marca 03", imagem: "", link: "" },
+  { nicho: "tech", formato: "foto",  titulo: "Trabalho 04", marca: "Marca 04", imagem: "", link: "" },
+  /* BELEZA */
+  { nicho: "beleza", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
+  { nicho: "beleza", formato: "foto",  titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
+  { nicho: "beleza", formato: "video", titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
+  /* MODA */
+  { nicho: "moda", formato: "foto",  titulo: "Trabalho 08", marca: "Marca 08", imagem: "", link: "" },
+  { nicho: "moda", formato: "video", titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" }
 ];
 
 /* SERVIÇOS (6). */
