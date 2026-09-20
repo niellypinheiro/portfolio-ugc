@@ -661,7 +661,7 @@ const PERFIL = {
      Exemplo: fotoCapa: "nielly-capa.jpg". Formato 4:5 (retrato), de preferência até 200 KB.
      Deixando vazio, o site mostra o bloco com degradê e a legenda do formato. */
   fotoCapa: "foto-capa.jpg",
-  fotoSobre: ""
+  fotoSobre: "foto-sobre.jpg"
 };
 
 /* Ajustes gerais e envio dos formulários.
@@ -703,11 +703,11 @@ const DESTAQUES = [
 
 /* NICHOS que você atende (viram os botões de filtro). id é usado nos trabalhos. cores: degradê do bloco. */
 const NICHOS = [
-  { id: "beleza", nome: "Beleza", cores: ["#6d2434", "#b4636f"] },
-  { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] },
-  { id: "comida", nome: "Comida", cores: ["#8a3f22", "#d9903f"] },
   { id: "casa", nome: "Casa e decoração", cores: ["#4d5a3a", "#a3ad7c"] },
-  { id: "tech", nome: "Tech", cores: ["#33283a", "#7a6a8c"] }
+  { id: "gastronomia", nome: "Gastronomia", cores: ["#8a3f22", "#d9903f"] },
+  { id: "tech", nome: "Tech", cores: ["#33283a", "#7a6a8c"] },
+  { id: "beleza", nome: "Beleza", cores: ["#6d2434", "#b4636f"] },
+  { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] }
 ];
 
 /* TRABALHOS da galeria.
@@ -727,8 +727,8 @@ const TRABALHOS = [
   { nicho: "moda", formato: "foto",  titulo: "Trabalho 04", marca: "Marca 04", imagem: "", link: "" },
   { nicho: "moda", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
   /* COMIDA */
-  { nicho: "comida", formato: "video", titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
-  { nicho: "comida", formato: "foto",  titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
+  { nicho: "gastronomia", formato: "video", titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
+  { nicho: "gastronomia", formato: "foto",  titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
   /* CASA E DECORAÇÃO */
   { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",   marca: "Vídeo 1" },
   { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM", marca: "Vídeo 1" },
