@@ -121,7 +121,40 @@
 
   /* ---------- avisos fixos no alto da aba (tabela faltando, etc.) ---------- */
   P.avisos = [];
-  P.limparAvisos = () => { P.avisos = []; P.limpar(document.getElementById("avisos")); };
+  P.tabelasFaltando = [];
+  P.limparAvisos = () => { P.avisos = []; P.tabelasFaltando = []; P.limpar(document.getElementById("avisos")); };
+
+  /* Um cartão só, com o passo a passo, quando o banco ainda não tem as tabelas */
+  async function copiarSql() {
+    try {
+      const r = await fetch("../banco.sql", { cache: "no-store" });
+      if (!r.ok) throw new Error("sem arquivo");
+      await navigator.clipboard.writeText(await r.text());
+      P.toast("SQL copiado. Agora cole no Supabase (passo 3).");
+    } catch (e) {
+      window.open("../banco.sql", "_blank", "noopener");
+      P.toast("Não consegui copiar sozinho. Abri o arquivo: aperte Ctrl+A, depois Ctrl+C.", true);
+    }
+  }
+  function desenharCartaoDeTabelas() {
+    const alvo = document.getElementById("avisos");
+    let cartao = document.getElementById("avisoTabelas");
+    if (!cartao) { cartao = h("div", { id: "avisoTabelas", class: "aviso-pagina", role: "alert" }); alvo.prepend(cartao); }
+    const nomes = P.tabelasFaltando.map((t) => '"' + t + '"').join(", ").replace(/, ([^,]*)$/, " e $1");
+    P.limpar(cartao).append(
+      h("b", { text: "Falta um passo para o painel funcionar por completo" }),
+      h("p", { text: (P.tabelasFaltando.length === 1 ? "O seu banco ainda não tem a tabela " : "O seu banco ainda não tem as tabelas ") + nomes +
+        ". Isso não é defeito do painel: é o passo de criar as tabelas, que se faz uma vez só. Enquanto isso, o resto continua funcionando." }),
+      h("ol", { class: "passos" },
+        h("li", null, "Clique em ", h("button", { type: "button", class: "btn", onclick: copiarSql }, "Copiar o SQL")),
+        h("li", null, "Abra o editor do seu Supabase: ", h("a", { class: "btn", href: window.BANCO.editorSql, target: "_blank", rel: "noopener noreferrer", text: "Abrir o SQL Editor" })),
+        h("li", { text: "Clique na caixa grande, cole com Ctrl+V e clique no botão verde Run. Deve aparecer \"Success\"." }),
+        h("li", null, "Volte aqui e clique em ", h("button", { type: "button", class: "btn p", onclick: () => location.reload() }, "Recarregar"))));
+  }
+  P.registrarTabelaFaltando = (tabela) => {
+    if (!P.tabelasFaltando.includes(tabela)) P.tabelasFaltando.push(tabela);
+    desenharCartaoDeTabelas();
+  };
   P.avisar = function (texto, tipo) {
     if (P.avisos.includes(texto)) return;
     P.avisos.push(texto);
@@ -199,6 +232,7 @@
   /* ---------- falar com o banco sem quebrar quando falta tabela ou campo ---------- */
   P.ehFalta = (e) => !!e && (["42P01", "42703", "PGRST205", "PGRST204", "PGRST200"].includes(e.code) ||
     /does not exist|could not find|schema cache/i.test(e.message || ""));
+  P.ehTabelaFaltando = (e) => !!e && (e.code === "42P01" || e.code === "PGRST205" || /relation .* does not exist|could not find the table/i.test(e.message || ""));
   P.ehPermissao = (e) => !!e && (e.code === "42501" || /row-level security|permission denied/i.test(e.message || ""));
 
   /* Lê uma tabela. Se faltar tabela ou campo, avisa em cima da página e devolve lista vazia */
@@ -208,8 +242,10 @@
       if (error) throw error;
       return { dados: data || [], ok: true };
     } catch (e) {
-      if (P.ehFalta(e)) {
-        P.avisar('Faltou a tabela "' + tabela + '" (ou um campo dela) no Supabase, então esta parte está vazia. Rode o arquivo banco.sql no SQL Editor e recarregue. O resto do painel continua funcionando.');
+      if (P.ehTabelaFaltando(e)) {
+        P.registrarTabelaFaltando(tabela);
+      } else if (P.ehFalta(e)) {
+        P.avisar('Falta um campo na tabela "' + tabela + '" do Supabase, então esta parte está vazia. Me chame para ajustar o banco. O resto do painel continua funcionando.');
       } else if (P.ehPermissao(e)) {
         P.avisar('O banco não deixou ler "' + tabela + '". Confira se você entrou com o seu e-mail e se rodou o banco.sql.', "erro");
       } else {

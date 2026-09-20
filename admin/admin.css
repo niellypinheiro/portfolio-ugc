@@ -112,6 +112,11 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .vazio{padding:16px 14px;border:1px dashed var(--linha-forte);border-radius:var(--raio-p);color:var(--tinta-2);font-size:13.5px;background:rgba(255,255,255,.35)}
 .aviso-pagina{margin:0 0 12px;padding:10px 12px;border-radius:var(--raio-p);font-size:13.5px;background:var(--amarelo-suave);color:var(--amarelo);border:1px solid rgba(122,91,0,.25)}
 .aviso-pagina.erro{background:var(--vermelho-suave);color:var(--vermelho);border-color:rgba(154,31,43,.3)}
+.aviso-pagina b{display:block;margin-bottom:2px}
+.aviso-pagina p{margin:2px 0 0}
+.aviso-pagina ol.passos{margin:10px 0 2px;padding-left:22px}
+.aviso-pagina ol.passos li{margin:6px 0;line-height:2}
+.aviso-pagina .btn{min-height:30px;margin:0 2px;vertical-align:middle}
 .avisos{padding:12px 24px 0}
 .avisos:empty{padding:0}
 @media (max-width:860px){.avisos{padding:12px 14px 0}}
