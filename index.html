@@ -269,6 +269,7 @@ main,.rodape{position:relative;z-index:1}
 .trab-midia.tocavel:hover .play{transform:scale(1.08)}
 .trab h4{margin-top:18px;font:600 1.5rem/1.1 var(--fonte-titulo)}
 .trab p{color:var(--tinta-2);font-size:.95rem}
+.trab .trab-destaque{margin-top:2px;font-weight:600;color:var(--bordo);font-size:.92rem}
 a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro),0 10px 22px rgba(0,0,0,.25)}
 
 /* ---------- 5. serviços ---------- */
@@ -641,11 +642,15 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
   </div>
 </div>
 
+<!-- Ligação com o painel (vídeos, contatos e visitas). Os dados do Supabase ficam só em js/banco.js -->
+<script src="js/banco.js"></script>
 <script>
 /* =========================================================================
    1) DADOS EDITÁVEIS
    Tudo o que você quer trocar está nesta parte. Não precisa mexer no HTML.
    Textos com "00", "Marca 01", "Cliente 01" etc. são espaços para você preencher.
+   ATENÇÃO: os vídeos (destaques e trabalhos) agora vêm do PAINEL (aba Portfólio). As listas DESTAQUES e
+   TRABALHOS abaixo servem só de RESERVA, se o banco estiver fora do ar ou vazio.
    ========================================================================= */
 
 /* Seus dados de contato. Mudou aqui, mudou no site inteiro. */
@@ -664,15 +669,11 @@ const PERFIL = {
   fotoSobre: "foto-sobre.jpg"
 };
 
-/* Ajustes gerais e envio dos formulários.
-   Como o site é estático (GitHub Pages), o navegador não envia e-mail sozinho.
-   Para receber as mensagens direto na sua caixa, crie um formulário gratuito em um serviço
-   como Formspree ou Getform e cole o endereço dele em urlFormulario e urlMidiaKit.
-   Enquanto estiverem vazios, a confirmação oferece botões para concluir pelo WhatsApp ou e-mail. */
+/* Ajustes gerais.
+   Os contatos do formulário do site e do cartão do mídia kit são gravados na aba "Marcas" do seu
+   painel, como Lead. Se a gravação falhar, a confirmação oferece botões para concluir pelo WhatsApp ou e-mail. */
 const CONFIG = {
-  segundosCartao: 7,
-  urlFormulario: "",
-  urlMidiaKit: ""
+  segundosCartao: 7
 };
 
 /* MARCAS com quem você já trabalhou (aparecem na faixa da capa e contam em "marcas atendidas"). */
@@ -855,7 +856,8 @@ const DEPOIMENTOS = [
   }
   function animarContador(el) {
     var alvo = parseFloat(el.dataset.alvo);
-    if (isNaN(alvo)) return;
+    if (isNaN(alvo) || el.dataset.animado) return;
+    el.dataset.animado = "1";
     var casas = +el.dataset.casas || 0, pre = el.dataset.prefixo || "", suf = el.dataset.sufixo || "", fim = el.dataset.final;
     if (reduzir) { el.textContent = fim; return; }
     var dur = 1600, ini = performance.now();
@@ -867,9 +869,9 @@ const DEPOIMENTOS = [
   }
 
   /* ---------- destaques ---------- */
-  function montarDestaques() {
+  function montarDestaques(lista) {
     var alvo = $("#destaquesLista");
-    DESTAQUES.forEach(function (d, i) {
+    (lista || DESTAQUES).forEach(function (d, i) {
       var cores = d.cores || ["#6d2434", "#2a1219"];
       alvo.append(h("a", { class: "destaque papel revela", href: d.link, target: "_blank", rel: "noopener noreferrer", estilo: atraso(i, 120) },
         h("div", { class: "tela", "aria-hidden": d.capa ? null : "true", estilo: { "--g1": cores[0], "--g2": cores[1] } },
@@ -886,7 +888,8 @@ const DEPOIMENTOS = [
   }
 
   /* ---------- trabalhos: um carrossel para cada nicho, na ordem dos nichos ---------- */
-  function montarTrabalhos() {
+  function montarTrabalhos(lista) {
+    var fonte = lista || TRABALHOS;
     var chips = $("#filtros"), area = $("#nichos");
     var tocando = null, atualizadores = [];
     function idYoutube(url) {
@@ -922,14 +925,14 @@ const DEPOIMENTOS = [
         var capa = h("button", { class: "trab-midia v tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + t.titulo, estilo: cores },
           img, h("span", { class: "play", "aria-hidden": "true" }));
         capa.addEventListener("click", function () { tocar(capa, t, id, cores); });
-        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }));
+        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null);
       }
       var video = t.formato === "video";
       var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
         t.imagem ? h("img", { src: t.imagem, alt: t.titulo + ", " + t.marca, loading: "lazy", decoding: "async", width: video ? 720 : 800, height: video ? 1280 : 1000 })
                  : h("span", { class: "legenda-ph", text: video ? "vídeo 9:16" : "foto 4:5" }),
         video ? h("span", { class: "mini-play" }) : null);
-      var corpo = [midia, h("h4", { text: t.titulo }), h("p", { text: t.marca })];
+      var corpo = [midia, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null];
       return t.link
         ? h("a", { class: "trab", href: t.link, target: "_blank", rel: "noopener noreferrer" }, corpo)
         : h("article", { class: "trab" }, corpo);
@@ -941,7 +944,7 @@ const DEPOIMENTOS = [
     }
 
     NICHOS.forEach(function (n) {
-      var itens = TRABALHOS.filter(function (t) { return t.nicho === n.id; });
+      var itens = fonte.filter(function (t) { return t.nicho === n.id; });
       if (!itens.length) return;
 
       var trilho = h("div", { class: "carrossel", tabindex: "0", role: "region", "aria-label": "Trabalhos de " + n.nome });
@@ -1039,7 +1042,7 @@ const DEPOIMENTOS = [
 
   /* ---------- animação de entrada e contadores ---------- */
   function montarAnimacoes() {
-    var revelas = $$(".revela"), contadores = $$(".contador[data-alvo]");
+    var revelas = $$(".revela"), contadores = $$(".contador[data-alvo]:not([data-animado])");
     if (!("IntersectionObserver" in window) || reduzir) {
       revelas.forEach(function (r) { r.classList.remove("revela"); });
       contadores.forEach(animarContador);
@@ -1077,11 +1080,15 @@ const DEPOIMENTOS = [
   function limparErros(form) {
     $$("input,textarea", form).forEach(function (c) { marcar(c, ""); });
   }
-  function enviar(url, dados) {
-    if (!url) return Promise.resolve("manual");
-    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify(dados) })
-      .then(function (r) { return r.ok ? "ok" : "erro"; })
-      .catch(function () { return "erro"; });
+  /* Grava o contato na aba "Marcas" do painel, como Lead.
+     Devolve "ok", "erro" ou "manual" (quando o site não tem ligação com o banco). */
+  function enviarParaMarcas(linha) {
+    if (!window.BANCO || typeof window.BANCO.rest !== "function") return Promise.resolve("manual");
+    return window.BANCO.rest("marcas", { metodo: "POST", corpo: linha }).then(function () { return "ok"; }, function () { return "erro"; });
+  }
+  function hojeISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
   /* monta a mensagem de confirmação; se o site não enviou sozinho, oferece WhatsApp e e-mail */
   function confirmacao(o) {
@@ -1111,7 +1118,7 @@ const DEPOIMENTOS = [
       if (!okMsg) { f.mensagem.focus(); return; }
       botao.disabled = true;
       botao.textContent = "Enviando...";
-      enviar(CONFIG.urlFormulario, { nome: nome, email: email, mensagem: msg }).then(function (estado) {
+      enviarParaMarcas({ nome: nome.slice(0, 200), email: email.slice(0, 200), situacao: "lead", obs: ("Mensagem pelo formulário do site: " + msg).slice(0, 3000), ultimo_contato: hojeISO() }).then(function (estado) {
         var resumo = "Oi, Nielly! Aqui é " + nome + " (" + email + "). " + msg;
         conf.replaceChildren.apply(conf, confirmacao({
           nome: nome, estado: estado, resumo: resumo, assunto: "Contato pelo portfólio: " + nome,
@@ -1176,11 +1183,11 @@ const DEPOIMENTOS = [
       if (!okEmail) { f.email.focus(); return; }
       botao.disabled = true;
       botao.textContent = "Enviando...";
-      enviar(CONFIG.urlMidiaKit, { nome: nome, email: email, pedido: "midia-kit" }).then(function (estado) {
+      enviarParaMarcas({ nome: nome.slice(0, 200), email: email.slice(0, 200), situacao: "lead", obs: "Pediu o mídia kit pelo cartão do site.", ultimo_contato: hojeISO() }).then(function (estado) {
         var resumo = "Oi, Nielly! Aqui é " + nome + " (" + email + "). Quero receber o seu mídia kit completo.";
         conf.replaceChildren.apply(conf, confirmacao({
           nome: nome, estado: estado, resumo: resumo, assunto: "Pedido de mídia kit: " + nome,
-          textoOk: "Vou enviar o meu mídia kit para o seu e-mail.",
+          textoOk: "Recebi o seu pedido e envio o meu mídia kit para o seu e-mail.",
           textoManual: "Seu pedido está pronto. Para ele chegar até mim agora, escolha um caminho:",
           textoErro: "Peça por um destes caminhos, com o pedido já preenchido:"
         }));
@@ -1199,19 +1206,109 @@ const DEPOIMENTOS = [
     if (!jaViu) setTimeout(abrir, CONFIG.segundosCartao * 1000);
   }
 
+  /* ---------- ligação com o painel: vídeos vindos do banco ---------- */
+  function idDoYoutube(url) {
+    var m = String(url || "").match(/(?:shorts\/|[?&]v=|youtu\.be\/|embed\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  /* Lê os vídeos marcados como visíveis no painel. Devolve null se o banco não responder em 3 segundos,
+     der erro ou estiver vazio: nesse caso o site usa as listas de RESERVA lá em cima e continua igual a antes. */
+  function carregarVideos() {
+    if (!window.BANCO || typeof window.BANCO.rest !== "function") return Promise.resolve(null);
+    var pedido = window.BANCO.rest("videos?select=titulo,link,nicho,formato,marca,destaque,ordem&visivel=eq.true&order=ordem.asc")
+      .catch(function () { return null; });
+    var limite = new Promise(function (ok) { setTimeout(function () { ok(null); }, 3000); });
+    return Promise.race([pedido, limite]).then(function (linhas) {
+      return Array.isArray(linhas) && linhas.length ? linhas : null;
+    });
+  }
+  /* Traduz as linhas do banco para o jeito que o site já sabe desenhar.
+     Se a linha tem marca, o nome da marca vira o título do cartão e o título do vídeo vira o texto de baixo. */
+  function converterVideos(linhas) {
+    var trabalhos = [], destaques = [];
+    linhas.forEach(function (v) {
+      if (!NICHOS.some(function (n) { return n.id === v.nicho; })) return;
+      var titulo = v.marca || v.titulo, sub = v.marca ? v.titulo : "";
+      var id = idDoYoutube(v.link);
+      var item = { nicho: v.nicho, titulo: titulo, marca: sub, destaque: v.destaque || "" };
+      if (id) item.video = v.link;
+      else if (/\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i.test(v.link)) { item.formato = "foto"; item.imagem = v.link; }
+      else { item.formato = v.formato === "foto" ? "foto" : "video"; item.link = v.link; }
+      trabalhos.push(item);
+      if (v.destaque && destaques.length < 3) {
+        var partes = String(v.destaque).trim().match(/^(\S+)\s*(.*)$/);
+        destaques.push({
+          link: v.link, capa: id ? "https://i.ytimg.com/vi/" + id + "/oar2.jpg" : "",
+          numero: partes ? partes[1] : v.destaque, rotulo: partes ? partes[2] : "",
+          titulo: titulo, contexto: sub, cores: DESTAQUES[destaques.length % DESTAQUES.length].cores
+        });
+      }
+    });
+    return { trabalhos: trabalhos, destaques: destaques };
+  }
+  /* Sem nenhum vídeo com "destaque" preenchido no painel, a seção de destaques sai do ar (e o link do menu também) */
+  function esconderDestaques() {
+    var s = document.getElementById("destaques");
+    if (s) s.hidden = true;
+    $$('a[href="#destaques"]').forEach(function (a) { var li = a.closest("li"); (li || a).remove(); });
+  }
+
+  /* ---------- registro simples de visita (sem serviço de fora, sem cookie, sem pedir nada) ---------- */
+  function origemDaVisita() {
+    var q = new URLSearchParams(location.search);
+    var explicita = (q.get("utm_source") || q.get("origem") || q.get("ref") || "").trim().toLowerCase();
+    if (explicita) return explicita.slice(0, 60);
+    if (!document.referrer) return "direto";
+    try {
+      var host = new URL(document.referrer).hostname.replace(/^www\./, "").toLowerCase();
+      if (host === location.hostname) return "direto";
+      if (/(^|\.)instagram\.com$/.test(host)) return "instagram";
+      if (/(^|\.)google\./.test(host)) return "google";
+      if (/whatsapp\.com$|^wa\.me$/.test(host)) return "whatsapp";
+      if (/(^|\.)(facebook\.com|fb\.com|l\.facebook\.com)$/.test(host)) return "facebook";
+      if (/(^|\.)tiktok\.com$/.test(host)) return "tiktok";
+      if (/(^|\.)(youtube\.com|youtu\.be)$/.test(host)) return "youtube";
+      if (/(^|\.)linkedin\.com$/.test(host)) return "linkedin";
+      return host.slice(0, 60);
+    } catch (e) { return "direto"; }
+  }
+  function registrarVisita() {
+    try {
+      if (!window.BANCO || typeof window.BANCO.rest !== "function") return;
+      if (location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;   /* testes não contam */
+      if (sessionStorage.getItem("visitaRegistrada")) return;                                              /* uma por visita */
+      for (var i = 0; i < localStorage.length; i++) {                                                      /* a própria dona logada não conta */
+        if (/^sb-.*-auth-token$/.test(localStorage.key(i))) return;
+      }
+      sessionStorage.setItem("visitaRegistrada", "1");
+      window.BANCO.rest("visitas", { metodo: "POST", corpo: { pagina: (location.pathname || "/").slice(0, 200), origem: origemDaVisita() }, keepalive: true })
+        .catch(function () { /* se falhar, o visitante nem percebe */ });
+    } catch (e) { /* sem armazenamento no navegador: simplesmente não registra */ }
+  }
+
   /* ---------- início ---------- */
   aplicarPerfil();
   montarMarcas();
   montarMetricas();
-  montarDestaques();
-  montarTrabalhos();
   montarServicos();
   montarResultados();
   montarDepoimentos();
   montarMenu();
   montarFormContato();
   montarCartao();
-  montarAnimacoes();
+  montarAnimacoes();          /* anima já o que existe na tela */
+  registrarVisita();
+  carregarVideos().then(function (linhas) {
+    var conv = linhas ? converterVideos(linhas) : null;
+    if (conv && conv.trabalhos.length) {
+      montarTrabalhos(conv.trabalhos);
+      if (conv.destaques.length) montarDestaques(conv.destaques); else esconderDestaques();
+    } else {
+      montarDestaques();        /* banco vazio ou fora do ar: usa as listas de reserva */
+      montarTrabalhos();
+    }
+    montarAnimacoes();          /* anima só o que acabou de entrar */
+  });
 })();
 </script>
 </body>
