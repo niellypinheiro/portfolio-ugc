@@ -238,35 +238,37 @@ main,.rodape{position:relative;z-index:1}
 .destaque h3{font-size:1.65rem;padding-top:1.1rem;margin-bottom:.4rem;border-top:1px solid var(--ouro)}
 .destaque-ctx{color:var(--tinta-2);font-size:.98rem}
 
-/* ---------- 4. trabalhos por nicho ---------- */
+/* ---------- 4. trabalhos por nicho (um carrossel para cada nicho) ---------- */
 .trabalhos-pagina{padding:clamp(24px,4.5vw,64px)}
 .filtros{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
-.filtro{min-height:44px;padding:.55rem 1.2rem;border-radius:999px;border:1px solid var(--bordo);background:transparent;color:var(--bordo);font:500 .96rem/1.1 var(--fonte-corpo);cursor:pointer;transition:background-color .2s,color .2s,transform .2s}
-.filtro:hover{background:rgba(109,36,52,.08);transform:translateY(-1px)}
-.filtro[aria-pressed="true"]{background:var(--bordo);color:var(--papel)}
-.galeria-status{text-align:center;margin:18px 0 26px;font:600 1.3rem/1.3 var(--fonte-legenda);color:var(--tinta-2)}
-.galeria{column-count:1;column-gap:22px;max-width:360px;margin-inline:auto}
-@media (min-width:560px){.galeria{column-count:2;max-width:none}}
-@media (min-width:900px){.galeria{column-count:3}}
-.trab{display:block;break-inside:avoid;margin:0 0 24px;text-decoration:none;color:inherit}
+.filtro{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.2rem;border-radius:999px;border:1px solid var(--bordo);background:transparent;color:var(--bordo);font:500 .96rem/1.1 var(--fonte-corpo);text-decoration:none;transition:background-color .2s,color .2s,transform .2s}
+.filtro:hover{background:var(--bordo);color:var(--papel);transform:translateY(-1px)}
+.nicho{margin-top:clamp(34px,5vw,56px);scroll-margin-top:12px}
+.nicho-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:12px;margin-bottom:18px;border-bottom:1px solid var(--ouro)}
+.nicho-cab h3{font-size:clamp(1.9rem,4vw,2.5rem);color:var(--bordo)}
+.setas{display:flex;gap:10px;flex:none}
+.seta{width:46px;height:46px;border-radius:50%;border:1px solid var(--bordo);background:var(--papel);color:var(--bordo);cursor:pointer;display:grid;place-items:center;font:600 2rem/1 var(--fonte-titulo);padding:0 0 4px;transition:background-color .2s,color .2s,opacity .2s}
+.seta:hover:not(:disabled){background:var(--bordo);color:var(--papel)}
+.seta:disabled{opacity:.35;cursor:default}
+.carrossel{position:relative;display:flex;gap:22px;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 8px 14px;margin-inline:-8px;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--ouro) transparent}
+.trab{flex:0 0 calc((100% - 44px)/3);min-width:0;scroll-snap-align:start;display:block;color:inherit;text-decoration:none}
+@media (max-width:899px){.trab{flex-basis:calc((100% - 22px)/2)}}
+@media (max-width:559px){.carrossel{gap:16px}.trab{flex-basis:80%}}
 .trab-midia{position:relative;overflow:hidden;border-radius:3px;border:1px solid var(--ouro);display:flex;align-items:flex-end;justify-content:center;padding:14px;
   background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.16),transparent 55%),linear-gradient(165deg,var(--g1),var(--g2));box-shadow:0 0 0 4px var(--papel),0 0 0 5px rgba(201,162,39,.6)}
 .trab-midia.v{aspect-ratio:9/16}
 .trab-midia.f{aspect-ratio:4/5}
 .trab-midia img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.chip{position:absolute;left:12px;top:12px;z-index:2;font:500 .74rem/1 var(--fonte-corpo);letter-spacing:.08em;text-transform:uppercase;color:var(--papel);background:rgba(38,20,10,.7);padding:.4rem .7rem;border-radius:999px}
-.mini-play{position:absolute;right:12px;top:12px;z-index:2;width:34px;height:34px;border-radius:50%;background:rgba(246,239,226,.95)}
-.mini-play::before{content:"";position:absolute;left:13px;top:9px;border-style:solid;border-width:8px 0 8px 12px;border-color:transparent transparent transparent var(--bordo)}
-.trab h3{margin-top:16px;font-size:1.4rem}
-.trab p{color:var(--tinta-2);font-size:.95rem}
 .trab-midia.tocavel{width:100%;margin:0;font:inherit;color:inherit;text-align:center;cursor:pointer;-webkit-appearance:none;appearance:none}
 .trab-midia iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.mini-play{position:absolute;right:12px;top:12px;z-index:2;width:34px;height:34px;border-radius:50%;background:rgba(246,239,226,.95)}
+.mini-play::before{content:"";position:absolute;left:13px;top:9px;border-style:solid;border-width:8px 0 8px 12px;border-color:transparent transparent transparent var(--bordo)}
 .trab .play{width:64px;height:64px;margin:-32px 0 0 -32px}
 .trab .play::before{left:25px;top:19px;border-width:13px 0 13px 20px}
 .trab-midia.tocavel:hover .play{transform:scale(1.08)}
+.trab h4{margin-top:18px;font:600 1.5rem/1.1 var(--fonte-titulo)}
+.trab p{color:var(--tinta-2);font-size:.95rem}
 .trab-yt{display:inline-block;margin-top:.3rem;padding:.35rem 0;color:var(--bordo);font-size:.9rem;font-weight:500;text-underline-offset:3px}
-.trab.entra{animation:entrar .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0ms)}
-@keyframes entrar{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
 a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro),0 10px 22px rgba(0,0,0,.25)}
 
 /* ---------- 5. serviços ---------- */
@@ -498,10 +500,9 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
         <h2 id="trabalhos-titulo">Trabalhos por <em>nicho</em></h2>
         <span class="ornamento" aria-hidden="true"></span>
       </div>
-      <div class="filtros" id="filtros" role="group" aria-label="Filtrar trabalhos por nicho"></div>
-      <p class="galeria-status" id="galeriaStatus" role="status" aria-live="polite"></p>
-      <!-- Os trabalhos vêm da lista TRABALHOS (script). Para usar imagem real, preencha "imagem" e "link". -->
-      <div class="galeria" id="galeria"></div>
+      <nav class="filtros" id="filtros" aria-label="Ir para um nicho"></nav>
+      <!-- Cada nicho vira um carrossel, montado a partir da lista TRABALHOS (script, no fim do arquivo). -->
+      <div id="nichos"></div>
     </div>
   </div>
 </section>
@@ -710,7 +711,7 @@ const NICHOS = [
 ];
 
 /* TRABALHOS da galeria.
-   Eles aparecem agrupados na ordem dos nichos (Beleza, Moda, Comida, Casa e decoração, Tech).
+   Cada nicho vira um carrossel, um abaixo do outro, na ordem dos nichos (Beleza, Moda, Comida, Casa e decoração, Tech).
    Dentro de cada nicho vale a ordem em que você escrever aqui.
    nicho: um dos ids acima.
    video: link do vídeo no YouTube (Shorts ou vídeo comum). Ele toca dentro do próprio site.
@@ -884,23 +885,15 @@ const DEPOIMENTOS = [
     });
   }
 
-  /* ---------- trabalhos com filtro por nicho ---------- */
+  /* ---------- trabalhos: um carrossel para cada nicho, na ordem dos nichos ---------- */
   function montarTrabalhos() {
-    var barra = $("#filtros"), grade = $("#galeria"), status = $("#galeriaStatus");
-    var botoes = [], cards = [], tocando = null;
-    var lista = [{ id: "todos", nome: "Todos" }].concat(NICHOS);
-    var ordemNichos = NICHOS.map(function (n) { return n.id; });
-    function posicao(id) { var i = ordemNichos.indexOf(id); return i < 0 ? 999 : i; }
+    var chips = $("#filtros"), area = $("#nichos");
+    var tocando = null, atualizadores = [];
     function idYoutube(url) {
       var m = String(url || "").match(/(?:shorts\/|[?&]v=|youtu\.be\/|embed\/)([\w-]{11})/);
       return m ? m[1] : null;
     }
     function urlYoutube(id) { return "https://www.youtube.com/shorts/" + id; }
-
-    /* junta os trabalhos na ordem dos nichos; dentro de cada nicho vale a ordem da lista */
-    var ordenados = TRABALHOS.map(function (t, i) { return { t: t, i: i }; })
-      .sort(function (a, b) { return posicao(a.t.nicho) - posicao(b.t.nicho) || a.i - b.i; })
-      .map(function (x) { return x.t; });
 
     /* devolve o cartão ao estado de capa, para o vídeo parar de tocar */
     function pararVideo() {
@@ -919,65 +912,68 @@ const DEPOIMENTOS = [
       tocando = { caixa: caixa, capa: capa };
     }
 
-    ordenados.forEach(function (t) {
-      var nicho = NICHOS.filter(function (n) { return n.id === t.nicho; })[0] || { nome: t.nicho, cores: ["#6d2434", "#b4636f"] };
+    function montarCard(t, nicho) {
       var cores = { "--g1": nicho.cores[0], "--g2": nicho.cores[1] };
       var id = idYoutube(t.video);
-      var card;
       if (id) {
         /* vídeo do YouTube: capa vertical com botão de play; o player só carrega quando a pessoa clica */
         var img = h("img", { src: "https://i.ytimg.com/vi/" + id + "/oar2.jpg", alt: "", loading: "lazy", decoding: "async", width: 720, height: 1280 });
         img.addEventListener("error", function () { img.remove(); });
         var capa = h("button", { class: "trab-midia v tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + t.titulo, estilo: cores },
-          img, h("span", { class: "chip", text: nicho.nome }), h("span", { class: "play", "aria-hidden": "true" }));
+          img, h("span", { class: "play", "aria-hidden": "true" }));
         capa.addEventListener("click", function () { tocar(capa, t, id, cores); });
-        card = h("article", { class: "trab", "data-nicho": t.nicho }, capa, h("h3", { text: t.titulo }), h("p", { text: t.marca }),
+        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }),
           h("a", { class: "trab-yt", href: urlYoutube(id), target: "_blank", rel: "noopener noreferrer" }, "Ver no YouTube", h("span", { class: "sr-only", text: " (abre em nova aba)" })));
-      } else {
-        var video = t.formato === "video";
-        var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
-          t.imagem ? h("img", { src: t.imagem, alt: t.titulo + ", " + t.marca, loading: "lazy", decoding: "async", width: video ? 720 : 800, height: video ? 1280 : 1000 })
-                   : h("span", { class: "legenda-ph", text: video ? "vídeo 9:16" : "foto 4:5" }),
-          h("span", { class: "chip", text: nicho.nome }),
-          video ? h("span", { class: "mini-play" }) : null);
-        var corpo = [midia, h("h3", { text: t.titulo }), h("p", { text: t.marca })];
-        card = t.link
-          ? h("a", { class: "trab", href: t.link, target: "_blank", rel: "noopener noreferrer", "data-nicho": t.nicho }, corpo)
-          : h("article", { class: "trab", "data-nicho": t.nicho }, corpo);
       }
-      cards.push(card);
-      grade.append(card);
-    });
-
-    function aplicar(id) {
-      pararVideo();
-      var n = 0;
-      cards.forEach(function (c) {
-        var ok = id === "todos" || c.getAttribute("data-nicho") === id;
-        c.hidden = !ok;
-        c.classList.remove("entra");
-        if (ok) {
-          c.style.setProperty("--d", (n * 60) + "ms");
-          void c.offsetWidth;
-          c.classList.add("entra");
-          n++;
-        }
-      });
-      botoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.nicho === id)); });
-      var nome = lista.filter(function (x) { return x.id === id; })[0].nome;
-      status.textContent = id === "todos"
-        ? "Mostrando todos os " + n + " trabalhos"
-        : "Mostrando " + n + (n === 1 ? " trabalho" : " trabalhos") + " de " + nome.toLowerCase();
+      var video = t.formato === "video";
+      var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
+        t.imagem ? h("img", { src: t.imagem, alt: t.titulo + ", " + t.marca, loading: "lazy", decoding: "async", width: video ? 720 : 800, height: video ? 1280 : 1000 })
+                 : h("span", { class: "legenda-ph", text: video ? "vídeo 9:16" : "foto 4:5" }),
+        video ? h("span", { class: "mini-play" }) : null);
+      var corpo = [midia, h("h4", { text: t.titulo }), h("p", { text: t.marca })];
+      return t.link
+        ? h("a", { class: "trab", href: t.link, target: "_blank", rel: "noopener noreferrer" }, corpo)
+        : h("article", { class: "trab" }, corpo);
     }
 
-    lista.forEach(function (n) {
-      var b = h("button", { class: "filtro", type: "button", "data-nicho": n.id, "aria-pressed": "false", text: n.nome });
-      b.addEventListener("click", function () { aplicar(n.id); });
-      botoes.push(b);
-      barra.append(b);
+    function seta(direcao) {
+      return h("button", { class: "seta", type: "button", "aria-label": direcao < 0 ? "Ver os anteriores" : "Ver os próximos" },
+        h("span", { "aria-hidden": "true", text: direcao < 0 ? "\u2039" : "\u203A" }));
+    }
+
+    NICHOS.forEach(function (n) {
+      var itens = TRABALHOS.filter(function (t) { return t.nicho === n.id; });
+      if (!itens.length) return;
+
+      var trilho = h("div", { class: "carrossel", tabindex: "0", role: "region", "aria-label": "Trabalhos de " + n.nome });
+      itens.forEach(function (t) { trilho.append(montarCard(t, n)); });
+
+      var ant = seta(-1), prox = seta(1), setas = h("div", { class: "setas" }, ant, prox);
+      function passo() {
+        var c = trilho.querySelector(".trab");
+        var vao = parseFloat(getComputedStyle(trilho).columnGap) || 22;
+        return c ? c.getBoundingClientRect().width + vao : trilho.clientWidth * 0.8;
+      }
+      function atualizar() {
+        setas.hidden = trilho.scrollWidth <= trilho.clientWidth + 4;
+        ant.disabled = trilho.scrollLeft <= 2;
+        prox.disabled = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
+      }
+      ant.addEventListener("click", function () { trilho.scrollBy({ left: -passo(), behavior: reduzir ? "auto" : "smooth" }); });
+      prox.addEventListener("click", function () { trilho.scrollBy({ left: passo(), behavior: reduzir ? "auto" : "smooth" }); });
+      trilho.addEventListener("scroll", atualizar, { passive: true });
+      atualizadores.push(atualizar);
+
+      chips.append(h("a", { class: "filtro", href: "#nicho-" + n.id, text: n.nome }));
+      area.append(h("section", { class: "nicho revela", id: "nicho-" + n.id, "aria-labelledby": "nicho-" + n.id + "-titulo" },
+        h("div", { class: "nicho-cab" }, h("h3", { id: "nicho-" + n.id + "-titulo", text: n.nome }), setas),
+        trilho));
     });
-    aplicar("todos");
-    cards.forEach(function (c) { c.classList.remove("entra"); });
+
+    function atualizarTodos() { atualizadores.forEach(function (f) { f(); }); }
+    window.addEventListener("resize", atualizarTodos);
+    window.addEventListener("load", atualizarTodos);
+    requestAnimationFrame(atualizarTodos);
   }
 
   /* ---------- serviços, resultados e depoimentos ---------- */
