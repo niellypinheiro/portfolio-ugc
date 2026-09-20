@@ -268,7 +268,6 @@ main,.rodape{position:relative;z-index:1}
 .trab-midia.tocavel:hover .play{transform:scale(1.08)}
 .trab h4{margin-top:18px;font:600 1.5rem/1.1 var(--fonte-titulo)}
 .trab p{color:var(--tinta-2);font-size:.95rem}
-.trab-yt{display:inline-block;margin-top:.3rem;padding:.35rem 0;color:var(--bordo);font-size:.9rem;font-weight:500;text-underline-offset:3px}
 a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro),0 10px 22px rgba(0,0,0,.25)}
 
 /* ---------- 5. serviços ---------- */
@@ -922,8 +921,7 @@ const DEPOIMENTOS = [
         var capa = h("button", { class: "trab-midia v tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + t.titulo, estilo: cores },
           img, h("span", { class: "play", "aria-hidden": "true" }));
         capa.addEventListener("click", function () { tocar(capa, t, id, cores); });
-        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }),
-          h("a", { class: "trab-yt", href: urlYoutube(id), target: "_blank", rel: "noopener noreferrer" }, "Ver no YouTube", h("span", { class: "sr-only", text: " (abre em nova aba)" })));
+        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }));
       }
       var video = t.formato === "video";
       var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
