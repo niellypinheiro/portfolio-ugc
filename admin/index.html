@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel | Nielly Pinheiro</title>
+<!-- Esta página não deve aparecer no Google -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#efe4cf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<!-- "carregando" esconde o painel inteiro até a sessão ser conferida -->
+<body class="carregando">
+
+<div class="verificando" id="verificando" role="status">Verificando acesso...</div>
+
+<div class="app" id="app">
+  <aside class="lateral" id="lateral" aria-label="Menu do painel">
+    <div class="lateral-topo">
+      <span class="lateral-nome">Nielly Pinheiro</span>
+      <span class="lateral-sub">Painel</span>
+    </div>
+    <nav class="lateral-nav" id="menu">
+      <p class="lateral-grupo">Meu site</p>
+      <button type="button" class="item" data-aba="portfolio"></button>
+      <button type="button" class="item" data-aba="marcas"></button>
+      <p class="lateral-grupo">Minha rotina</p>
+      <button type="button" class="item" data-aba="calendario"></button>
+      <button type="button" class="item" data-aba="campanhas"></button>
+      <button type="button" class="item" data-aba="checklist"></button>
+    </nav>
+    <div class="lateral-pe">
+      <span class="lateral-email" id="emailLogado" title=""></span>
+      <button type="button" class="btn sair" id="botaoSair"></button>
+    </div>
+  </aside>
+  <div class="fundo-gaveta" id="fundoGaveta"></div>
+
+  <div class="principal">
+    <header class="topo">
+      <button type="button" class="btn-i" id="botaoMenu" aria-label="Abrir menu" aria-controls="lateral" aria-expanded="false"></button>
+      <h1 id="tituloAba">Portfólio</h1>
+      <a class="ver-site" href="../" target="_blank" rel="noopener">Ver o site</a>
+    </header>
+    <div class="avisos" id="avisos" aria-live="polite"></div>
+    <main id="conteudo" tabindex="-1"></main>
+  </div>
+</div>
+
+<div id="camadaModal"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Biblioteca do Supabase (CDN), depois os dados de ligação -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/banco.js"></script>
+<!-- A PRIMEIRA coisa a rodar é a conferência da sessão. Sem sessão, vai para o login -->
+<script src="sessao.js"></script>
+<script src="base.js"></script>
+<script src="../js/biblioteca.js"></script>
+<script src="portfolio.js"></script>
+<script src="marcas.js"></script>
+<script src="calendario.js"></script>
+<script src="campanhas.js"></script>
+<script src="checklist.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
