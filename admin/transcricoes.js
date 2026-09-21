@@ -99,10 +99,13 @@
     }
     return String(content || "").trim();
   }
-  /* Pede a transcrição. Vídeos sem legenda são transcritos pelo áudio, o que pode levar um pouco (o painel espera). */
-  async function transcrever(chave, link, aoStatus) {
-    aoStatus("Pedindo a transcrição...");
-    let r = await pedir("/v1/transcript?url=" + encodeURIComponent(link) + "&text=false&chunkSize=240&mode=auto", chave);
+  const IDIOMAS = [["pt", "Português"], ["en", "Inglês"], ["es", "Espanhol"], ["auto", "Detectar sozinho"]];
+  const nomeIdioma = (c) => { const x = IDIOMAS.find((i) => i[0] === String(c || "").slice(0, 2).toLowerCase()); return x ? x[1] : String(c || "outro idioma"); };
+  /* Um pedido ao serviço, esperando o resultado quando ele precisa ouvir o áudio (isso pode levar um pouco) */
+  async function buscar(chave, link, modo, idioma, aoStatus) {
+    aoStatus(modo === "generate" ? "Transcrevendo o áudio do vídeo..." : "Pedindo a transcrição...");
+    const lang = idioma && idioma !== "auto" ? "&lang=" + idioma : "";
+    let r = await pedir("/v1/transcript?url=" + encodeURIComponent(link) + "&text=false&chunkSize=240&mode=" + modo + lang, chave);
     if (r.status === 202 && r.corpo && r.corpo.jobId) {
       const job = r.corpo.jobId, inicio = Date.now();
       for (;;) {
@@ -118,9 +121,24 @@
     if (r.status !== 200) throw new ErroTranscricao(mensagemDeErro(r.status, r.corpo), r.status);
     const texto = formatar(r.corpo && r.corpo.content);
     if (!texto) throw new ErroTranscricao("Não encontrei fala neste vídeo (pode ter só música).");
-    return texto;
+    return { texto, lang: (r.corpo && r.corpo.lang) || "" };
   }
-
+  /* Primeiro tenta a legenda que já existe. Se ela veio em outro idioma que não o escolhido (comum em TikTok e
+     Instagram, que traduzem a legenda), o serviço ouve o áudio e transcreve no idioma escolhido. */
+  async function transcrever(chave, link, idioma, aoStatus) {
+    const r = await buscar(chave, link, "auto", idioma, aoStatus);
+    if (idioma !== "auto" && r.lang && r.lang.slice(0, 2).toLowerCase() !== idioma) {
+      aoStatus("A legenda que existe está em " + nomeIdioma(r.lang) + ". Transcrevendo pelo áudio em " + nomeIdioma(idioma) + "...");
+      try {
+        const g = await buscar(chave, link, "generate", idioma, aoStatus);
+        return { texto: g.texto, lang: g.lang || idioma };
+      } catch (e) {
+        if (e instanceof ErroTranscricao && e.status === 401) throw e;
+        /* se não deu pelo áudio, fica com a legenda que já veio, avisando o idioma */
+      }
+    }
+    return r;
+  }
   async function copiar(texto, msg) {
     try { await navigator.clipboard.writeText(texto); P.toast(msg); }
     catch (e) { P.toast("Não consegui copiar sozinho. Selecione o texto e use Ctrl+C.", true); }
@@ -268,6 +286,10 @@
           const status = h("span", { class: "status-transc", role: "status" });
           const sujo = h("span", { class: "tag exemplo", style: "margin:0", hidden: true, text: "alterações não salvas" });
           const botaoTranscrever = h("button", { type: "button", class: "btn p" }, P.ic("transcricao"), "Transcrever o roteiro");
+          let idiomaGuardado = "pt"; try { idiomaGuardado = localStorage.getItem("transcricao_idioma") || "pt"; } catch (e) { /* usa o padrão */ }
+          const idioma = h("select", { "aria-label": "Idioma do vídeo", style: "width:auto;min-width:0;padding:6px 8px;font-size:13px" },
+            IDIOMAS.map((i) => h("option", { value: i[0], text: i[0] === "auto" ? i[1] : "Falado em " + i[1].toLowerCase() })));
+          idioma.value = IDIOMAS.some((i) => i[0] === idiomaGuardado) ? idiomaGuardado : "pt";
           const botaoSalvar = h("button", { type: "button", class: "btn" }, "Salvar");
           const marcarSujo = () => { sujo.hidden = false; };
           const contar = () => { const n = palavras(roteiro.value); contagem.textContent = n + (n === 1 ? " palavra" : " palavras"); };
@@ -290,9 +312,11 @@
             if (roteiro.value.trim() && !(await P.confirmar("Já existe um roteiro escrito. Substituir pela nova transcrição?", { botao: "Substituir", titulo: "Substituir o roteiro" }))) return;
             botaoTranscrever.disabled = true; status.className = "status-transc"; status.textContent = "";
             try {
-              const texto = await transcrever(chaveServico, dados.link, (m) => { status.textContent = m; });
-              roteiro.value = texto; contar();
-              status.textContent = "Pronto. Transcrição guardada.";
+              try { localStorage.setItem("transcricao_idioma", idioma.value); } catch (e) { /* sem memória do navegador, segue normal */ }
+              const r = await transcrever(chaveServico, dados.link, idioma.value, (m) => { status.textContent = m; });
+              roteiro.value = r.texto; contar();
+              const trocou = idioma.value !== "auto" && r.lang && r.lang.slice(0, 2).toLowerCase() !== idioma.value;
+              status.textContent = "Pronto. Transcrição guardada" + (trocou ? ", mas veio em " + nomeIdioma(r.lang) + " (não achei em " + nomeIdioma(idioma.value) + ")." : ".");
               await salvar(true);
             } catch (e) {
               status.className = "status-transc erro";
@@ -310,7 +334,8 @@
             h("div", { class: "coluna-texto" },
               P.campo("Título", titulo),
               h("div", { class: "linha-botoes", style: "justify-content:space-between;margin-bottom:6px" },
-                h("label", { style: "font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Roteiro (transcrição)" }), botaoTranscrever),
+                h("label", { style: "font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Roteiro (transcrição)" }),
+                h("span", { class: "linha-botoes" }, idioma, botaoTranscrever)),
               status, roteiro,
               h("div", { class: "linha-botoes", style: "justify-content:space-between;margin:2px 0 12px" }, contagem,
                 h("button", { type: "button", class: "btn", onclick: () => (roteiro.value.trim() ? copiar(roteiro.value, "Roteiro copiado") : P.toast("Ainda não tem roteiro para copiar.", true)) }, P.ic("copiar"), "Copiar o roteiro")),
