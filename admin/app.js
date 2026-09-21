@@ -10,7 +10,8 @@
     ["marcas", "Marcas", "marcas"],
     ["calendario", "Calendário", "calendario"],
     ["campanhas", "Campanhas", "campanhas"],
-    ["checklist", "Checklist portfólio", "checklist"]
+    ["checklist", "Checklist portfólio", "checklist"],
+    ["transcricoes", "Transcrições", "transcricao"]
   ];
   const $ = (id) => document.getElementById(id);
   let abaAtual = "portfolio";

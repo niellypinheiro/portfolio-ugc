@@ -250,6 +250,41 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .lista-dia li:last-child{border-bottom:0}
 .lista-dia .t{flex:1;min-width:0}
 
+/* ---------- transcrições ---------- */
+.transc{display:grid;grid-template-columns:minmax(250px,340px) minmax(0,1fr);gap:14px;align-items:start}
+.transc-lista{display:flex;flex-direction:column;gap:8px}
+.busca-transc input{width:100%}
+.item-transc{display:block;width:100%;padding:10px 12px;text-align:left;border:1px solid var(--linha);border-radius:var(--raio);background:var(--cartao)}
+.item-transc:hover{border-color:var(--linha-forte)}
+.item-transc[aria-current="true"]{background:var(--bordo-suave);border-color:rgba(109,36,52,.4)}
+.item-transc b{display:block;margin:5px 0 2px;font-size:14px;font-weight:600}
+.item-transc .data{font-size:11.5px;color:var(--tinta-3)}
+.item-transc .trecho{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;color:var(--tinta-2)}
+.item-transc.exemplo{border-style:dashed;cursor:default;background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(201,162,39,.08) 8px 16px)}
+.p-youtube{background:var(--vermelho-suave);color:var(--vermelho)}
+.p-instagram{background:rgba(120,80,140,.15);color:#5b3a70}
+.p-tiktok{background:rgba(60,110,120,.16);color:#2f5d66}
+.p-outro{background:var(--cinza-suave);color:var(--tinta-2)}
+.editor-transc{padding:16px}
+.editor-topo{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-bottom:12px}
+.editor-topo h2{flex:1;font-size:15px;font-weight:600}
+.linha-botoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.transc textarea.grande{min-height:360px;line-height:1.65;resize:vertical}
+.transc textarea.medio{min-height:130px;line-height:1.6;resize:vertical}
+.ajuda-transc{margin:0 0 14px;border:1px solid var(--linha);border-radius:var(--raio-p);background:rgba(255,255,255,.4)}
+.ajuda-transc summary{padding:9px 12px;cursor:pointer;font-weight:500}
+.ajuda-transc .corpo-ajuda{padding:0 12px 12px}
+.ajuda-transc ol.passos{margin:4px 0 8px;padding-left:22px}
+.ajuda-transc ol.passos li{margin:6px 0;line-height:2}
+.links-toks{display:flex;flex-wrap:wrap;gap:8px}
+.voltar-transc{display:none}
+@media (max-width:860px){
+  .transc{grid-template-columns:1fr}
+  .transc.detalhe .transc-col-lista{display:none}
+  .transc:not(.detalhe) .transc-col-editor{display:none}
+  .voltar-transc{display:inline-flex}
+}
+
 /* ---------- checklist e biblioteca ---------- */
 .subabas{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--linha)}
 .subabas button{min-height:36px;padding:0 12px;margin-bottom:-1px;border:0;border-bottom:2px solid transparent;background:none;font-size:13.5px;color:var(--tinta-2)}

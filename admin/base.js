@@ -61,7 +61,9 @@
     whats: '<path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5z"/><path d="M9 9c.3 2.3 2.7 4.7 6 6l1.2-1.4-2-1-.9.7c-.9-.4-1.8-1.3-2.2-2.2l.7-.9-1-2z"/>',
     insta: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".8" fill="currentColor"/>',
     play: '<path d="M8 5l11 7-11 7z"/>',
-    check: '<path d="M5 12l5 5 9-10"/>'
+    check: '<path d="M5 12l5 5 9-10"/>',
+    transcricao: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/>',
+    copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'
   };
   P.ic = function (nome, cheio) {
     const t = document.createElement("template");
