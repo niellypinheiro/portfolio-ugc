@@ -160,9 +160,66 @@
     });
   }
 
+  /* ---------- mais números: quando visitam, o que fazem, páginas ----------
+     Visitas e ações ficam na mesma tabela "visitas". As ações têm um prefixo no campo "pagina":
+     "clique:whatsapp", "clique:email", "clique:instagram" e "video:Nome do vídeo". */
+  const ehAcao = (v) => /^(clique|video):/.test(String(v.pagina || ""));
+  const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+  const FAIXAS = ["Madrugada (0h às 6h)", "Manhã (6h às 12h)", "Tarde (12h às 18h)", "Noite (18h às 24h)"];
+  const nomePagina = (p) => (p === "/" || /\/portfolio-ugc\/?$/.test(p) ? "Página inicial" : p);
+
+  function extras(visitas) {
+    const semana = [0, 0, 0, 0, 0, 0, 0], faixas = [0, 0, 0, 0], paginas = {}, cliques = {}, videosVistos = {};
+    let reais = 0, plays = 0;
+    visitas.forEach((v) => {
+      const p = String(v.pagina || "/");
+      if (p.startsWith("clique:")) { const k = p.slice(7); cliques[k] = (cliques[k] || 0) + 1; return; }
+      if (p.startsWith("video:")) { const k = p.slice(6) || "sem nome"; videosVistos[k] = (videosVistos[k] || 0) + 1; plays++; return; }
+      const d = new Date(v.data);
+      if (isNaN(d.getTime())) return;
+      reais++;
+      semana[(d.getDay() + 6) % 7]++;                      /* segunda = 0 */
+      faixas[Math.min(3, Math.floor(d.getHours() / 6))]++;
+      paginas[p] = (paginas[p] || 0) + 1;
+    });
+    const ordenar = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]);
+    return { reais, semana, faixas, paginas: ordenar(paginas).slice(0, 6), cliques, plays, topVideos: ordenar(videosVistos).slice(0, 5) };
+  }
+  /* lista com barrinha; "base" é o total para a porcentagem (0 = sem porcentagem) */
+  function linhasComBarra(pares, base) {
+    const maior = Math.max(1, ...pares.map((p) => p[1]));
+    return h("ul", { class: "origens" }, pares.map(([nome, n]) => {
+      const pct = base ? Math.round((n / base) * 100) : 0;
+      return h("li", null, h("span", { text: nome }), h("span", { text: n + (base ? " (" + pct + "%)" : "") }),
+        h("div", { class: "fio" }, h("i", { estilo: { width: Math.round((n / maior) * 100) + "%" } })));
+    }));
+  }
+  function desenharExtras(visitas) {
+    const e = extras(visitas);
+    const cartao = (titulo, corpo) => h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: titulo })), h("div", { class: "corpo" }, corpo));
+    const vazio = (t) => h("div", { class: "vazio", text: t });
+    const quando = e.reais === 0
+      ? vazio("Quando as pessoas começarem a visitar o site, aqui aparece em quais dias da semana e em quais horários elas mais entram.")
+      : h("div", null,
+          h("p", { class: "sub-rotulo", text: "Por dia da semana" }), linhasComBarra(DIAS.map((d, i) => [d, e.semana[i]]), e.reais),
+          h("p", { class: "sub-rotulo", text: "Por horário" }), linhasComBarra(FAIXAS.map((f, i) => [f, e.faixas[i]]), e.reais));
+    const totalCliques = Object.values(e.cliques).reduce((s, n) => s + n, 0);
+    const fazem = (totalCliques + e.plays === 0)
+      ? vazio("Aqui vai aparecer quantas pessoas clicam no WhatsApp, no e-mail e no Instagram, e quais vídeos elas mais assistem.")
+      : h("div", null,
+          linhasComBarra([["Clicaram no WhatsApp", e.cliques.whatsapp || 0], ["Clicaram no e-mail", e.cliques.email || 0], ["Clicaram no Instagram", e.cliques.instagram || 0], ["Assistiram a vídeos", e.plays]], 0),
+          e.topVideos.length ? [h("p", { class: "sub-rotulo", text: "Vídeos mais assistidos" }), linhasComBarra(e.topVideos, e.plays)] : null);
+    const paginas = e.reais === 0
+      ? vazio("Aqui vai aparecer quais páginas do seu site as pessoas mais abrem.")
+      : linhasComBarra(e.paginas.map(([p, n]) => [nomePagina(p), n]), e.reais);
+    return h("div", { class: "secao" },
+      h("h2", { class: "titulo-secao", text: "Mais números (últimos 30 dias)" }),
+      h("div", { class: "tres-colunas" }, cartao("Quando as pessoas visitam", quando), cartao("O que as pessoas fazem", fazem), cartao("Páginas mais vistas", paginas)));
+  }
+
   P.abas.portfolio = {
     async renderizar(raiz) {
-      const desde = new Date(); desde.setDate(desde.getDate() - 13); desde.setHours(0, 0, 0, 0);
+      const desde = new Date(); desde.setDate(desde.getDate() - 29); desde.setHours(0, 0, 0, 0);
       const [rv, rvis] = await Promise.all([
         P.carregar("videos", (t) => t.select("*").order("ordem", { ascending: true })),
         P.carregar("visitas", (t) => t.select("data,origem,pagina").gte("data", desde.toISOString()).order("data", { ascending: false }).limit(20000))
@@ -232,7 +289,7 @@
       }
 
       function desenhar() {
-        const r = calcular(visitas, videos);
+        const r = calcular(visitas.filter((v) => !ehAcao(v)), videos);   /* as ações (cliques e vídeos) não contam como visita */
         P.limpar(raiz).append(
           h("div", { class: "faixa-metricas" },
             metrica("Visitas em 14 dias", P.numero(r.total)),
@@ -243,6 +300,7 @@
           h("div", { class: "secao duas-colunas" },
             h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: "Visitas nos últimos 14 dias" })), h("div", { class: "corpo" }, desenharGrafico(r))),
             h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: "Por onde chegaram" })), h("div", { class: "corpo" }, desenharOrigens(r)))),
+          desenharExtras(visitas),
           h("div", { class: "secao" },
             h("div", { class: "ferramentas" },
               h("h2", { text: "Meus vídeos", style: "font-size:14px;font-weight:600;flex:1" }),
