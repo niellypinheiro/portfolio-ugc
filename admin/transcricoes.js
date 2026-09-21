@@ -142,8 +142,29 @@
   /* ---------- a análise do vídeo, feita por inteligência artificial (Gemini, do Google, plano gratuito) ---------- */
   const CHAVE_IA = "gemini_api_key";
   const SERVICO_IA = "https://generativelanguage.googleapis.com";
-  /* "gemini-flash-latest" aponta sempre para o Flash mais novo. Se um modelo não estiver liberado, tenta o seguinte. */
-  const MODELOS_IA = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+  /* Os nomes dos modelos do Google mudam com o tempo e alguns são desligados. Por isso o painel pergunta ao Google
+     quais existem agora e usa os "flash" (rápidos e gratuitos) mais novos primeiro. Esta lista só serve se essa pergunta falhar. */
+  const MODELOS_IA = ["gemini-flash-latest", "gemini-2.5-flash"];
+  let modelosSalvos = null;
+  async function modelosDoGoogle(chave) {
+    if (modelosSalvos && modelosSalvos.chave === chave) return modelosSalvos.lista;
+    let lista = [];
+    try {
+      const r = await pedirIA("/v1beta/models?pageSize=200", chave);
+      if (r.status === 200 && r.corpo && Array.isArray(r.corpo.models)) {
+        const nota = (n) => { const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash/); return (m ? parseFloat(m[1]) : -1) - (/preview|exp/i.test(n) ? 0.0005 : 0); };
+        lista = r.corpo.models
+          .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+          .map((m) => String(m.name || "").replace(/^models\//, ""))
+          .filter((n) => /^gemini-/.test(n) && /flash/.test(n) && !/lite|image|tts|live|audio|native|thinking|robotics|computer|embedding|exp-/i.test(n))
+          .sort((a, b) => nota(b) - nota(a))
+          .slice(0, 5);
+      }
+    } catch (e) { /* usa a lista fixa */ }
+    if (!lista.length) lista = MODELOS_IA.slice();
+    modelosSalvos = { chave, lista };
+    return lista;
+  }
   class ErroIA extends Error { constructor(msg, status) { super(msg); this.status = status; } }
   const chaveInvalidaIA = (r) => {
     const s = JSON.stringify(r.corpo || "");
@@ -213,11 +234,13 @@
   async function analisar(chave, ficha) {
     const entrada = "Plataforma: " + nomePlataforma(ficha.plataforma) + "\nTítulo: " + (ficha.titulo || "sem título") + "\n\nTranscrição:\n<<<\n" + String(ficha.roteiro).slice(0, 12000) + "\n>>>";
     let ultimo = null;
-    for (const modelo of MODELOS_IA) {
+    const tentados = [];
+    for (const modelo of await modelosDoGoogle(chave)) {
+      tentados.push(modelo);
       const r = await pedirIA("/v1beta/models/" + modelo + ":generateContent", chave, {
         systemInstruction: { parts: [{ text: PROMPT_ANALISE }] },
         contents: [{ role: "user", parts: [{ text: entrada }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 8192 }
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
       });
       if (r.status === 200) {
         const cand = r.corpo && r.corpo.candidates && r.corpo.candidates[0];
@@ -228,10 +251,11 @@
       }
       if (chaveInvalidaIA(r)) throw new ErroIA(mensagemDeErroIA(r), 401);
       /* modelo que não existe ou sem cota grátis, ou serviço ocupado: tenta o próximo da lista */
-      if ([404, 429, 500, 502, 503, 504].includes(r.status)) { ultimo = r; continue; }
+      if ([404, 429, 500, 502, 503, 504].includes(r.status) || (r.status === 400 && /model/i.test(JSON.stringify(r.corpo || "")))) { ultimo = r; continue; }
       throw new ErroIA(mensagemDeErroIA(r), r.status);
     }
-    throw new ErroIA(mensagemDeErroIA(ultimo), ultimo.status);
+    modelosSalvos = null;   /* na próxima vez pergunta a lista de novo */
+    throw new ErroIA(mensagemDeErroIA(ultimo) + " (modelos tentados: " + tentados.join(", ") + ")", ultimo.status);
   }  function textoDaAnalise(a) {
     const l = [];
     if (a.resumo) l.push(a.resumo, "");
@@ -373,19 +397,20 @@
         const repetido = lista.find((t) => t.link === l);
         if (repetido) { P.toast("Este link já estava guardado. Abri ele para você."); abrirCartao(repetido.id, true); return; }
         const plat = detectarPlataforma(l);
-        botaoGuardar.disabled = true;
+        botaoGuardar.disabled = true; botaoGuardar.textContent = "Guardando...";
+        /* .select().single() devolve a linha criada no mesmo pedido, então o conteúdo aparece na hora */
         const r = await P.gravar(() => window.sb.from("transcricoes").insert({ link: l, plataforma: plat,
-          titulo: "Vídeo do " + nomePlataforma(plat) + ", " + P.fmtData(P.hoje()), atualizado_em: new Date().toISOString() }));
-        botaoGuardar.disabled = false;
+          titulo: "Vídeo do " + nomePlataforma(plat) + ", " + P.fmtData(P.hoje()), atualizado_em: new Date().toISOString() }).select().single());
+        botaoGuardar.disabled = false; botaoGuardar.textContent = "Guardar";
         if (!r.ok) return;
         campoLink.value = "";
-        const novo = await P.carregar("transcricoes", (t) => t.select("*").order("criado_em", { ascending: false }));
-        if (novo.ok) {
-          const conhecidos = new Set(lista.map((t) => t.id));
-          lista = novo.dados;
-          const criada = lista.find((t) => !conhecidos.has(t.id));
-          if (criada) { adicionarCartao(criada, true); abrirCartao(criada.id, true); }
-        }
+        let criada = r.data && r.data.id ? r.data : null;
+        if (!criada) {   /* plano B: se o banco não devolveu a linha, recarrega a lista */
+          const novo = await P.carregar("transcricoes", (t) => t.select("*").order("criado_em", { ascending: false }));
+          if (novo.ok) { const conhecidos = new Set(lista.map((t) => t.id)); lista = novo.dados; criada = lista.find((t) => !conhecidos.has(t.id)) || null; }
+        } else lista = [criada].concat(lista.filter((x) => x.id !== criada.id));
+        if (criada && !cartoes.has(criada.id)) adicionarCartao(criada, true);
+        if (criada) abrirCartao(criada.id, true);
         P.toast("Conteúdo guardado");
         desenharVazio(); aplicarBusca();
       }
@@ -425,7 +450,7 @@
         const c = cartoes.get(id);
         if (!c) return;
         c.alternar(true); idAberto = id;
-        if (rolar) c.el.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (rolar) c.el.scrollIntoView({ block: "start" });
       }
       function adicionarCartao(t, noTopo) {
         const dados = Object.assign({}, t);
