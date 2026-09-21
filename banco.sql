@@ -252,6 +252,28 @@ where not exists (select 1 from public.videos x where x.link = v.link);
 
 
 -- =====================================================================
+-- BLOCO 7B: TRANSCRIÇÕES (a aba "Transcrições" do painel)
+-- Guarda os vídeos que você gosta (YouTube, Instagram, TikTok...): o link,
+-- a transcrição (o roteiro) e as suas observações. Só você lê e escreve.
+-- =====================================================================
+create table if not exists public.transcricoes (
+  id             uuid primary key default gen_random_uuid(),
+  titulo         text,
+  link           text not null,
+  plataforma     text not null default 'outro' check (plataforma in ('youtube', 'instagram', 'tiktok', 'outro')),
+  transcricao    text,
+  observacoes    text,
+  criado_em      timestamptz not null default now(),
+  atualizado_em  timestamptz not null default now()
+);
+alter table public.transcricoes enable row level security;
+grant select, insert, update, delete on public.transcricoes to authenticated;
+drop policy if exists "so_eu_transcricoes" on public.transcricoes;
+create policy "so_eu_transcricoes" on public.transcricoes
+  for all to authenticated
+  using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+
+-- =====================================================================
 -- BLOCO 8 (OPCIONAL): TESTE DA TRANCA
 -- Não precisa colar junto com o resto. Depois que tudo estiver rodado,
 -- cole SÓ este bloco, tire os dois traços "--" do começo de cada linha
@@ -264,6 +286,7 @@ where not exists (select 1 from public.videos x where x.link = v.link);
 --   union all select 'calendario', count(*) from public.calendario
 --   union all select 'marcados', count(*) from public.marcados
 --   union all select 'visitas', count(*) from public.visitas
+--   union all select 'transcricoes', count(*) from public.transcricoes
 --   union all select 'videos escondidos', count(*) from public.videos where visivel = false;
 --   rollback;
 --
