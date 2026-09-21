@@ -263,9 +263,12 @@ create table if not exists public.transcricoes (
   plataforma     text not null default 'outro' check (plataforma in ('youtube', 'instagram', 'tiktok', 'outro')),
   transcricao    text,
   observacoes    text,
+  analise        text,
   criado_em      timestamptz not null default now(),
   atualizado_em  timestamptz not null default now()
 );
+-- Se a tabela já existia de antes, isto acrescenta o campo da análise do vídeo (não apaga nada)
+alter table public.transcricoes add column if not exists analise text;
 alter table public.transcricoes enable row level security;
 grant select, insert, update, delete on public.transcricoes to authenticated;
 drop policy if exists "so_eu_transcricoes" on public.transcricoes;
