@@ -336,3 +336,28 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .lista-simples li{padding:6px 0;border-top:1px solid var(--linha);font-size:13.5px}
 .erros li{padding:4px 0 4px 16px;position:relative;font-size:13.5px}
 .erros li::before{content:"";position:absolute;left:2px;top:.8em;width:6px;height:6px;border-radius:50%;background:var(--vermelho)}
+
+/* ---------- Transcrições: análise do vídeo (gancho, desenvolvimento, CTA) ---------- */
+.analise{margin:0 0 14px;padding:12px 12px 4px;border:1px solid var(--linha);border-radius:var(--raio);background:var(--cartao)}
+.analise-corpo{display:grid;gap:10px;margin:2px 0 10px}
+.analise-resumo{font-size:13.5px;color:var(--tinta-2)}
+.etapa{padding:10px 12px;border-radius:var(--raio-p);border-left:4px solid var(--linha-forte);background:var(--papel-2)}
+.etapa.et-gancho{border-left-color:var(--bordo)}
+.etapa.et-desenv{border-left-color:var(--couro)}
+.etapa.et-cta{border-left-color:var(--verde)}
+.etapa-cab{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-bottom:6px}
+.etapa-nome{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3)}
+.et-gancho .etapa-nome{color:var(--bordo)}
+.et-cta .etapa-nome{color:var(--verde)}
+.etapa-tipo{padding:1px 9px;border-radius:999px;background:var(--bordo-suave);color:var(--bordo);font-size:12px}
+.et-cta .etapa-tipo{background:var(--cinza-suave);color:var(--tinta-2)}
+.cit{margin:0 0 6px;font-size:13.5px;font-style:italic;color:var(--tinta)}
+.etapa-passos{margin:0 0 6px;padding-left:20px;font-size:13.5px;list-style:decimal}
+.etapa-passos li{margin:2px 0}
+.etapa-analise{font-size:13.5px;color:var(--tinta-2)}
+.analise-lista ul{margin:6px 0 0;padding-left:18px;font-size:13.5px;list-style:disc}
+.analise-lista li{margin:3px 0}
+.ponto-forte{padding:10px 12px;border-radius:var(--raio-p);background:var(--ouro-suave);border-left:4px solid var(--ouro)}
+.ponto-forte .etapa-nome{color:var(--amarelo)}
+.ponto-forte p{margin-top:4px;font-size:14px;font-weight:500}
+.analise-rodape{font-size:12px;color:var(--tinta-3)}
