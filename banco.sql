@@ -274,6 +274,24 @@ create policy "so_eu_transcricoes" on public.transcricoes
   using (public.eh_a_nielly()) with check (public.eh_a_nielly());
 
 -- =====================================================================
+-- BLOCO 7C: CONFIGURAÇÕES (guarda a chave do serviço de transcrição)
+-- A aba "Transcrições" usa um serviço externo (Supadata) para transcrever
+-- os vídeos dentro do painel. A chave dele fica AQUI, numa tabela que só
+-- você lê (nenhuma regra libera para visitantes) e nunca em arquivo do site.
+-- =====================================================================
+create table if not exists public.configuracoes (
+  chave          text primary key,
+  valor          text,
+  atualizado_em  timestamptz not null default now()
+);
+alter table public.configuracoes enable row level security;
+grant select, insert, update, delete on public.configuracoes to authenticated;
+drop policy if exists "so_eu_configuracoes" on public.configuracoes;
+create policy "so_eu_configuracoes" on public.configuracoes
+  for all to authenticated
+  using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+
+-- =====================================================================
 -- BLOCO 8 (OPCIONAL): TESTE DA TRANCA
 -- Não precisa colar junto com o resto. Depois que tudo estiver rodado,
 -- cole SÓ este bloco, tire os dois traços "--" do começo de cada linha
@@ -287,6 +305,7 @@ create policy "so_eu_transcricoes" on public.transcricoes
 --   union all select 'marcados', count(*) from public.marcados
 --   union all select 'visitas', count(*) from public.visitas
 --   union all select 'transcricoes', count(*) from public.transcricoes
+--   union all select 'configuracoes', count(*) from public.configuracoes
 --   union all select 'videos escondidos', count(*) from public.videos where visivel = false;
 --   rollback;
 --
