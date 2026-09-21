@@ -908,6 +908,7 @@ const DEPOIMENTOS = [
       /* aberto com dois cliques (file://) o YouTube recusa o vídeo incorporado, então abre em outra aba */
       if (location.protocol === "file:") { window.open(urlYoutube(id), "_blank", "noopener"); return; }
       pararVideo();
+      registrarAcao("video:" + t.titulo + (t.marca ? " · " + t.marca : ""));
       var caixa = h("div", { class: "trab-midia v", estilo: cores },
         h("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&playsinline=1&rel=0", title: "Vídeo: " + t.titulo,
           allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin" }));
@@ -1253,7 +1254,7 @@ const DEPOIMENTOS = [
     $$('a[href="#destaques"]').forEach(function (a) { var li = a.closest("li"); (li || a).remove(); });
   }
 
-  /* ---------- registro simples de visita (sem serviço de fora, sem cookie, sem pedir nada) ---------- */
+  /* ---------- registro simples de visita e de ações (sem serviço de fora, sem cookie, sem pedir nada) ---------- */
   function origemDaVisita() {
     var q = new URLSearchParams(location.search);
     var explicita = (q.get("utm_source") || q.get("origem") || q.get("ref") || "").trim().toLowerCase();
@@ -1272,20 +1273,27 @@ const DEPOIMENTOS = [
       return host.slice(0, 60);
     } catch (e) { return "direto"; }
   }
+  /* Testes no computador (localhost) e o arquivo aberto com dois cliques não contam como visita real */
+  function podeRegistrar() {
+    return !!(window.BANCO && typeof window.BANCO.rest === "function") && location.protocol !== "file:" && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  }
+  function enviarRegistro(pagina) {
+    if (!podeRegistrar()) return;
+    window.BANCO.rest("visitas", { metodo: "POST", corpo: { pagina: String(pagina).slice(0, 200), origem: origemDaVisita() }, keepalive: true })
+      .catch(function () { /* se falhar, a pessoa nem percebe */ });
+  }
+  /* Uma visita para cada vez que a pessoa abre o site (por aba). Vale para todo mundo, inclusive você. */
   function registrarVisita() {
     try {
-      if (!window.BANCO || typeof window.BANCO.rest !== "function") return;
-      if (location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;   /* testes não contam */
-      if (sessionStorage.getItem("visitaRegistrada")) return;                                              /* uma por visita */
-      for (var i = 0; i < localStorage.length; i++) {                                                      /* a própria dona logada não conta */
-        if (/^sb-.*-auth-token$/.test(localStorage.key(i))) return;
-      }
+      if (!podeRegistrar() || sessionStorage.getItem("visitaRegistrada")) return;
       sessionStorage.setItem("visitaRegistrada", "1");
-      window.BANCO.rest("visitas", { metodo: "POST", corpo: { pagina: (location.pathname || "/").slice(0, 200), origem: origemDaVisita() }, keepalive: true })
-        .catch(function () { /* se falhar, o visitante nem percebe */ });
-    } catch (e) { /* sem armazenamento no navegador: simplesmente não registra */ }
+      enviarRegistro(location.pathname || "/");
+    } catch (e) { /* sem armazenamento no navegador: não registra */ }
   }
-
+  /* Ações da pessoa no site. Ficam na mesma tabela, com um prefixo no campo "pagina":
+     "clique:whatsapp", "clique:email", "clique:instagram" e "video:Nome do vídeo".
+     O painel separa isso das visitas. */
+  function registrarAcao(nome) { try { enviarRegistro(nome); } catch (e) {} }
   /* ---------- início ---------- */
   aplicarPerfil();
   montarMarcas();
@@ -1297,6 +1305,10 @@ const DEPOIMENTOS = [
   montarFormContato();
   montarCartao();
   montarAnimacoes();          /* anima já o que existe na tela */
+  document.addEventListener("click", function (e) {              /* cliques em WhatsApp, e-mail e Instagram */
+    var a = e.target.closest ? e.target.closest("a[data-contato]") : null;
+    if (a) registrarAcao("clique:" + a.getAttribute("data-contato"));
+  });
   registrarVisita();
   carregarVideos().then(function (linhas) {
     var conv = linhas ? converterVideos(linhas) : null;
