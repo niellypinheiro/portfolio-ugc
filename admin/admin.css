@@ -84,7 +84,7 @@ body.carregando .verificando{display:grid}
 .btn-i:hover{background:var(--papel-2);color:var(--bordo)}
 .btn-i[disabled]{opacity:.35;cursor:default}
 .btn-i.lig{color:var(--bordo)}
-input[type=text],input[type=email],input[type=tel],input[type=url],input[type=number],input[type=date],input[type=search],select,textarea{width:100%;min-height:36px;padding:7px 10px;background:var(--cartao);border:1px solid var(--linha-forte);border-radius:var(--raio-p);font-size:14px}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=number],input[type=date],input[type=search],input[type=password],select,textarea{width:100%;min-height:36px;padding:7px 10px;background:var(--cartao);border:1px solid var(--linha-forte);border-radius:var(--raio-p);font-size:14px}
 textarea{min-height:84px;resize:vertical}
 input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .campo{margin-bottom:12px}
@@ -361,3 +361,17 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .ponto-forte .etapa-nome{color:var(--amarelo)}
 .ponto-forte p{margin-top:4px;font-size:14px;font-weight:500}
 .analise-rodape{font-size:12px;color:var(--tinta-3)}
+
+/* ---------- Transcrições: Modelar (5 roteiros novos) ---------- */
+.modelar-linha{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.modelar-linha input{flex:1;min-width:200px}
+.modelagem-corpo{display:grid;gap:8px;margin:2px 0 10px}
+.roteiro-mod{border:1px solid var(--linha);border-radius:var(--raio-p);background:var(--cartao)}
+.roteiro-mod summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:9px 12px;cursor:pointer;list-style:none}
+.roteiro-mod summary::-webkit-details-marker{display:none}
+.roteiro-mod[open] summary{border-bottom:1px solid var(--linha)}
+.rm-num{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--bordo)}
+.rm-titulo{font-size:14px;font-weight:600;min-width:0}
+.rm-corpo{display:grid;gap:8px;padding:10px 12px}
+.fala{font-size:13.5px;white-space:pre-wrap}
+.dica-grav{padding:7px 10px;border-radius:var(--raio-p);background:var(--ouro-suave);font-size:13px;color:var(--tinta-2)}
