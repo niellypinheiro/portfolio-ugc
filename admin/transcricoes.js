@@ -54,7 +54,7 @@
   }
 
   /* ---------- o serviço de transcrição ---------- */
-  class ErroTranscricao extends Error {}
+  class ErroTranscricao extends Error { constructor(msg, status) { super(msg); this.status = status; } }
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   async function pedir(caminho, chave) {
     const ctrl = new AbortController();
@@ -68,8 +68,22 @@
       throw new ErroTranscricao("Não consegui falar com o serviço de transcrição. Confira a internet e tente de novo.");
     } finally { clearTimeout(relogio); }
   }
+  /* Tira o que costuma vir junto na hora de copiar: espaços, aspas, "x-api-key:" ou "Bearer" */
+  function limparChave(v) {
+    return String(v || "").replace(/["'“”‘’]/g, "").replace(/^\s*(x-api-key\s*[:=]|bearer)\s*/i, "").replace(/\s/g, "");
+  }
+  /* Testa a chave num pedido que não gasta crédito. Devolve "ok", "recusada" ou "sem-teste" (internet fora, por exemplo) */
+  async function testarChave(chave) {
+    try {
+      const r = await pedir("/v1/me", chave);
+      if (r.status === 401) return { estado: "recusada" };
+      if (r.status === 200) return { estado: "ok", dados: r.corpo };
+    } catch (e) { /* cai no sem-teste */ }
+    return { estado: "sem-teste" };
+  }
   function mensagemDeErro(status, corpo) {
-    if (status === 401) return "A chave do Supadata não foi aceita. Confira a chave em \"Configurar transcrição\".";
+    if (status === 401) return "O Supadata recusou a chave. Abra \"Configurar transcrição\" e cole de novo a chave que aparece em dash.supadata.ai (não a do Supabase).";
+    if (status === 206) return "Este vídeo não tem legenda nem áudio que o serviço consiga transcrever.";
     if (status === 402) return "Os créditos do seu plano no Supadata acabaram. Eles voltam no começo do próximo mês.";
     if (status === 403) return "Este vídeo exige login ou é restrito, então não dá para transcrever.";
     if (status === 404) return "Não encontrei este vídeo. Ele pode ser privado ou o link pode estar errado.";
@@ -96,12 +110,12 @@
         await esperar(2000);
         aoStatus("Transcrevendo o áudio do vídeo... " + Math.round((Date.now() - inicio) / 1000) + "s");
         r = await pedir("/v1/transcript/" + encodeURIComponent(job), chave);
-        if (r.status !== 200) throw new ErroTranscricao(mensagemDeErro(r.status, r.corpo));
+        if (r.status !== 200) throw new ErroTranscricao(mensagemDeErro(r.status, r.corpo), r.status);
         if (r.corpo && r.corpo.status === "failed") throw new ErroTranscricao("O serviço não conseguiu transcrever este vídeo.");
         if (r.corpo && r.corpo.status === "completed") break;
       }
     }
-    if (r.status !== 200) throw new ErroTranscricao(mensagemDeErro(r.status, r.corpo));
+    if (r.status !== 200) throw new ErroTranscricao(mensagemDeErro(r.status, r.corpo), r.status);
     const texto = formatar(r.corpo && r.corpo.content);
     if (!texto) throw new ErroTranscricao("Não encontrei fala neste vídeo (pode ter só música).");
     return texto;
@@ -138,16 +152,22 @@
           h("p", { text: "Para transcrever aqui dentro, o painel usa o serviço Supadata, que entende YouTube, Instagram e TikTok. Você faz isso uma vez só:" }),
           h("ol", { class: "passos" },
             h("li", null, "Crie uma conta grátis em ", h("a", { href: "https://supadata.ai", target: "_blank", rel: "noopener noreferrer", text: "supadata.ai" }), " (100 transcrições por mês, sem cartão)."),
-            h("li", { text: "Copie a sua chave (API key) que aparece no painel deles." }),
+            h("li", { text: "Entre em dash.supadata.ai, abra a página \"API Key\" e copie a sua chave. Não é a chave do Supabase." }),
             h("li", { text: "Cole a chave aqui embaixo e salve." })),
           P.campo("Chave do Supadata", campo, "Ela fica guardada só no seu banco, onde só você lê. Nunca aparece no site público."),
           h("p", { class: "fraco", style: "font-size:12.5px", text: "Custo: 1 crédito por vídeo que já tem legenda e 2 créditos por minuto quando o serviço precisa ouvir o áudio. Os créditos e o plano você acompanha na conta do Supadata." }));
         const botoes = [{ texto: "Cancelar" }, { texto: "Salvar a chave", classe: "p", aoClicar: async () => {
-          const v = campo.value.trim();
+          const v = limparChave(campo.value);
           if (!v) { P.erroNoCampo(campo, "Cole a chave para salvar."); return false; }
+          const teste = await testarChave(v);
+          if (teste.estado === "recusada") {
+            P.erroNoCampo(campo, "O Supadata não aceitou esta chave. Copie de novo a chave (API key) que aparece em dash.supadata.ai, na página \"API Key\". Não é a chave do Supabase.");
+            return false;
+          }
           const r = await P.gravar(() => window.sb.from("configuracoes").upsert({ chave: CHAVE_CONFIG, valor: v, atualizado_em: new Date().toISOString() }, { onConflict: "chave" }));
           if (!r.ok) return false;
-          chaveServico = v; atualizarEstadoCfg(); P.toast("Chave salva. Já dá para transcrever.");
+          chaveServico = v; atualizarEstadoCfg();
+          P.toast(teste.estado === "ok" ? "Chave confirmada pelo Supadata e salva. Já dá para transcrever." : "Chave salva, mas não consegui testá-la agora. Tente transcrever um vídeo.");
         } }];
         if (chaveServico) botoes.unshift({ texto: "Remover a chave", classe: "perigo", esquerda: true, aoClicar: async () => {
           const r = await P.gravar(() => window.sb.from("configuracoes").delete().eq("chave", CHAVE_CONFIG));
@@ -277,6 +297,7 @@
             } catch (e) {
               status.className = "status-transc erro";
               status.textContent = e instanceof ErroTranscricao ? e.message : "Não consegui transcrever agora. Tente de novo.";
+              if (e instanceof ErroTranscricao && e.status === 401) abrirConfiguracao("O Supadata recusou a chave que está guardada. Cole a chave certa aqui embaixo.");
             } finally { botaoTranscrever.disabled = false; }
           });
 
