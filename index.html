@@ -956,7 +956,17 @@ const DEPOIMENTOS = [
       pararPrevias.push(parar);
     }
 
-    function montarCard(t, nicho) {
+    /* "Vídeo 1", "Vídeo 2"... é só um rótulo de organização interna (para diferenciar vídeos do mesmo
+       nicho no painel). Sozinho, sem mais nenhum vídeo do mesmo grupo por perto, ele só repete a mesma
+       palavra em cartão atrás de cartão, então só aparece na tela quando o número realmente ajuda a
+       diferenciar. */
+    function legendaCard(t, itens) {
+      var generico = /^v[ií]deo\s*\d+$/i.test(String(t.marca || "").trim());
+      if (!generico) return h("p", { text: t.marca });
+      var doMesmoTitulo = (itens || []).filter(function (x) { return x.titulo === t.titulo; });
+      return doMesmoTitulo.length > 1 ? h("p", { text: t.marca }) : null;
+    }
+    function montarCard(t, nicho, itens) {
       var cores = { "--g1": nicho.cores[0], "--g2": nicho.cores[1] };
       var id = idYoutube(t.video);
       if (id) {
@@ -968,14 +978,14 @@ const DEPOIMENTOS = [
         capa.addEventListener("click", function () { tocar(capa, t, id, cores); });
         var caixaMidia = h("div", { class: "midia-previa" }, capa);
         if (podeHover && !reduzir) ligarPrevia(caixaMidia, capa, id);
-        return h("article", { class: "trab" }, caixaMidia, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null);
+        return h("article", { class: "trab" }, caixaMidia, h("h4", { text: t.titulo }), legendaCard(t, itens), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null);
       }
       var video = t.formato === "video";
       var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
         t.imagem ? h("img", { src: t.imagem, alt: t.titulo + ", " + t.marca, loading: "lazy", decoding: "async", width: video ? 720 : 800, height: video ? 1280 : 1000 })
                  : h("span", { class: "legenda-ph", text: video ? "vídeo 9:16" : "foto 4:5" }),
         video ? h("span", { class: "mini-play" }) : null);
-      var corpo = [midia, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null];
+      var corpo = [midia, h("h4", { text: t.titulo }), legendaCard(t, itens), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null];
       return t.link
         ? h("a", { class: "trab", href: t.link, target: "_blank", rel: "noopener noreferrer" }, corpo)
         : h("article", { class: "trab" }, corpo);
@@ -999,7 +1009,7 @@ const DEPOIMENTOS = [
       }
 
       var trilho = h("div", { class: "carrossel", tabindex: "0", role: "region", "aria-label": "Trabalhos de " + n.nome });
-      itens.forEach(function (t) { trilho.append(montarCard(t, n)); });
+      itens.forEach(function (t) { trilho.append(montarCard(t, n, itens)); });
 
       var ant = seta(-1), prox = seta(1), setas = h("div", { class: "setas" }, ant, prox);
       function passo() {
