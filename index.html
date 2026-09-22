@@ -918,7 +918,7 @@ const DEPOIMENTOS = [
       pararVideo();
       registrarAcao("video:" + t.titulo + (t.marca ? " · " + t.marca : ""));
       var caixa = h("div", { class: "trab-midia v", estilo: cores },
-        h("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&playsinline=1&rel=0", title: "Vídeo: " + t.titulo,
+        h("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&playsinline=1&rel=0&cc_load_policy=0", title: "Vídeo: " + t.titulo,
           allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin" }));
       capa.replaceWith(caixa);
       tocando = { caixa: caixa, capa: capa };
@@ -935,7 +935,7 @@ const DEPOIMENTOS = [
         if (tocando && tocando.capa === capa) return;   /* já está tocando com som, não sobrepõe */
         espera = setTimeout(function () {
           iframe = h("iframe", { class: "previa", src: "https://www.youtube-nocookie.com/embed/" + id +
-            "?autoplay=1&mute=1&controls=0&loop=1&playlist=" + id + "&playsinline=1&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3",
+            "?autoplay=1&mute=1&controls=0&loop=1&playlist=" + id + "&playsinline=1&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3&cc_load_policy=0",
             title: "", tabindex: "-1", "aria-hidden": "true", allow: "autoplay; encrypted-media" });
           caixaMidia.append(iframe);
           capa.classList.add("previa-ativa");
