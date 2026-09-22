@@ -271,6 +271,11 @@ main,.rodape{position:relative;z-index:1}
 .trab p{color:var(--tinta-2);font-size:.95rem}
 .trab .trab-destaque{margin-top:2px;font-weight:600;color:var(--bordo);font-size:.92rem}
 a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro),0 10px 22px rgba(0,0,0,.25)}
+/* prévia muda (sem som) ao passar o mouse em cima do vídeo, antes de clicar */
+.midia-previa{position:relative}
+.midia-previa iframe.previa{position:absolute;inset:0;z-index:2;width:100%;height:100%;border:0;pointer-events:none}
+.trab-midia.previa-ativa .play{opacity:0;transition:opacity .15s}
+.nicho-vazio{padding:34px 18px;text-align:center;color:var(--tinta-2);border:1px dashed var(--ouro);border-radius:4px}
 
 /* ---------- 5. serviços ---------- */
 .servicos{display:grid;grid-template-columns:1fr;gap:clamp(16px,2.4vw,28px)}
@@ -891,7 +896,9 @@ const DEPOIMENTOS = [
   function montarTrabalhos(lista) {
     var fonte = lista || TRABALHOS;
     var chips = $("#filtros"), area = $("#nichos");
-    var tocando = null, atualizadores = [];
+    var tocando = null, atualizadores = [], pararPrevias = [];
+    /* só liga a prévia com som mudo em telas com mouse de verdade (no celular o toque já abre o vídeo) */
+    var podeHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     function idYoutube(url) {
       var m = String(url || "").match(/(?:shorts\/|[?&]v=|youtu\.be\/|embed\/)([\w-]{11})/);
       return m ? m[1] : null;
@@ -907,6 +914,7 @@ const DEPOIMENTOS = [
     function tocar(capa, t, id, cores) {
       /* aberto com dois cliques (file://) o YouTube recusa o vídeo incorporado, então abre em outra aba */
       if (location.protocol === "file:") { window.open(urlYoutube(id), "_blank", "noopener"); return; }
+      pararPrevias.forEach(function (f) { f(); });   /* tira a prévia muda antes de tocar com som */
       pararVideo();
       registrarAcao("video:" + t.titulo + (t.marca ? " · " + t.marca : ""));
       var caixa = h("div", { class: "trab-midia v", estilo: cores },
@@ -914,6 +922,27 @@ const DEPOIMENTOS = [
           allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin" }));
       capa.replaceWith(caixa);
       tocando = { caixa: caixa, capa: capa };
+    }
+
+    /* mostra o vídeo tocando baixinho (sem som) quando o mouse passa por cima, antes da pessoa clicar */
+    function ligarPrevia(caixaMidia, capa, id) {
+      var espera = null, iframe = null;
+      function parar() {
+        if (espera) { clearTimeout(espera); espera = null; }
+        if (iframe) { iframe.remove(); iframe = null; capa.classList.remove("previa-ativa"); }
+      }
+      caixaMidia.addEventListener("mouseenter", function () {
+        if (tocando && tocando.capa === capa) return;   /* já está tocando com som, não sobrepõe */
+        espera = setTimeout(function () {
+          iframe = h("iframe", { class: "previa", src: "https://www.youtube-nocookie.com/embed/" + id +
+            "?autoplay=1&mute=1&controls=0&loop=1&playlist=" + id + "&playsinline=1&rel=0&modestbranding=1&disablekb=1&iv_load_policy=3",
+            title: "", tabindex: "-1", "aria-hidden": "true", allow: "autoplay; encrypted-media" });
+          caixaMidia.append(iframe);
+          capa.classList.add("previa-ativa");
+        }, 350);
+      });
+      caixaMidia.addEventListener("mouseleave", parar);
+      pararPrevias.push(parar);
     }
 
     function montarCard(t, nicho) {
@@ -926,7 +955,9 @@ const DEPOIMENTOS = [
         var capa = h("button", { class: "trab-midia v tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + t.titulo, estilo: cores },
           img, h("span", { class: "play", "aria-hidden": "true" }));
         capa.addEventListener("click", function () { tocar(capa, t, id, cores); });
-        return h("article", { class: "trab" }, capa, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null);
+        var caixaMidia = h("div", { class: "midia-previa" }, capa);
+        if (podeHover && !reduzir) ligarPrevia(caixaMidia, capa, id);
+        return h("article", { class: "trab" }, caixaMidia, h("h4", { text: t.titulo }), h("p", { text: t.marca }), t.destaque ? h("p", { class: "trab-destaque", text: t.destaque }) : null);
       }
       var video = t.formato === "video";
       var midia = h("div", { class: "trab-midia " + (video ? "v" : "f"), "aria-hidden": t.imagem ? null : "true", estilo: cores },
@@ -941,12 +972,20 @@ const DEPOIMENTOS = [
 
     function seta(direcao) {
       return h("button", { class: "seta", type: "button", "aria-label": direcao < 0 ? "Ver os anteriores" : "Ver os próximos" },
-        h("span", { "aria-hidden": "true", text: direcao < 0 ? "\u2039" : "\u203A" }));
+        h("span", { "aria-hidden": "true", text: direcao < 0 ? "‹" : "›" }));
     }
 
     NICHOS.forEach(function (n) {
       var itens = fonte.filter(function (t) { return t.nicho === n.id; });
-      if (!itens.length) return;
+      /* o botão do nicho sempre aparece, mesmo sem vídeo ainda, para a marca conseguir navegar por todos */
+      chips.append(h("a", { class: "filtro", href: "#nicho-" + n.id, text: n.nome }));
+
+      if (!itens.length) {
+        area.append(h("section", { class: "nicho revela", id: "nicho-" + n.id, "aria-labelledby": "nicho-" + n.id + "-titulo" },
+          h("div", { class: "nicho-cab" }, h("h3", { id: "nicho-" + n.id + "-titulo", text: n.nome })),
+          h("p", { class: "nicho-vazio", text: "Em breve, novos vídeos por aqui." })));
+        return;
+      }
 
       var trilho = h("div", { class: "carrossel", tabindex: "0", role: "region", "aria-label": "Trabalhos de " + n.nome });
       itens.forEach(function (t) { trilho.append(montarCard(t, n)); });
@@ -967,10 +1006,30 @@ const DEPOIMENTOS = [
       trilho.addEventListener("scroll", atualizar, { passive: true });
       atualizadores.push(atualizar);
 
-      chips.append(h("a", { class: "filtro", href: "#nicho-" + n.id, text: n.nome }));
+      /* passa sozinho para os próximos vídeos, sem precisar clicar na setinha; para quando o mouse
+         está em cima (para a marca poder ver a prévia parada) e volta a rolar quando ele sai */
+      var esperaAuto = null;
+      function pararAuto() { if (esperaAuto) { clearTimeout(esperaAuto); esperaAuto = null; } }
+      function agendarAuto() {
+        pararAuto();
+        if (reduzir || trilho.scrollWidth <= trilho.clientWidth + 4) return;
+        esperaAuto = setTimeout(function () {
+          var noFim = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
+          trilho.scrollTo({ left: noFim ? 0 : trilho.scrollLeft + passo(), behavior: "smooth" });
+          agendarAuto();
+        }, 3800);
+      }
+      trilho.addEventListener("mouseenter", pararAuto);
+      trilho.addEventListener("mouseleave", agendarAuto);
+      trilho.addEventListener("focusin", pararAuto);
+      trilho.addEventListener("focusout", agendarAuto);
+      trilho.addEventListener("touchstart", pararAuto, { passive: true });
+
       area.append(h("section", { class: "nicho revela", id: "nicho-" + n.id, "aria-labelledby": "nicho-" + n.id + "-titulo" },
         h("div", { class: "nicho-cab" }, h("h3", { id: "nicho-" + n.id + "-titulo", text: n.nome }), setas),
         trilho));
+      /* só agora o trilho está de verdade na página, então dá pra medir a largura e começar a rolar sozinho */
+      agendarAuto();
     });
 
     function atualizarTodos() { atualizadores.forEach(function (f) { f(); }); }
