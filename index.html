@@ -713,11 +713,14 @@ const NICHOS = [
   { id: "gastronomia", nome: "Gastronomia", cores: ["#8a3f22", "#d9903f"] },
   { id: "tech", nome: "Tech", cores: ["#33283a", "#7a6a8c"] },
   { id: "beleza", nome: "Beleza", cores: ["#6d2434", "#b4636f"] },
-  { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] }
+  { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] },
+  { id: "cabelo", nome: "Cuidados com o cabelo", cores: ["#7a3b2e", "#c98a6b"] },
+  { id: "entretenimento", nome: "Entretenimento", cores: ["#4a2f4f", "#8f6a94"] }
 ];
 
 /* TRABALHOS da galeria.
-   Cada nicho vira um carrossel, um abaixo do outro, na ordem da lista NICHOS acima (Casa e decoração, Gastronomia, Tech, Beleza, Moda).
+   Cada nicho vira um carrossel, um abaixo do outro, na ordem da lista NICHOS acima (Casa e decoração, Gastronomia, Tech, Beleza, Moda,
+   Cuidados com o cabelo, Entretenimento).
    Dentro de cada nicho vale a ordem em que você escrever aqui.
    nicho: um dos ids acima.
    video: link do vídeo no YouTube (Shorts ou vídeo comum). Ele toca dentro do próprio site.
@@ -726,23 +729,31 @@ const NICHOS = [
    imagem: nome do arquivo da imagem (vazio = degradê).  link: endereço do trabalho (vazio = sem link). */
 const TRABALHOS = [
   /* CASA E DECORAÇÃO */
-  { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",   marca: "Vídeo 1" },
-  { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM", marca: "Vídeo 1" },
-  { nicho: "casa", video: "https://youtube.com/shorts/I9iv1-c6LiQ", titulo: "AZULIM", marca: "Vídeo 2" },
-  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",   marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",    marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM",  marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/I9iv1-c6LiQ", titulo: "AZULIM",  marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",    marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/bAdmW502faU", titulo: "ARTAGEL", marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/cY6R3Yt67_g", titulo: "RENOVA",  marca: "Vídeo 1" },
   /* GASTRONOMIA */
-  { nicho: "gastronomia", formato: "video", titulo: "Trabalho 01", marca: "Marca 01", imagem: "", link: "" },
-  { nicho: "gastronomia", formato: "foto",  titulo: "Trabalho 02", marca: "Marca 02", imagem: "", link: "" },
+  { nicho: "gastronomia", video: "https://youtube.com/shorts/oJMEscd4lYs", titulo: "TRISANTI", marca: "Vídeo 1" },
+  { nicho: "gastronomia", video: "https://youtube.com/shorts/tvGeI8MsZ9w", titulo: "ALLNUTRI",  marca: "Vídeo 1" },
   /* TECH */
-  { nicho: "tech", formato: "video", titulo: "Trabalho 03", marca: "Marca 03", imagem: "", link: "" },
-  { nicho: "tech", formato: "foto",  titulo: "Trabalho 04", marca: "Marca 04", imagem: "", link: "" },
+  { nicho: "tech", video: "https://youtube.com/shorts/3P2JYA_eKIQ", titulo: "DS. MARKETING", marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/g5HhXVhUwtU", titulo: "PERPLEXITY",    marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/tvxthqxO-fw", titulo: "RE.SPAELLY",    marca: "Vídeo 1" },
   /* BELEZA */
   { nicho: "beleza", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
   { nicho: "beleza", formato: "foto",  titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
   { nicho: "beleza", formato: "video", titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
   /* MODA */
   { nicho: "moda", formato: "foto",  titulo: "Trabalho 08", marca: "Marca 08", imagem: "", link: "" },
-  { nicho: "moda", formato: "video", titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" }
+  { nicho: "moda", formato: "video", titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" },
+  /* CUIDADOS COM O CABELO */
+  { nicho: "cabelo", video: "https://youtube.com/shorts/SITf0W6Xyxo", titulo: "BELLETONN",    marca: "Vídeo 1" },
+  { nicho: "cabelo", video: "https://youtube.com/shorts/rY1zHjcfLvE", titulo: "PRO HAIRMONY", marca: "Vídeo 1" },
+  /* ENTRETENIMENTO */
+  { nicho: "entretenimento", video: "https://youtube.com/shorts/O5JAkcD99as", titulo: "LOLU", marca: "Vídeo 1" }
 ];
 
 /* SERVIÇOS (6). */
