@@ -195,10 +195,11 @@ main,.rodape{position:relative;z-index:1}
 
 /* faixa fina com as marcas */
 .faixa{position:relative;z-index:1;overflow:hidden;background:rgba(34,20,11,.55);box-shadow:inset 0 1px 0 rgba(201,162,39,.6),inset 0 -1px 0 rgba(201,162,39,.6),0 10px 22px -8px rgba(0,0,0,.55)}
-.faixa-trilho{display:flex;width:max-content;animation:correr 40s linear infinite}
+.faixa-trilho{display:flex;align-items:center;width:max-content;padding-block:14px;animation:correr 40s linear infinite}
 .faixa:hover .faixa-trilho{animation-play-state:paused}
 @keyframes correr{to{transform:translateX(-50%)}}
-.faixa-item{display:flex;align-items:center;gap:clamp(22px,3vw,40px);padding-right:clamp(22px,3vw,40px);font:600 1.1rem/54px var(--fonte-titulo);letter-spacing:.18em;text-transform:uppercase;color:var(--ouro-claro);white-space:nowrap}
+.faixa-item{display:flex;align-items:center;gap:clamp(22px,3vw,40px);padding-right:clamp(22px,3vw,40px);white-space:nowrap}
+.faixa-logo{width:clamp(44px,7vw,60px);height:clamp(44px,7vw,60px);border-radius:50%;object-fit:cover;background:var(--papel);border:2px solid var(--ouro);box-shadow:0 3px 8px rgba(0,0,0,.4)}
 .faixa-losango{display:block;width:7px;height:7px;background:var(--ouro);transform:rotate(45deg)}
 
 /* ---------- 2. sobre mim ---------- */
@@ -682,8 +683,31 @@ const CONFIG = {
   segundosCartao: 7
 };
 
-/* MARCAS com quem você já trabalhou (aparecem na faixa da capa e contam em "marcas atendidas"). */
-const MARCAS = ["VANISH", "LOREAL", "TRISANTI", "ARTAGEL", "ELA DECORA", "RENOVA"];
+/* MARCAS com quem você já trabalhou (aparecem como logo circular na faixa, abaixo da capa).
+   Cada logo é um arquivo na pasta "marcas". Para trocar ou adicionar uma marca, salve a imagem
+   nessa pasta e escreva o nome do arquivo aqui. */
+const MARCAS = [
+  { nome: "L'Oréal Professionnel", logo: "loreal.png" },
+  { nome: "Pantene", logo: "pantene.png" },
+  { nome: "La Roche-Posay", logo: "laroche.png" },
+  { nome: "BellaFemme Cosméticos", logo: "bellafemme.png" },
+  { nome: "Pipizito", logo: "pipizito.png" },
+  { nome: "Prohall Professional", logo: "prohall.png" },
+  { nome: "Arara Sport Fitness", logo: "araraSport.png" },
+  { nome: "TouTi Perfumes", logo: "touti.png" },
+  { nome: "G", logo: "logo-g.png" },
+  { nome: "Maybelline New York", logo: "maybelline.png" },
+  { nome: "H", logo: "logo-h.png" },
+  { nome: "+Mu", logo: "maisMu.png" },
+  { nome: "Creamy Skincare", logo: "creamy.png" },
+  { nome: "Principia", logo: "principia.png" },
+  { nome: "Saint Germain", logo: "saintgermain.png" },
+  { nome: "Flormel", logo: "flormel.png" },
+  { nome: "Yogateria", logo: "yogateria.png" },
+  { nome: "Nina Makeup", logo: "nina.png" },
+  { nome: "Hilee", logo: "hilee.png" },
+  { nome: "Sace Lady", logo: "sacelady.png" }
+];
 
 /* MÉTRICAS. Aparecem na capa (as 3 primeiras) e na seção Números (as 4).
    alvo: número final do contador. Use null enquanto não tiver o dado, e o texto de "placeholder" aparece.
@@ -713,8 +737,6 @@ const NICHOS = [
   { id: "casa", nome: "Casa e decoração", cores: ["#4d5a3a", "#a3ad7c"] },
   { id: "gastronomia", nome: "Gastronomia", cores: ["#8a3f22", "#d9903f"] },
   { id: "tech", nome: "Tech", cores: ["#33283a", "#7a6a8c"] },
-  { id: "beleza", nome: "Beleza", cores: ["#6d2434", "#b4636f"] },
-  { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] },
   { id: "cabelo", nome: "Haircare", cores: ["#7a3b2e", "#c98a6b"] },
   { id: "bodycare", nome: "Bodycare", cores: ["#7a4a42", "#d99b85"] },
   { id: "entretenimento", nome: "Entretenimento", cores: ["#4a2f4f", "#8f6a94"] }
@@ -758,13 +780,6 @@ const TRABALHOS = [
   { nicho: "tech", video: "https://youtube.com/shorts/Mge_UK6gvQc", titulo: "ANHANGUERA",      marca: "Vídeo 2" },
   { nicho: "tech", video: "https://youtube.com/shorts/kDwwXTsXyAo", titulo: "CARTÃO DE TODOS", marca: "Vídeo 2" },
   { nicho: "tech", video: "https://youtube.com/shorts/Xwz41ybzB3Y", titulo: "ULANZI",          marca: "Vídeo 1" },
-  /* BELEZA */
-  { nicho: "beleza", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
-  { nicho: "beleza", formato: "foto",  titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
-  { nicho: "beleza", formato: "video", titulo: "Trabalho 07", marca: "Marca 07", imagem: "", link: "" },
-  /* MODA */
-  { nicho: "moda", formato: "foto",  titulo: "Trabalho 08", marca: "Marca 08", imagem: "", link: "" },
-  { nicho: "moda", formato: "video", titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" },
   /* HAIRCARE */
   { nicho: "cabelo", video: "https://youtube.com/shorts/SITf0W6Xyxo", titulo: "BELLETONN",    marca: "Vídeo 1" },
   { nicho: "cabelo", video: "https://youtube.com/shorts/rY1zHjcfLvE", titulo: "PRO HAIRMONY", marca: "Vídeo 1" },
@@ -864,10 +879,12 @@ const DEPOIMENTOS = [
   /* ---------- faixa de marcas ---------- */
   function montarMarcas() {
     var lista = $("#faixaLista"), trilho = $("#faixaTrilho");
-    MARCAS.forEach(function (m) { lista.append(h("li", { text: m })); });
+    MARCAS.forEach(function (m) { lista.append(h("li", { text: m.nome })); });
     for (var rep = 0; rep < 6; rep++) {
       MARCAS.forEach(function (m) {
-        trilho.append(h("span", { class: "faixa-item" + (rep ? " dup" : "") }, h("span", { text: m }), h("i", { class: "faixa-losango" })));
+        trilho.append(h("span", { class: "faixa-item" + (rep ? " dup" : "") },
+          h("img", { class: "faixa-logo", src: "marcas/" + m.logo, alt: "", "aria-hidden": "true", decoding: "async", width: 96, height: 96 }),
+          h("i", { class: "faixa-losango" })));
       });
     }
   }
