@@ -958,14 +958,10 @@ const DEPOIMENTOS = [
     }
 
     /* "Vídeo 1", "Vídeo 2"... é só um rótulo de organização interna (para diferenciar vídeos do mesmo
-       nicho no painel). Sozinho, sem mais nenhum vídeo do mesmo grupo por perto, ele só repete a mesma
-       palavra em cartão atrás de cartão, então só aparece na tela quando o número realmente ajuda a
-       diferenciar. */
+       nicho no painel). Na tela ele não aparece, mesmo quando tem mais de um vídeo da mesma marca. */
     function legendaCard(t, itens) {
       var generico = /^v[ií]deo\s*\d+$/i.test(String(t.marca || "").trim());
-      if (!generico) return h("p", { text: t.marca });
-      var doMesmoTitulo = (itens || []).filter(function (x) { return x.titulo === t.titulo; });
-      return doMesmoTitulo.length > 1 ? h("p", { text: t.marca }) : null;
+      return generico ? null : h("p", { text: t.marca });
     }
     function montarCard(t, nicho, itens) {
       var cores = { "--g1": nicho.cores[0], "--g2": nicho.cores[1] };
