@@ -688,9 +688,9 @@ const MARCAS = ["VANISH", "LOREAL", "TRISANTI", "ARTAGEL", "ELA DECORA", "RENOVA
    alvo: número final do contador. Use null enquanto não tiver o dado, e o texto de "placeholder" aparece.
    prefixo/sufixo: por exemplo "+" e "M". casas: quantas casas decimais (0 ou 1). */
 const METRICAS = [
-  { rotulo: "vídeos entregues", alvo: null, placeholder: "+00" },
-  { rotulo: "marcas atendidas", alvo: MARCAS.length, prefixo: "", sufixo: "", casas: 0 },
-  { rotulo: "views somadas", alvo: null, placeholder: "+0,0M" },
+  { rotulo: "vídeos entregues", alvo: 300, prefixo: "+", sufixo: "", casas: 0 },
+  { rotulo: "marcas trabalhadas", alvo: 150, prefixo: "+", sufixo: "", casas: 0 },
+  { rotulo: "visualizações em um único vídeo", alvo: 7, prefixo: "+", sufixo: "M", casas: 0 },
   { rotulo: "campanhas realizadas", alvo: null, placeholder: "+00" }
 ];
 
