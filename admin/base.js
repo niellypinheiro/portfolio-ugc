@@ -11,8 +11,6 @@
     { id: "casa", nome: "Casa e decoração" },
     { id: "gastronomia", nome: "Gastronomia" },
     { id: "tech", nome: "Tech" },
-    { id: "beleza", nome: "Beleza" },
-    { id: "moda", nome: "Moda" },
     { id: "cabelo", nome: "Haircare" },
     { id: "bodycare", nome: "Bodycare" },
     { id: "entretenimento", nome: "Entretenimento" }
