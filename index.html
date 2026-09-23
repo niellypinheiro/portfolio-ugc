@@ -200,7 +200,6 @@ main,.rodape{position:relative;z-index:1}
 @keyframes correr{to{transform:translateX(-50%)}}
 .faixa-item{display:flex;align-items:center;gap:clamp(22px,3vw,40px);padding-right:clamp(22px,3vw,40px);white-space:nowrap}
 .faixa-logo{width:clamp(44px,7vw,60px);height:clamp(44px,7vw,60px);border-radius:50%;object-fit:cover;background:var(--papel);border:2px solid var(--ouro);box-shadow:0 3px 8px rgba(0,0,0,.4)}
-.faixa-losango{display:block;width:7px;height:7px;background:var(--ouro);transform:rotate(45deg)}
 
 /* ---------- 2. sobre mim ---------- */
 .sobre-grade{display:grid;grid-template-columns:1fr;gap:clamp(30px,5vw,64px);padding:clamp(24px,4.5vw,64px);align-items:center}
@@ -706,7 +705,27 @@ const MARCAS = [
   { nome: "Yogateria", logo: "yogateria.png" },
   { nome: "Nina Makeup", logo: "nina.png" },
   { nome: "Hilee", logo: "hilee.png" },
-  { nome: "Sace Lady", logo: "sacelady.png" }
+  { nome: "Sace Lady", logo: "sacelady.png" },
+  { nome: "Realeza", logo: "realeza.png" },
+  { nome: "Foot's", logo: "foots.png" },
+  { nome: "Gummy Original", logo: "gummy.png" },
+  { nome: "C Store", logo: "cstore.png" },
+  { nome: "Cicatribem", logo: "cicatribem.png" },
+  { nome: "G", logo: "gverde.png" },
+  { nome: "Simple", logo: "simple.png" },
+  { nome: "Maxfem", logo: "maxfem.png" },
+  { nome: "Hidrabene", logo: "hidrabene.png" },
+  { nome: "SC", logo: "sc.png" },
+  { nome: "Konjac Massa MF", logo: "konjac.png" },
+  { nome: "Instituto Brasileiro IBiiS", logo: "ibiis.png" },
+  { nome: "Piuka", logo: "piuka.png" },
+  { nome: "Natalia Beauty Group", logo: "nataliabeauty.png" },
+  { nome: "Basicamente", logo: "basicamente.png" },
+  { nome: "Basico.com", logo: "basico.png" },
+  { nome: "TENA", logo: "tena.png" },
+  { nome: "SunKiDs", logo: "sunkids.png" },
+  { nome: "Nanda Intimu's", logo: "nanda.png" },
+  { nome: "Michelle Marques", logo: "michellemarques.png" }
 ];
 
 /* MÉTRICAS. Aparecem na capa (as 3 primeiras) e na seção Números (as 4).
@@ -883,8 +902,7 @@ const DEPOIMENTOS = [
     for (var rep = 0; rep < 6; rep++) {
       MARCAS.forEach(function (m) {
         trilho.append(h("span", { class: "faixa-item" + (rep ? " dup" : "") },
-          h("img", { class: "faixa-logo", src: "marcas/" + m.logo, alt: "", "aria-hidden": "true", decoding: "async", width: 96, height: 96 }),
-          h("i", { class: "faixa-losango" })));
+          h("img", { class: "faixa-logo", src: "marcas/" + m.logo, alt: "", "aria-hidden": "true", decoding: "async", width: 96, height: 96 })));
       });
     }
   }
