@@ -122,7 +122,7 @@ main,.rodape{position:relative;z-index:1}
   background:var(--grao-couro),linear-gradient(180deg,rgba(58,36,21,.6),rgba(34,20,11,.6));background-color:rgba(34,20,11,.45);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.4),0 20px 34px -14px rgba(20,8,2,.75),0 2px 3px rgba(20,8,2,.4);
   text-shadow:0 1px 1px rgba(0,0,0,.4)}
-.pagina{box-shadow:inset 0 0 0 1px rgba(201,162,39,.4),5px 6px 0 -1px var(--couro-esc),10px 12px 0 -2px var(--couro-mais-esc),0 26px 36px -14px rgba(20,8,2,.75)}
+.pagina{background:none;border:0;box-shadow:none}
 .secao{padding-block:clamp(36px,6vw,72px)}
 .eyebrow{font:600 clamp(1.4rem,3vw,1.7rem)/1.2 var(--fonte-legenda);color:var(--ouro-claro)}
 .cab-papel{text-align:center;margin-bottom:clamp(26px,4vw,42px)}
@@ -268,7 +268,7 @@ main,.rodape{position:relative;z-index:1}
 .trab .play{width:64px;height:64px;margin:-32px 0 0 -32px}
 .trab .play::before{left:25px;top:19px;border-width:13px 0 13px 20px}
 .trab-midia.tocavel:hover .play{transform:scale(1.08)}
-.trab h4{margin-top:18px;font:600 1.5rem/1.1 var(--fonte-titulo)}
+.trab h4{margin-top:18px;font:600 1.5rem/1.1 var(--fonte-titulo);text-transform:uppercase}
 .trab p{color:var(--tinta-2);font-size:.95rem}
 .trab .trab-destaque{margin-top:2px;font-weight:600;color:var(--ouro-claro);font-size:.92rem}
 a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro),0 10px 22px rgba(0,0,0,.25)}
@@ -715,7 +715,8 @@ const NICHOS = [
   { id: "tech", nome: "Tech", cores: ["#33283a", "#7a6a8c"] },
   { id: "beleza", nome: "Beleza", cores: ["#6d2434", "#b4636f"] },
   { id: "moda", nome: "Moda", cores: ["#5a3a1e", "#c9a227"] },
-  { id: "cabelo", nome: "Cuidados com o cabelo", cores: ["#7a3b2e", "#c98a6b"] },
+  { id: "cabelo", nome: "Haircare", cores: ["#7a3b2e", "#c98a6b"] },
+  { id: "bodycare", nome: "Bodycare", cores: ["#7a4a42", "#d99b85"] },
   { id: "entretenimento", nome: "Entretenimento", cores: ["#4a2f4f", "#8f6a94"] }
 ];
 
@@ -730,19 +731,33 @@ const NICHOS = [
    imagem: nome do arquivo da imagem (vazio = degradê).  link: endereço do trabalho (vazio = sem link). */
 const TRABALHOS = [
   /* CASA E DECORAÇÃO */
-  { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",    marca: "Vídeo 1" },
-  { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM",  marca: "Vídeo 1" },
-  { nicho: "casa", video: "https://youtube.com/shorts/I9iv1-c6LiQ", titulo: "AZULIM",  marca: "Vídeo 2" },
-  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",    marca: "Vídeo 2" },
-  { nicho: "casa", video: "https://youtube.com/shorts/bAdmW502faU", titulo: "ARTAGEL", marca: "Vídeo 1" },
-  { nicho: "casa", video: "https://youtube.com/shorts/cY6R3Yt67_g", titulo: "RENOVA",  marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/ur--DEw5fKM", titulo: "COZA",       marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/99RwFWFInB4", titulo: "AZULIM",     marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/I9iv1-c6LiQ", titulo: "AZULIM",     marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/1wOeEn8UA34", titulo: "COZA",       marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/bAdmW502faU", titulo: "ARTAGEL",    marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/cY6R3Yt67_g", titulo: "RENOVA",     marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/0xy7LrpPG2k", titulo: "HOOMY",      marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/aPtnh7zriFQ", titulo: "ELA DECORA", marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/sk0HxQuaFpc", titulo: "ARTAGEL",    marca: "Vídeo 2" },
+  { nicho: "casa", video: "https://youtube.com/shorts/rVyR6jqqjUo", titulo: "CIF",        marca: "Vídeo 1" },
+  { nicho: "casa", video: "https://youtube.com/shorts/IcRGYDxUOgE", titulo: "ARTAGEL",    marca: "Vídeo 3" },
   /* GASTRONOMIA */
   { nicho: "gastronomia", video: "https://youtube.com/shorts/oJMEscd4lYs", titulo: "TRISANTI", marca: "Vídeo 1" },
   { nicho: "gastronomia", video: "https://youtube.com/shorts/tvGeI8MsZ9w", titulo: "ALLNUTRI",  marca: "Vídeo 1" },
+  { nicho: "gastronomia", video: "https://youtube.com/shorts/mZZQqyLo6Bg", titulo: "RAP 10",    marca: "Vídeo 1" },
   /* TECH */
-  { nicho: "tech", video: "https://youtube.com/shorts/3P2JYA_eKIQ", titulo: "DS. MARKETING", marca: "Vídeo 1" },
-  { nicho: "tech", video: "https://youtube.com/shorts/g5HhXVhUwtU", titulo: "PERPLEXITY",    marca: "Vídeo 1" },
-  { nicho: "tech", video: "https://youtube.com/shorts/tvxthqxO-fw", titulo: "RE.SPAELLY",    marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/3P2JYA_eKIQ", titulo: "DS. MARKETING",   marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/g5HhXVhUwtU", titulo: "PERPLEXITY",      marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/tvxthqxO-fw", titulo: "RE.SPACELLY",     marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/bRB1aRaPcdw", titulo: "CARTÃO DE TODOS", marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/panIkOPPcck", titulo: "FREEREELS",       marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/TYg0PeHqZlg", titulo: "FREEREELS",       marca: "Vídeo 2" },
+  { nicho: "tech", video: "https://youtube.com/shorts/RRBdEQpqMd8", titulo: "BLZA BENEFÍCIOS", marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/9Vkw4Mlx0jM", titulo: "ANHANGUERA",      marca: "Vídeo 1" },
+  { nicho: "tech", video: "https://youtube.com/shorts/Mge_UK6gvQc", titulo: "ANHANGUERA",      marca: "Vídeo 2" },
+  { nicho: "tech", video: "https://youtube.com/shorts/kDwwXTsXyAo", titulo: "CARTÃO DE TODOS", marca: "Vídeo 2" },
+  { nicho: "tech", video: "https://youtube.com/shorts/Xwz41ybzB3Y", titulo: "ULANZI",          marca: "Vídeo 1" },
   /* BELEZA */
   { nicho: "beleza", formato: "video", titulo: "Trabalho 05", marca: "Marca 05", imagem: "", link: "" },
   { nicho: "beleza", formato: "foto",  titulo: "Trabalho 06", marca: "Marca 06", imagem: "", link: "" },
@@ -750,9 +765,15 @@ const TRABALHOS = [
   /* MODA */
   { nicho: "moda", formato: "foto",  titulo: "Trabalho 08", marca: "Marca 08", imagem: "", link: "" },
   { nicho: "moda", formato: "video", titulo: "Trabalho 09", marca: "Marca 09", imagem: "", link: "" },
-  /* CUIDADOS COM O CABELO */
+  /* HAIRCARE */
   { nicho: "cabelo", video: "https://youtube.com/shorts/SITf0W6Xyxo", titulo: "BELLETONN",    marca: "Vídeo 1" },
   { nicho: "cabelo", video: "https://youtube.com/shorts/rY1zHjcfLvE", titulo: "PRO HAIRMONY", marca: "Vídeo 1" },
+  { nicho: "cabelo", video: "https://youtube.com/shorts/hi72JNcVKXU", titulo: "EUDORA",       marca: "Vídeo 1" },
+  { nicho: "cabelo", video: "https://youtube.com/shorts/E_1mjJbFwN8", titulo: "BELLETONN",    marca: "Vídeo 2" },
+  { nicho: "cabelo", video: "https://youtube.com/shorts/c-gnJmhh8Fc", titulo: "NUALA",         marca: "Vídeo 1" },
+  { nicho: "cabelo", video: "https://youtube.com/shorts/NAFozOK-GJU", titulo: "LOREAL",        marca: "Vídeo 1" },
+  /* BODYCARE */
+  { nicho: "bodycare", video: "https://youtube.com/shorts/DVfAxxvmtfY", titulo: "DOVE", marca: "Vídeo 1" },
   /* ENTRETENIMENTO */
   { nicho: "entretenimento", video: "https://youtube.com/shorts/O5JAkcD99as", titulo: "LOLU", marca: "Vídeo 1" }
 ];
