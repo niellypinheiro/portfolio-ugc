@@ -278,6 +278,11 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 .trab-midia.previa-ativa .play{opacity:0;transition:opacity .15s}
 .nicho-vazio{padding:34px 18px;text-align:center;color:var(--tinta-2);border:1px dashed var(--ouro);border-radius:4px}
 
+/* ---------- 4b. fotos ---------- */
+.galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:clamp(10px,1.6vw,18px)}
+.galeria-fotos img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:3px;border:1px solid var(--ouro);box-shadow:0 0 0 4px var(--papel),0 0 0 5px rgba(201,162,39,.6);transition:transform .2s}
+.galeria-fotos img:hover{transform:scale(1.03)}
+
 /* ---------- 5. serviços ---------- */
 .servicos{display:grid;grid-template-columns:1fr;gap:clamp(16px,2.4vw,28px)}
 @media (min-width:600px){.servicos{grid-template-columns:repeat(2,1fr)}}
@@ -399,6 +404,7 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
         <li><a href="#sobre">Sobre</a></li>
         <li><a href="#destaques">Destaques</a></li>
         <li><a href="#trabalhos">Trabalhos</a></li>
+        <li><a href="#fotos">Fotos</a></li>
         <li><a href="#servicos">Serviços</a></li>
         <li><a href="#numeros">Números</a></li>
         <li><a href="#contato">Contato</a></li>
@@ -510,6 +516,21 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
       <nav class="filtros" id="filtros" aria-label="Ir para um nicho"></nav>
       <!-- Cada nicho vira um carrossel, montado a partir da lista TRABALHOS (script, no fim do arquivo). -->
       <div id="nichos"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4B. FOTOS ============ -->
+<section id="fotos" class="secao" aria-labelledby="fotos-titulo">
+  <div class="wrap">
+    <div class="papel pagina fotos-pagina">
+      <div class="cab-papel">
+        <p class="eyebrow">registros em imagem</p>
+        <h2 id="fotos-titulo">Fotos dos <em>trabalhos</em></h2>
+        <span class="ornamento" aria-hidden="true"></span>
+      </div>
+      <!-- Cada foto vira uma miniatura, montada a partir da lista FOTOS (script, no fim do arquivo). -->
+      <div class="galeria-fotos" id="galeriaFotos"></div>
     </div>
   </div>
 </section>
@@ -681,6 +702,16 @@ const PERFIL = {
 const CONFIG = {
   segundosCartao: 7
 };
+
+/* FOTOS dos trabalhos (aparecem na galeria da seção "Fotos", depois dos vídeos).
+   Cada foto é um arquivo na pasta "fotos". Para trocar ou adicionar uma foto, salve a imagem
+   nessa pasta e escreva o nome do arquivo aqui. */
+const FOTOS = [
+  "foto01.jpg", "foto02.jpg", "foto03.jpg", "foto04.jpg", "foto05.jpg",
+  "foto06.jpg", "foto07.jpg", "foto08.jpg", "foto09.jpg", "foto10.jpg",
+  "foto11.jpg", "foto12.jpg", "foto13.jpg", "foto14.png", "foto15.jpg",
+  "foto16.jpg", "foto17.jpg", "foto18.jpg", "foto19.jpg", "foto20.jpg"
+];
 
 /* MARCAS com quem você já trabalhou (aparecem como logo circular na faixa, abaixo da capa).
    Cada logo é um arquivo na pasta "marcas". Para trocar ou adicionar uma marca, salve a imagem
@@ -913,6 +944,15 @@ const DEPOIMENTOS = [
       caixa.removeAttribute("aria-label");
     });
     $("#ano").textContent = new Date().getFullYear();
+  }
+
+  /* ---------- galeria de fotos ---------- */
+  function montarFotos() {
+    var galeria = $("#galeriaFotos");
+    if (!galeria) return;
+    FOTOS.forEach(function (arquivo, i) {
+      galeria.append(h("img", { class: "revela", estilo: atraso(i % 5, 70), src: "fotos/" + arquivo, alt: "Foto de trabalho de " + PERFIL.nome, loading: i < 6 ? "eager" : "lazy", decoding: "async", width: 450, height: 560 }));
+    });
   }
 
   /* ---------- faixa de marcas ---------- */
@@ -1449,6 +1489,7 @@ const DEPOIMENTOS = [
   function registrarAcao(nome) { try { enviarRegistro(nome); } catch (e) {} }
   /* ---------- início ---------- */
   aplicarPerfil();
+  montarFotos();
   montarMarcas();
   montarMetricas();
   montarServicos();
