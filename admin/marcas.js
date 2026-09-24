@@ -42,7 +42,7 @@
         P.erroNoCampo(nome, ""); P.erroNoCampo(email, "");
         let ok = true;
         if (!nome.value.trim()) { P.erroNoCampo(nome, "Escreva o nome da marca."); ok = false; }
-        if (!emailOk(email.value.trim())) { P.erroNoCampo(email, "Esse e-mail não parece certo."); ok = false; }
+        if (!emailOk(email.value.trim())) P.erroNoCampo(email, "Esse texto não está no formato comum de e-mail, mas isso não impede de salvar.");
         if (!ok) return false;
         const dados = { nome: nome.value.trim(), instagram: P.arroba(instagram.value) || null, email: email.value.trim() || null,
           telefone: telefone.value.trim() || null, situacao: situacao.value, nicho: nicho.value || null,
