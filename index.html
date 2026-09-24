@@ -279,8 +279,11 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 .nicho-vazio{padding:34px 18px;text-align:center;color:var(--tinta-2);border:1px dashed var(--ouro);border-radius:4px}
 
 /* ---------- 4b. fotos ---------- */
-.galeria-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:clamp(10px,1.6vw,18px)}
-.galeria-fotos img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:3px;border:1px solid var(--ouro);box-shadow:0 0 0 4px var(--papel),0 0 0 5px rgba(201,162,39,.6);transition:transform .2s}
+.galeria-fotos{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(10px,1.6vw,18px)}
+@media (min-width:600px){.galeria-fotos{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:900px){.galeria-fotos{grid-template-columns:repeat(4,1fr)}}
+@media (min-width:1200px){.galeria-fotos{grid-template-columns:repeat(5,1fr)}}
+.galeria-fotos img{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:3px;border:1px solid var(--ouro);box-shadow:0 0 0 4px var(--papel),0 0 0 5px rgba(201,162,39,.6);transition:transform .2s}
 .galeria-fotos img:hover{transform:scale(1.03)}
 
 /* ---------- 5. serviços ---------- */
@@ -786,7 +789,7 @@ const METRICAS = [
   { rotulo: "vídeos entregues", alvo: 300, prefixo: "+", sufixo: "", casas: 0 },
   { rotulo: "marcas trabalhadas", alvo: 150, prefixo: "+", sufixo: "", casas: 0 },
   { rotulo: "visualizações em um único vídeo", alvo: 7, prefixo: "+", sufixo: "M", casas: 0 },
-  { rotulo: "campanhas realizadas", alvo: null, placeholder: "+00" }
+  { rotulo: "anos de experiência", alvo: 3, prefixo: "+", sufixo: "", casas: 0 }
 ];
 
 /* CONTEÚDOS DE DESTAQUE (3 cards).
@@ -882,10 +885,16 @@ const RESULTADOS = [
 
 /* DEPOIMENTOS (4). */
 const DEPOIMENTOS = [
-  { texto: "Escreva aqui o depoimento deste cliente sobre o roteiro e a comunicação durante o projeto.", nome: "Cliente 01", empresa: "Marca 01" },
-  { texto: "Escreva aqui o depoimento deste cliente sobre o prazo de entrega e a qualidade do vídeo.", nome: "Cliente 02", empresa: "Marca 02" },
-  { texto: "Escreva aqui o depoimento deste cliente sobre o resultado que a campanha trouxe para a marca.", nome: "Cliente 03", empresa: "Marca 03" },
-  { texto: "Escreva aqui o depoimento deste cliente sobre como foi a experiência de trabalhar com a Nielly.", nome: "Cliente 04", empresa: "Marca 04" }
+  { texto: "Amamos acompanhar sua rotina e como você mostra a discrição e a proteção dos nossos absorventes e protetores diários. Agradecemos pela parceria e por compartilhar essa experiência com a linha LADY Discreet!", nome: "TENA Brasil", empresa: "Cuidados íntimos" },
+  { texto: "Adoramos o trabalho da Nielly, foi muito mais do que o esperado. Ela entendeu perfeitamente o nosso briefing e entregou um material que vai ser perfeito para a nossa marca. Com certeza queremos fazer novos trabalhos com ela. Parabéns", nome: "Ultragreens Verdelife", empresa: "Avaliação · 5 estrelas" },
+  { texto: "Adoramos trabalhar com a Nielly! Boa comunicação, entrega muito rápida e a edição do vídeo ficou super bacana, destacando bem o produto e cumprindo com o que solicitamos à ela!", nome: "Transformações com Produtos de Tapeçaria", empresa: "Avaliação · 5 estrelas" },
+  { texto: "Foi uma boa parceria com a Nielly. Ela cumpriu as entregas combinadas, apresentou o produto de forma objetiva e manteve comunicação clara. Conteúdo correto e dentro do esperado.", nome: "Rap10 Oficial", empresa: "UGC Creator · 4,5 estrelas" },
+  { texto: "Parabéns pela entrega do conteúdo para a Natalia Beauty! Ficamos encantados com o seu trabalho, entregue corretamente e dentro do prazo. Agradecemos o seu empenho e dedicação. 💖", nome: "Natalia Beauty Group", empresa: "via Seu Influencer" },
+  { texto: "Um prazer trabalhar com a Nielly! Atenta ao briefing, boa comunicação e ótimos vídeos.", nome: "Artagel", empresa: "Campanha Criadores Juninos · 5 estrelas" },
+  { texto: "Excelente Profissional. Recomendo!", nome: "Instituto Brasileiro de Idiomas (IBIIS)", empresa: "Formação em Espanhol 100% Online · 5 estrelas" },
+  { texto: "Arrasou no conteúdo, ficou bastante dinâmico e além disso foi super prestativa e entregou antes do prazo, atendendo o que pedimos no briefing. Super indico 🥰", nome: "Nuala Brazil", empresa: "Avaliação · 5 estrelas" },
+  { texto: "Ótima experiência! Recomendo!", nome: "Belê", empresa: "Avaliação · 5 estrelas" },
+  { texto: "A Nielly fez um ótimo trabalho, super indicamos!!!", nome: "Pro Hairmony", empresa: "Campanha UGC · Alisamento · 5 estrelas" }
 ];
 
 /* =========================================================================
