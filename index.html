@@ -191,6 +191,9 @@ main,.rodape{position:relative;z-index:1}
 @media (min-width:900px){.capa-foto{width:min(100%,480px)}}
 .capa-foto .foto-moldura{padding:0}
 .capa-foto .foto{border-radius:8px;box-shadow:0 24px 44px -14px rgba(20,8,2,.75)}
+.capa-foto .foto img{animation:zoomCapa 16s ease-in-out infinite alternate}
+@keyframes zoomCapa{from{transform:scale(1)}to{transform:scale(1.09)}}
+@media (prefers-reduced-motion: reduce){.capa-foto .foto img{animation:none}}
 .contador{font-variant-numeric:tabular-nums}
 
 /* faixa fina com as marcas */
