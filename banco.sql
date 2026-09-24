@@ -62,10 +62,13 @@ create table if not exists public.marcas (
   telefone       text check (char_length(telefone) <= 40),
   situacao       text not null default 'lead'
                  check (situacao in ('lead', 'conversando', 'cliente', 'parada')),
+  nicho          text check (nicho is null or nicho in ('casa', 'gastronomia', 'tech', 'cabelo', 'bodycare', 'entretenimento', 'moda')),
   obs            text check (char_length(obs) <= 3000),
   ultimo_contato date,
   criado_em      timestamptz not null default now()
 );
+-- Se a tabela já existia de antes, isto acrescenta o campo do nicho (não apaga nada)
+alter table public.marcas add column if not exists nicho text;
 
 -- 2.3 CALENDARIO: o que você precisa gravar, editar ou postar.
 create table if not exists public.calendario (
