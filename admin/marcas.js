@@ -9,16 +9,21 @@
   const nomeSituacao = (s) => (SITUACOES.find((x) => x[0] === s) || [s, s])[1];
   const pilula = (s) => h("span", { class: "pilula p-" + s, text: nomeSituacao(s) });
 
+  /* Nichos para organizar os leads. São os mesmos nichos do portfólio, mais "Moda" (só para organizar as marcas). */
+  const NICHOS_MARCA = P.NICHOS.map((n) => [n.id, n.nome]).concat([["moda", "Moda"]]);
+  const nomeNichoMarca = (n) => (NICHOS_MARCA.find((x) => x[0] === n) || [n, ""])[1];
+
   function emailOk(v) { return !v || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
 
   function abrirFormulario(marca, aoSalvar) {
     const novo = !marca;
-    const m = marca || { nome: "", instagram: "", email: "", telefone: "", situacao: "lead", obs: "", ultimo_contato: "" };
+    const m = marca || { nome: "", instagram: "", email: "", telefone: "", situacao: "lead", nicho: "", obs: "", ultimo_contato: "" };
     const nome = h("input", { type: "text", value: m.nome, maxlength: "200", autocomplete: "off" });
     const instagram = h("input", { type: "text", value: m.instagram || "", maxlength: "100", placeholder: "@nomedamarca", autocomplete: "off" });
     const email = h("input", { type: "email", value: m.email || "", maxlength: "200", placeholder: "contato@marca.com.br", autocomplete: "off" });
     const telefone = h("input", { type: "tel", value: m.telefone || "", maxlength: "40", placeholder: "(00) 00000-0000", autocomplete: "off" });
     const situacao = h("select", null, P.opcoes(SITUACOES, m.situacao));
+    const nicho = h("select", null, h("option", { value: "", text: "Sem nicho definido", selected: !m.nicho }), P.opcoes(NICHOS_MARCA, m.nicho || ""));
     const contato = h("input", { type: "date", value: m.ultimo_contato ? String(m.ultimo_contato).slice(0, 10) : "" });
     const obs = h("textarea", { maxlength: "3000", placeholder: "Anotações sobre essa marca" });
     obs.value = m.obs || "";
@@ -27,7 +32,8 @@
       P.campo("Nome da marca", nome),
       h("div", { class: "grade2" }, P.campo("Instagram", instagram), P.campo("Telefone", telefone)),
       P.campo("E-mail", email),
-      h("div", { class: "grade2" }, P.campo("Situação", situacao), P.campo("Último contato", contato)),
+      h("div", { class: "grade2" }, P.campo("Situação", situacao), P.campo("Nicho", nicho)),
+      P.campo("Último contato", contato),
       P.campo("Observação", obs));
 
     const botoes = [
@@ -39,7 +45,8 @@
         if (!emailOk(email.value.trim())) { P.erroNoCampo(email, "Esse e-mail não parece certo."); ok = false; }
         if (!ok) return false;
         const dados = { nome: nome.value.trim(), instagram: P.arroba(instagram.value) || null, email: email.value.trim() || null,
-          telefone: telefone.value.trim() || null, situacao: situacao.value, obs: obs.value.trim() || null, ultimo_contato: contato.value || null };
+          telefone: telefone.value.trim() || null, situacao: situacao.value, nicho: nicho.value || null,
+          obs: obs.value.trim() || null, ultimo_contato: contato.value || null };
         const r = await P.gravar(() => novo ? window.sb.from("marcas").insert(dados) : window.sb.from("marcas").update(dados).eq("id", marca.id));
         if (!r.ok) return false;
         P.toast(novo ? "Marca adicionada" : "Marca salva");
@@ -65,6 +72,7 @@
     email: ["email", "e-mail", "e mail", "mail"],
     telefone: ["telefone", "fone", "celular", "whatsapp", "contato", "numero", "numero de contato"],
     situacao: ["situacao", "status", "etapa", "fase"],
+    nicho: ["nicho", "categoria", "segmento", "area", "tipo"],
     obs: ["obs", "observacao", "observacoes", "anotacao", "anotacoes", "nota", "notas", "comentario", "comentarios"],
     ultimo_contato: ["ultimo contato", "data", "data do contato", "ultimo contato em", "contato em", "data de contato"]
   };
@@ -89,6 +97,12 @@
     const achada = SITUACOES.find(([cod, rot]) => cod === n || P.semAcento(rot) === n);
     return achada ? achada[0] : "lead";
   }
+  function nichoDoTexto(s) {
+    const n = P.semAcento(s || "").trim();
+    if (!n) return null;
+    const achada = NICHOS_MARCA.find(([cod, rot]) => cod === n || P.semAcento(rot).includes(n) || n.includes(P.semAcento(rot)));
+    return achada ? achada[0] : null;
+  }
 
   function abrirImportacao(lista, recarregar) {
     const input = h("input", { type: "file", accept: ".csv,text/csv", hidden: true });
@@ -106,7 +120,7 @@
       const cabecalhos = linhas[0];
       const idx = { nome: acharColuna(cabecalhos, "nome"), instagram: acharColuna(cabecalhos, "instagram"),
         email: acharColuna(cabecalhos, "email"), telefone: acharColuna(cabecalhos, "telefone"),
-        situacao: acharColuna(cabecalhos, "situacao"), obs: acharColuna(cabecalhos, "obs"),
+        situacao: acharColuna(cabecalhos, "situacao"), nicho: acharColuna(cabecalhos, "nicho"), obs: acharColuna(cabecalhos, "obs"),
         ultimo_contato: acharColuna(cabecalhos, "ultimo_contato") };
       if (idx.nome === -1) idx.nome = 0;   /* sem coluna de nome identificada: usa a primeira coluna */
 
@@ -143,6 +157,7 @@
         registros.push({
           nome: nome.curto, instagram: instagram.curto, email: email.curto, telefone: telefone.curto,
           situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
+          nicho: idx.nicho !== -1 ? nichoDoTexto(linha[idx.nicho]) : null,
           obs: obs.curto, ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
         });
       });
@@ -156,22 +171,36 @@
         if (!k || existentes.has(k) || vistos.has(k)) repetidos.push(r); else { vistos.add(k); prontos.push(r); }
       });
 
+      const temNichoNaPlanilha = idx.nicho !== -1;
+      const nichoPadrao = h("select", null,
+        h("option", { value: "", text: temNichoNaPlanilha ? "Manter o nicho que veio da planilha" : "Escolha o nicho destas marcas" }),
+        P.opcoes(NICHOS_MARCA, ""));
+      const tbody = h("tbody");
+      function desenharLinhasPreVia() {
+        P.limpar(tbody).append(...prontos.slice(0, 25).map((r) => h("tr", null,
+          h("td", { text: r.nome }), h("td", { text: r.instagram || "" }), h("td", { text: r.email || "" }), h("td", { text: r.telefone || "" }),
+          h("td", null, pilula(r.situacao)), h("td", { text: nomeNichoMarca(r.nicho || nichoPadrao.value) || "—" }))));
+      }
+      nichoPadrao.addEventListener("change", desenharLinhasPreVia);
+
       const corpo = h("div", null,
         h("p", null, "Encontrei ", h("b", { text: String(registros.length) }), " marca" + (registros.length === 1 ? "" : "s") + " nesse arquivo."),
         repetidos.length ? h("p", { class: "dica", text: repetidos.length + " já estão na sua base (mesmo nome) e não serão duplicadas." }) : null,
         comSobra ? h("p", { class: "dica", text: "Em " + comSobra + " marca" + (comSobra === 1 ? "" : "s") + ", um campo estava comprido demais (telefone ou e-mail com anotação extra); guardei o texto inteiro na Observação e encurtei só o campo." }) : null,
+        prontos.length ? P.campo("Nicho", nichoPadrao, temNichoNaPlanilha ? "Encontrei uma coluna de nicho na sua planilha. Só escolha aqui se quiser trocar o nicho de todas as marcas desta importação." : "Vale para todas as marcas desta planilha. Depois dá para trocar uma por uma.") : null,
         prontos.length ? h("div", { class: "rolagem" }, h("table", { class: "tabela" },
-          h("thead", null, h("tr", null, h("th", { text: "Marca" }), h("th", { text: "Instagram" }), h("th", { text: "E-mail" }), h("th", { text: "Telefone" }), h("th", { text: "Situação" }))),
-          h("tbody", null, prontos.slice(0, 25).map((r) => h("tr", null,
-            h("td", { text: r.nome }), h("td", { text: r.instagram || "" }), h("td", { text: r.email || "" }), h("td", { text: r.telefone || "" }), h("td", null, pilula(r.situacao))))))) : null,
+          h("thead", null, h("tr", null, h("th", { text: "Marca" }), h("th", { text: "Instagram" }), h("th", { text: "E-mail" }), h("th", { text: "Telefone" }), h("th", { text: "Situação" }), h("th", { text: "Nicho" }))),
+          tbody)) : null,
         prontos.length > 25 ? h("p", { class: "dica", text: "Mostrando as 25 primeiras. As outras " + (prontos.length - 25) + " também entram na importação." }) : null,
         !prontos.length ? h("p", { class: "aviso-pagina", text: "Nenhuma marca nova para importar: todas já estão na sua base ou o arquivo não tem nome de marca." }) : null);
+      desenharLinhasPreVia();
 
       P.modal({
         titulo: "Importar planilha de marcas", larga: true, corpo,
         botoes: prontos.length ? [
           { texto: "Cancelar" },
           { texto: "Importar " + prontos.length + (prontos.length === 1 ? " marca" : " marcas"), classe: "p", aoClicar: async () => {
+            if (nichoPadrao.value) prontos.forEach((r) => { if (!r.nicho) r.nicho = nichoPadrao.value; });
             const LOTE = 80;
             let importados = 0, falhou = false;
             for (let i = 0; i < prontos.length && !falhou; i += LOTE) {
@@ -192,7 +221,7 @@
   P.abas.marcas = {
     async renderizar(raiz) {
       let lista = (await P.carregar("marcas", (t) => t.select("*").order("criado_em", { ascending: false }))).dados;
-      const estado = { busca: "", filtro: "todas", chave: "ultimo_contato", dir: "desc" };
+      const estado = { busca: "", filtro: "todas", nicho: "todos", chave: "ultimo_contato", dir: "desc" };
 
       async function recarregar() {
         const r = await P.carregar("marcas", (t) => t.select("*").order("criado_em", { ascending: false }));
@@ -202,17 +231,19 @@
       function filtrada() {
         const q = P.semAcento(estado.busca).replace(/^@/, "");
         let itens = lista.filter((m) => estado.filtro === "todas" || m.situacao === estado.filtro);
+        if (estado.nicho !== "todos") itens = itens.filter((m) => (estado.nicho === "sem" ? !m.nicho : m.nicho === estado.nicho));
         if (q) itens = itens.filter((m) => P.semAcento([m.nome, m.instagram, m.email].join(" ")).includes(q));
         const valor = {
           nome: (m) => m.nome, instagram: (m) => m.instagram || null, email: (m) => m.email || null, telefone: (m) => m.telefone || null,
-          situacao: (m) => SITUACOES.findIndex((s) => s[0] === m.situacao), obs: (m) => m.obs || null, ultimo_contato: (m) => m.ultimo_contato || null
+          situacao: (m) => SITUACOES.findIndex((s) => s[0] === m.situacao), nicho: (m) => m.nicho ? nomeNichoMarca(m.nicho) : null,
+          obs: (m) => m.obs || null, ultimo_contato: (m) => m.ultimo_contato || null
         }[estado.chave];
         return P.ordenar(itens, valor, estado.dir);
       }
       function baixar() {
         const dados = lista.slice().sort((a, b) => P.comparar(a.nome, b.nome));
-        P.baixarCSV("minhas-marcas.csv", ["Marca", "Instagram", "E-mail", "Telefone", "Situação", "Observação", "Último contato"],
-          dados.map((m) => [m.nome, m.instagram, m.email, m.telefone, nomeSituacao(m.situacao), m.obs, P.fmtData(m.ultimo_contato)]));
+        P.baixarCSV("minhas-marcas.csv", ["Marca", "Instagram", "E-mail", "Telefone", "Situação", "Nicho", "Observação", "Último contato"],
+          dados.map((m) => [m.nome, m.instagram, m.email, m.telefone, nomeSituacao(m.situacao), m.nicho ? nomeNichoMarca(m.nicho) : "", m.obs, P.fmtData(m.ultimo_contato)]));
       }
 
       const tabelaBox = h("div");
@@ -221,16 +252,16 @@
         const cab = (r, c, cls) => P.cabecalho(r, c, estado, desenharTabela, cls);
         const thead = h("thead", null, h("tr", null,
           cab("Marca", "nome"), cab("Instagram", "instagram"), cab("E-mail", "email"), cab("Telefone", "telefone"),
-          cab("Situação", "situacao"), cab("Observação", "obs"), cab("Último contato", "ultimo_contato")));
+          cab("Situação", "situacao"), cab("Nicho", "nicho"), cab("Observação", "obs"), cab("Último contato", "ultimo_contato")));
         const tbody = h("tbody");
         if (!lista.length) {
           tabelaBox.append(h("p", { class: "aviso-pagina", text: "Sua base ainda está vazia. A linha abaixo é só um exemplo do formato e some quando você adicionar a primeira marca. Os contatos que chegam pelo formulário do site entram aqui sozinhos, como Lead." }));
           tbody.append(h("tr", { class: "exemplo" },
             h("td", null, "Nome da marca", P.etiquetaExemplo()), h("td", { text: "@nomedamarca" }), h("td", { text: "contato@exemplo.com" }),
-            h("td", { text: "(00) 00000-0000" }), h("td", null, pilula("lead")), h("td", { text: "Chegou pelo formulário do site" }), h("td", { text: P.fmtData(P.hoje()) })));
+            h("td", { text: "(00) 00000-0000" }), h("td", null, pilula("lead")), h("td", { text: "Casa e decoração" }), h("td", { text: "Chegou pelo formulário do site" }), h("td", { text: P.fmtData(P.hoje()) })));
         } else {
           const itens = filtrada();
-          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "7", class: "fraco", text: "Nenhuma marca encontrada com esse filtro ou busca." })));
+          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "8", class: "fraco", text: "Nenhuma marca encontrada com esse filtro ou busca." })));
           itens.forEach((m) => {
             const zap = P.linkWhats(m.telefone), insta = P.linkInsta(m.instagram);
             const tr = h("tr", { class: "clicavel", tabindex: "0", "aria-label": "Editar " + m.nome,
@@ -241,6 +272,7 @@
               h("td", { class: "truncar" }, m.email ? h("a", { href: "mailto:" + m.email, text: m.email, onclick: (e) => e.stopPropagation() }) : ""),
               h("td", { class: "nw" }, m.telefone || "", zap ? h("a", { class: "btn-i lig", href: zap, target: "_blank", rel: "noopener noreferrer", title: "Abrir conversa no WhatsApp", "aria-label": "Abrir WhatsApp de " + m.nome, onclick: (e) => e.stopPropagation() }, P.ic("whats")) : ""),
               h("td", null, pilula(m.situacao)),
+              h("td", { class: "nw", text: m.nicho ? nomeNichoMarca(m.nicho) : "" }),
               h("td", { class: "truncar", title: m.obs || "", text: m.obs || "" }),
               h("td", { class: "nw", text: P.fmtData(m.ultimo_contato) }));
             tbody.append(tr);
@@ -257,10 +289,17 @@
               onclick: () => { estado.filtro = v; desenhar(); } })));
         const busca = h("input", { type: "search", placeholder: "Buscar por nome, @ ou e-mail", value: estado.busca, "aria-label": "Buscar marca" });
         busca.addEventListener("input", P.debounce(() => { estado.busca = busca.value; desenharTabela(); }, 150));
+        const contagemNicho = (n) => lista.filter((m) => (n === "sem" ? !m.nicho : m.nicho === n)).length;
+        const nichoSel = h("select", { "aria-label": "Filtrar por nicho", estilo: { "max-width": "200px" } },
+          h("option", { value: "todos", text: "Todos os nichos", selected: estado.nicho === "todos" }),
+          NICHOS_MARCA.map(([v, t]) => h("option", { value: v, text: t + " (" + contagemNicho(v) + ")", selected: estado.nicho === v })),
+          h("option", { value: "sem", text: "Sem nicho (" + contagemNicho("sem") + ")", selected: estado.nicho === "sem" }));
+        nichoSel.addEventListener("change", () => { estado.nicho = nichoSel.value; desenharTabela(); });
         P.limpar(raiz).append(
           h("div", { class: "ferramentas" },
             h("div", { class: "busca" }, P.ic("busca"), busca),
             filtros,
+            nichoSel,
             h("span", { class: "espaco" }),
             h("button", { type: "button", class: "btn", onclick: () => abrirImportacao(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
