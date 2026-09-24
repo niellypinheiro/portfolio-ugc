@@ -202,7 +202,7 @@ main,.rodape{position:relative;z-index:1}
 .faixa-logo{width:clamp(44px,7vw,60px);height:clamp(44px,7vw,60px);border-radius:50%;object-fit:cover;background:var(--papel);border:2px solid var(--ouro);box-shadow:0 3px 8px rgba(0,0,0,.4)}
 
 /* ---------- 2. sobre mim ---------- */
-.sobre-grade{display:grid;grid-template-columns:1fr;gap:clamp(30px,5vw,64px);padding:clamp(24px,4.5vw,64px);align-items:center}
+.sobre-grade{display:grid;grid-template-columns:1fr;gap:clamp(30px,5vw,64px);padding:clamp(24px,4.5vw,64px);align-items:start}
 @media (min-width:860px){.sobre-grade{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}}
 .sobre-foto{width:min(100%,360px);justify-self:center}
 .sobre-foto .foto-moldura{transform:rotate(-1.5deg)}
@@ -468,7 +468,6 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
         </div>
       </figure>
       <div class="sobre-texto">
-        <p class="eyebrow">um pouco de mim</p>
         <h2 id="sobre-titulo">Sobre <em>mim</em></h2>
         <span class="ornamento esq" aria-hidden="true"></span>
         <ul class="sobre-fatos">
@@ -563,8 +562,9 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
       <p class="sub-legenda">em números</p>
       <ul class="metricas" id="metricasLista" aria-label="Métricas"></ul>
 
-      <p class="sub-legenda">resultados de campanha</p>
-      <div class="resultados" id="resultadosLista"></div>
+      <!-- Oculto até ter números reais de campanha. Para voltar a mostrar, tire o "hidden" das duas linhas abaixo. -->
+      <p class="sub-legenda" hidden>resultados de campanha</p>
+      <div class="resultados" id="resultadosLista" hidden></div>
 
       <p class="sub-legenda">quem já trabalhou comigo</p>
       <div class="depoimentos" id="depoimentosLista"></div>
