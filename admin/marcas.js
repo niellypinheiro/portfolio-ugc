@@ -58,6 +58,115 @@
     P.modal({ titulo: novo ? "Adicionar marca" : "Editar marca", corpo, botoes });
   }
 
+  /* ---------- importar planilha (CSV) de leads ---------- */
+  const ALIASES = {
+    nome: ["nome", "marca", "empresa", "nome da marca", "cliente", "nome do cliente", "razao social"],
+    instagram: ["instagram", "insta", "@", "rede social", "usuario", "perfil"],
+    email: ["email", "e-mail", "e mail", "mail"],
+    telefone: ["telefone", "fone", "celular", "whatsapp", "contato", "numero", "numero de contato"],
+    situacao: ["situacao", "status", "etapa", "fase"],
+    obs: ["obs", "observacao", "observacoes", "anotacao", "anotacoes", "nota", "notas", "comentario", "comentarios"],
+    ultimo_contato: ["ultimo contato", "data", "data do contato", "ultimo contato em", "contato em", "data de contato"]
+  };
+  function acharColuna(cabecalhos, chave) {
+    const normalizados = cabecalhos.map((c) => P.semAcento(c).trim());
+    for (const alias of ALIASES[chave]) { const i = normalizados.indexOf(alias); if (i !== -1) return i; }
+    for (const alias of ALIASES[chave]) { const i = normalizados.findIndex((c) => c.includes(alias)); if (i !== -1) return i; }
+    return -1;
+  }
+  function converterData(s) {
+    s = String(s || "").trim();
+    if (!s) return null;
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[0].slice(0, 10);
+    m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+    return null;
+  }
+  function situacaoDoTexto(s) {
+    const n = P.semAcento(s || "").trim();
+    if (!n) return "lead";
+    const achada = SITUACOES.find(([cod, rot]) => cod === n || P.semAcento(rot) === n);
+    return achada ? achada[0] : "lead";
+  }
+
+  function abrirImportacao(lista, recarregar) {
+    const input = h("input", { type: "file", accept: ".csv,text/csv", hidden: true });
+    input.addEventListener("change", async () => {
+      const arquivo = input.files[0];
+      input.remove();
+      if (!arquivo) return;
+      let linhas;
+      try {
+        const texto = await P.lerArquivoTexto(arquivo);
+        linhas = P.lerCSV(texto).filter((l) => l.some((v) => v !== ""));
+      } catch (e) { P.toast("Não consegui ler esse arquivo. Confira se é uma planilha em CSV.", true); return; }
+      if (linhas.length < 2) { P.toast("Não encontrei linhas com marcas nesse arquivo.", true); return; }
+
+      const cabecalhos = linhas[0];
+      const idx = { nome: acharColuna(cabecalhos, "nome"), instagram: acharColuna(cabecalhos, "instagram"),
+        email: acharColuna(cabecalhos, "email"), telefone: acharColuna(cabecalhos, "telefone"),
+        situacao: acharColuna(cabecalhos, "situacao"), obs: acharColuna(cabecalhos, "obs"),
+        ultimo_contato: acharColuna(cabecalhos, "ultimo_contato") };
+      if (idx.nome === -1) idx.nome = 0;   /* sem coluna de nome identificada: usa a primeira coluna */
+
+      const linhasDados = linhas.slice(1);
+      const registros = [];
+      linhasDados.forEach((linha) => {
+        const nome = (linha[idx.nome] || "").trim();
+        if (!nome) return;
+        registros.push({
+          nome,
+          instagram: idx.instagram !== -1 ? (P.arroba(linha[idx.instagram]) || null) : null,
+          email: idx.email !== -1 ? ((linha[idx.email] || "").trim() || null) : null,
+          telefone: idx.telefone !== -1 ? ((linha[idx.telefone] || "").trim() || null) : null,
+          situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
+          obs: idx.obs !== -1 ? ((linha[idx.obs] || "").trim() || null) : null,
+          ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
+        });
+      });
+
+      const chave = (m) => P.semAcento(m.nome).trim();
+      const existentes = new Set(lista.map(chave));
+      const vistos = new Set();
+      const prontos = [], repetidos = [];
+      registros.forEach((r) => {
+        const k = chave(r);
+        if (!k || existentes.has(k) || vistos.has(k)) repetidos.push(r); else { vistos.add(k); prontos.push(r); }
+      });
+
+      const corpo = h("div", null,
+        h("p", null, "Encontrei ", h("b", { text: String(registros.length) }), " marca" + (registros.length === 1 ? "" : "s") + " nesse arquivo."),
+        repetidos.length ? h("p", { class: "dica", text: repetidos.length + " já estão na sua base (mesmo nome) e não serão duplicadas." }) : null,
+        prontos.length ? h("div", { class: "rolagem" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, h("th", { text: "Marca" }), h("th", { text: "Instagram" }), h("th", { text: "E-mail" }), h("th", { text: "Telefone" }), h("th", { text: "Situação" }))),
+          h("tbody", null, prontos.slice(0, 25).map((r) => h("tr", null,
+            h("td", { text: r.nome }), h("td", { text: r.instagram || "" }), h("td", { text: r.email || "" }), h("td", { text: r.telefone || "" }), h("td", null, pilula(r.situacao))))))) : null,
+        prontos.length > 25 ? h("p", { class: "dica", text: "Mostrando as 25 primeiras. As outras " + (prontos.length - 25) + " também entram na importação." }) : null,
+        !prontos.length ? h("p", { class: "aviso-pagina", text: "Nenhuma marca nova para importar: todas já estão na sua base ou o arquivo não tem nome de marca." }) : null);
+
+      P.modal({
+        titulo: "Importar planilha de marcas", larga: true, corpo,
+        botoes: prontos.length ? [
+          { texto: "Cancelar" },
+          { texto: "Importar " + prontos.length + (prontos.length === 1 ? " marca" : " marcas"), classe: "p", aoClicar: async () => {
+            const LOTE = 80;
+            let importados = 0, falhou = false;
+            for (let i = 0; i < prontos.length && !falhou; i += LOTE) {
+              const pedaco = prontos.slice(i, i + LOTE);
+              const r = await P.gravar(() => window.sb.from("marcas").insert(pedaco));
+              if (r.ok) importados += pedaco.length; else falhou = true;
+            }
+            if (importados) P.toast(importados + " marca" + (importados === 1 ? "" : "s") + " importada" + (importados === 1 ? "" : "s") + "!");
+            recarregar();
+          } }
+        ] : [{ texto: "Fechar" }]
+      });
+    });
+    document.body.append(input);
+    input.click();
+  }
+
   P.abas.marcas = {
     async renderizar(raiz) {
       let lista = (await P.carregar("marcas", (t) => t.select("*").order("criado_em", { ascending: false }))).dados;
@@ -131,6 +240,7 @@
             h("div", { class: "busca" }, P.ic("busca"), busca),
             filtros,
             h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", onclick: () => abrirImportacao(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar) }, P.ic("mais"), "Adicionar marca")),
           tabelaBox);

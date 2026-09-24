@@ -51,6 +51,7 @@
     mais: '<path d="M12 5v14M5 12h14"/>',
     busca: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
     baixar: '<path d="M12 4v11M7 11l5 5 5-5M4 20h16"/>',
+    subir: '<path d="M12 20V9M7 13l5-5 5 5M4 4h16"/>',
     alca: '<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>',
     estrela: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
     esq: '<path d="M15 5l-7 7 7 7"/>',
@@ -283,6 +284,38 @@
     const a = h("a", { href: url, download: arquivo });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+
+  /* ---------- ler planilha (CSV) que a pessoa sobe, aceitando ; ou , e acentos ---------- */
+  P.lerArquivoTexto = async function (arquivo) {
+    const buffer = await arquivo.arrayBuffer();
+    let texto = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    if (texto.indexOf("�") !== -1) {
+      try { texto = new TextDecoder("windows-1252").decode(buffer); } catch (e) { /* mantém o que já tem */ }
+    }
+    return texto.replace(/^﻿/, "");
+  };
+  P.lerCSV = function (texto) {
+    const primeiraLinha = texto.split(/\r\n|\n/, 1)[0] || "";
+    const delim = primeiraLinha.split(";").length > primeiraLinha.split(",").length ? ";" : ",";
+    const linhas = [];
+    let campo = "", linha = [], dentroAspas = false, comConteudo = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (dentroAspas) {
+        if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else dentroAspas = false; }
+        else campo += c;
+      } else if (c === '"') { dentroAspas = true; comConteudo = true; }
+      else if (c === delim) { linha.push(campo.trim()); campo = ""; comConteudo = true; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && texto[i + 1] === "\n") i++;
+        linha.push(campo.trim());
+        if (comConteudo || linha.some((v) => v !== "")) linhas.push(linha);
+        linha = []; campo = ""; comConteudo = false;
+      } else { campo += c; comConteudo = true; }
+    }
+    if (campo !== "" || linha.length) { linha.push(campo.trim()); linhas.push(linha); }
+    return linhas;
   };
 
   /* ---------- cabeçalho de tabela que ordena ao clicar ---------- */
