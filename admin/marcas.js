@@ -110,19 +110,40 @@
         ultimo_contato: acharColuna(cabecalhos, "ultimo_contato") };
       if (idx.nome === -1) idx.nome = 0;   /* sem coluna de nome identificada: usa a primeira coluna */
 
+      /* O banco só aceita um tamanho máximo em cada campo (o mesmo do formulário de "Adicionar marca").
+         Se a planilha trouxer um telefone ou e-mail com anotação extra e passar do limite, guardo o texto
+         inteiro em Observação (para não perder nada) e encurto só o campo que ia travar a importação. */
+      const LIMITES = { nome: 200, instagram: 100, email: 200, telefone: 40, obs: 3000 };
+      function limitar(valor, max) {
+        if (!valor) return { curto: null, sobra: null };
+        if (valor.length <= max) return { curto: valor, sobra: null };
+        return { curto: valor.slice(0, max).trim(), sobra: valor };
+      }
+      const SEM_VALOR = ["nao encontrado", "n/a", "na", "-", "--", "sem contato", "sem informacao", "desconhecido", "nao informado", "nao tem"];
+      function valorOuVazio(v) {
+        const t = String(v || "").trim();
+        return t && !SEM_VALOR.includes(P.semAcento(t)) ? t : "";
+      }
+
       const linhasDados = linhas.slice(1);
       const registros = [];
+      let comSobra = 0;
       linhasDados.forEach((linha) => {
-        const nome = (linha[idx.nome] || "").trim();
-        if (!nome) return;
+        const nomeBruto = valorOuVazio(linha[idx.nome]);
+        if (!nomeBruto) return;
+        const nome = limitar(nomeBruto, LIMITES.nome);
+        const instagram = limitar(idx.instagram !== -1 ? (P.arroba(valorOuVazio(linha[idx.instagram])) || null) : null, LIMITES.instagram);
+        const email = limitar(idx.email !== -1 ? (valorOuVazio(linha[idx.email]) || null) : null, LIMITES.email);
+        const telefone = limitar(idx.telefone !== -1 ? (valorOuVazio(linha[idx.telefone]) || null) : null, LIMITES.telefone);
+        const obsPlanilha = idx.obs !== -1 ? valorOuVazio(linha[idx.obs]) : "";
+        const extras = [nome.sobra && "Nome completo: " + nome.sobra, instagram.sobra && "Instagram completo: " + instagram.sobra,
+          email.sobra && "E-mail completo: " + email.sobra, telefone.sobra && "Telefone completo: " + telefone.sobra].filter(Boolean);
+        if (extras.length) comSobra++;
+        const obs = limitar([obsPlanilha].concat(extras).filter(Boolean).join(" — ") || null, LIMITES.obs);
         registros.push({
-          nome,
-          instagram: idx.instagram !== -1 ? (P.arroba(linha[idx.instagram]) || null) : null,
-          email: idx.email !== -1 ? ((linha[idx.email] || "").trim() || null) : null,
-          telefone: idx.telefone !== -1 ? ((linha[idx.telefone] || "").trim() || null) : null,
+          nome: nome.curto, instagram: instagram.curto, email: email.curto, telefone: telefone.curto,
           situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
-          obs: idx.obs !== -1 ? ((linha[idx.obs] || "").trim() || null) : null,
-          ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
+          obs: obs.curto, ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
         });
       });
 
@@ -138,6 +159,7 @@
       const corpo = h("div", null,
         h("p", null, "Encontrei ", h("b", { text: String(registros.length) }), " marca" + (registros.length === 1 ? "" : "s") + " nesse arquivo."),
         repetidos.length ? h("p", { class: "dica", text: repetidos.length + " já estão na sua base (mesmo nome) e não serão duplicadas." }) : null,
+        comSobra ? h("p", { class: "dica", text: "Em " + comSobra + " marca" + (comSobra === 1 ? "" : "s") + ", um campo estava comprido demais (telefone ou e-mail com anotação extra); guardei o texto inteiro na Observação e encurtei só o campo." }) : null,
         prontos.length ? h("div", { class: "rolagem" }, h("table", { class: "tabela" },
           h("thead", null, h("tr", null, h("th", { text: "Marca" }), h("th", { text: "Instagram" }), h("th", { text: "E-mail" }), h("th", { text: "Telefone" }), h("th", { text: "Situação" }))),
           h("tbody", null, prontos.slice(0, 25).map((r) => h("tr", null,

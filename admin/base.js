@@ -238,6 +238,7 @@
     /does not exist|could not find|schema cache/i.test(e.message || ""));
   P.ehTabelaFaltando = (e) => !!e && (e.code === "42P01" || e.code === "PGRST205" || /relation .* does not exist|could not find the table/i.test(e.message || ""));
   P.ehPermissao = (e) => !!e && (e.code === "42501" || /row-level security|permission denied/i.test(e.message || ""));
+  P.ehValidacao = (e) => !!e && (["23514", "23502", "22001"].includes(e.code) || /violates check constraint|violates not-null constraint|value too long/i.test(e.message || ""));
 
   /* Lê uma tabela. Se faltar tabela ou campo, avisa em cima da página e devolve lista vazia */
   P.carregar = async function (tabela, montar) {
@@ -267,6 +268,7 @@
     } catch (e) {
       P.toast(P.ehFalta(e) ? "Faltou uma tabela ou um campo no Supabase. Rode o banco.sql." :
         P.ehPermissao(e) ? "O banco não deixou salvar (permissão). Confira o seu login e o banco.sql." :
+        P.ehValidacao(e) ? "Algum campo não passou pelas regras do banco (por exemplo, um texto grande demais para o campo). Confira os dados e tente de novo." :
         "Não consegui salvar. Confira a internet e tente de novo.", true);
       return { ok: false, erro: e };
     }
