@@ -11,7 +11,7 @@
 
   const EMAIL_DONA = "niellypinheirougccreator@gmail.com";
   const NOME_DONA = "Nielly Pinheiro";
-  const LINK_PORTFOLIO = "https://niellypinheiro.github.io/portfolio-ugc/";
+  const LINK_PORTFOLIO = "https://niellypinheiro.com.br/";
   const LOTE = 100;
   const CHAVE_RASCUNHO = "prospeccao_rascunho_v1";
   const CHAVE_TESTE = "prospeccao_teste_v1";
