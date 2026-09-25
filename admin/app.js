@@ -8,6 +8,7 @@
   const ABAS = [
     ["portfolio", "Portfólio", "portfolio"],
     ["marcas", "Marcas", "marcas"],
+    ["prospeccao", "Prospecção", "prospeccao"],
     ["calendario", "Calendário", "calendario"],
     ["campanhas", "Campanhas", "campanhas"],
     ["checklist", "Checklist portfólio", "checklist"],

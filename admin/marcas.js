@@ -153,7 +153,7 @@
         const extras = [nome.sobra && "Nome completo: " + nome.sobra, instagram.sobra && "Instagram completo: " + instagram.sobra,
           email.sobra && "E-mail completo: " + email.sobra, telefone.sobra && "Telefone completo: " + telefone.sobra].filter(Boolean);
         if (extras.length) comSobra++;
-        const obs = limitar([obsPlanilha].concat(extras).filter(Boolean).join(" — ") || null, LIMITES.obs);
+        const obs = limitar([obsPlanilha].concat(extras).filter(Boolean).join(" | ") || null, LIMITES.obs);
         registros.push({
           nome: nome.curto, instagram: instagram.curto, email: email.curto, telefone: telefone.curto,
           situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
@@ -179,7 +179,7 @@
       function desenharLinhasPreVia() {
         P.limpar(tbody).append(...prontos.slice(0, 25).map((r) => h("tr", null,
           h("td", { text: r.nome }), h("td", { text: r.instagram || "" }), h("td", { text: r.email || "" }), h("td", { text: r.telefone || "" }),
-          h("td", null, pilula(r.situacao)), h("td", { text: nomeNichoMarca(r.nicho || nichoPadrao.value) || "—" }))));
+          h("td", null, pilula(r.situacao)), h("td", { text: nomeNichoMarca(r.nicho || nichoPadrao.value) || "-" }))));
       }
       nichoPadrao.addEventListener("change", desenharLinhasPreVia);
 
@@ -246,27 +246,73 @@
           dados.map((m) => [m.nome, m.instagram, m.email, m.telefone, nomeSituacao(m.situacao), m.nicho ? nomeNichoMarca(m.nicho) : "", m.obs, P.fmtData(m.ultimo_contato)]));
       }
 
+      /* ---------- seleção de marcas para a aba Prospecção (fica salva no banco, coluna "selecionada") ---------- */
+      const temEmail = (m) => !!(m.email && String(m.email).trim());
+      const resumoBox = h("div");
+      function desenharResumo() {
+        const marcadas = lista.filter((m) => m.selecionada).length;
+        const alvo = filtrada().filter(temEmail);
+        const faltam = alvo.filter((m) => !m.selecionada).length;
+        P.limpar(resumoBox).append(h("div", { class: "resumo-selecao" + (marcadas ? " ativo" : ""), role: "status" },
+          h("b", { text: marcadas === 0 ? "Nenhuma marca selecionada" : marcadas + (marcadas === 1 ? " marca selecionada" : " marcas selecionadas") }),
+          h("span", { class: "fraco", text: marcadas ? "para o próximo disparo" : "Marque as caixinhas para escolher quem recebe seu e-mail" }),
+          h("span", { class: "espaco" }),
+          h("button", { type: "button", class: "btn", disabled: !faltam, onclick: () => marcarLote(alvo, true),
+            text: "Selecionar as " + alvo.length + " da lista atual (com e-mail)" }),
+          h("button", { type: "button", class: "btn", disabled: !marcadas, onclick: () => marcarLote(lista.filter((m) => m.selecionada), false), text: "Limpar seleção" }),
+          marcadas ? h("button", { type: "button", class: "btn p", onclick: () => P.ir("prospeccao") }, P.ic("prospeccao"), "Ir para Prospecção") : null));
+      }
+      async function marcarLote(itens, valor) {
+        const alvo = itens.filter((m) => !!m.selecionada !== valor);
+        if (!alvo.length) return;
+        let feito = 0;
+        for (let i = 0; i < alvo.length; i += 100) {
+          const ids = alvo.slice(i, i + 100).map((m) => m.id);
+          const r = await P.gravar(() => window.sb.from("marcas").update({ selecionada: valor }).in("id", ids));
+          if (!r.ok) break;
+          feito += ids.length;
+          alvo.slice(i, i + 100).forEach((m) => { m.selecionada = valor; });
+        }
+        if (feito) P.toast(valor ? feito + " marcas selecionadas" : "Seleção limpa");
+        desenharTabela();
+      }
+      async function marcarUma(m, caixa) {
+        const valor = caixa.checked;
+        const r = await P.gravar(() => window.sb.from("marcas").update({ selecionada: valor }).eq("id", m.id));
+        if (!r.ok) { caixa.checked = !valor; return; }
+        m.selecionada = valor;
+        desenharResumo();
+      }
+
       const tabelaBox = h("div");
       function desenharTabela() {
         P.limpar(tabelaBox);
+        desenharResumo();
         const cab = (r, c, cls) => P.cabecalho(r, c, estado, desenharTabela, cls);
         const thead = h("thead", null, h("tr", null,
+          h("th", { class: "col-marcar", "aria-label": "Selecionar para disparo" }),
           cab("Marca", "nome"), cab("Instagram", "instagram"), cab("E-mail", "email"), cab("Telefone", "telefone"),
           cab("Situação", "situacao"), cab("Nicho", "nicho"), cab("Observação", "obs"), cab("Último contato", "ultimo_contato")));
         const tbody = h("tbody");
         if (!lista.length) {
           tabelaBox.append(h("p", { class: "aviso-pagina", text: "Sua base ainda está vazia. A linha abaixo é só um exemplo do formato e some quando você adicionar a primeira marca. Os contatos que chegam pelo formulário do site entram aqui sozinhos, como Lead." }));
           tbody.append(h("tr", { class: "exemplo" },
+            h("td", { class: "col-marcar" }, h("input", { type: "checkbox", disabled: true, "aria-label": "Exemplo" })),
             h("td", null, "Nome da marca", P.etiquetaExemplo()), h("td", { text: "@nomedamarca" }), h("td", { text: "contato@exemplo.com" }),
             h("td", { text: "(00) 00000-0000" }), h("td", null, pilula("lead")), h("td", { text: "Casa e decoração" }), h("td", { text: "Chegou pelo formulário do site" }), h("td", { text: P.fmtData(P.hoje()) })));
         } else {
           const itens = filtrada();
-          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "8", class: "fraco", text: "Nenhuma marca encontrada com esse filtro ou busca." })));
+          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "9", class: "fraco", text: "Nenhuma marca encontrada com esse filtro ou busca." })));
           itens.forEach((m) => {
             const zap = P.linkWhats(m.telefone), insta = P.linkInsta(m.instagram);
+            const caixa = h("input", { type: "checkbox", checked: !!m.selecionada && temEmail(m), disabled: !temEmail(m),
+              title: temEmail(m) ? "Selecionar para o disparo de e-mail" : "Esta marca não tem e-mail",
+              "aria-label": (temEmail(m) ? "Selecionar " : "Sem e-mail, não dá para selecionar ") + m.nome });
+            caixa.addEventListener("change", () => marcarUma(m, caixa));
             const tr = h("tr", { class: "clicavel", tabindex: "0", "aria-label": "Editar " + m.nome,
               onclick: () => abrirFormulario(m, recarregar),
               onkeydown: (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); abrirFormulario(m, recarregar); } } },
+              h("td", { class: "col-marcar", onclick: (e) => e.stopPropagation(), onkeydown: (e) => e.stopPropagation() }, caixa),
               h("td", { class: "nw" }, h("b", { text: m.nome, style: "font-weight:500" })),
               h("td", { class: "nw" }, insta ? h("a", { href: insta, target: "_blank", rel: "noopener noreferrer", text: P.arroba(m.instagram), onclick: (e) => e.stopPropagation() }) : ""),
               h("td", { class: "truncar" }, m.email ? h("a", { href: "mailto:" + m.email, text: m.email, onclick: (e) => e.stopPropagation() }) : ""),
@@ -304,7 +350,7 @@
             h("button", { type: "button", class: "btn", onclick: () => abrirImportacao(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar) }, P.ic("mais"), "Adicionar marca")),
-          tabelaBox);
+          resumoBox, tabelaBox);
         desenharTabela();
       }
       desenhar();
