@@ -18,7 +18,7 @@
     chave: CHAVE_PUBLICA,
     emailDaDona: "niellypinheirougccreator@gmail.com",
     /* endereço da pasta do site (funciona no GitHub Pages e no computador) */
-    raiz: "https://niellypinheiro.github.io/portfolio-ugc/"
+    raiz: "https://niellypinheiro.com.br/"
   };
   /* Endereço do editor de SQL do seu projeto no Supabase (o painel usa nos avisos de "falta rodar o banco.sql") */
   window.BANCO.editorSql = "https://supabase.com/dashboard/project/" + URL_DO_PROJETO.replace("https://", "").split(".")[0] + "/sql/new";
