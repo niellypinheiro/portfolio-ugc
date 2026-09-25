@@ -22,8 +22,10 @@
   const TEXTO_MODELO = "Oi, {{nome}}! Tudo bem?\n\n" +
     "Eu sou a Nielly Pinheiro, criadora de conteúdo UGC. Faço vídeos e fotos com cara de gente de verdade, que mostram o produto no dia a dia e ajudam a {{marca}} a vender mais.\n\n" +
     "Vi a {{marca}} e senti que o nosso estilo combina muito. Se fizer sentido para vocês, posso mandar algumas ideias de conteúdo pensadas para a marca.\n\n" +
-    "Você pode ver o meu portfólio pelo link abaixo.\n\n" +
+    "Meu portfólio: " + LINK_PORTFOLIO.replace(/\/$/, "") + "\n\n" +
     "Um abraço,\nNielly Pinheiro";
+  /* Modelos antigos: se o texto salvo for exatamente um deles, troco pelo modelo novo (o antigo tinha "link abaixo" sem link) */
+  const TEXTOS_ANTIGOS = ["Você pode ver o meu portfólio pelo link abaixo.", "Meu portfólio está no botão abaixo."];
   const RODAPE = "Se você não quiser receber mais e-mails meus, é só responder SAIR.";
 
   /* ---------- ferramentas de texto ---------- */
@@ -46,7 +48,7 @@
       let fim = "";
       const m = u.match(/[.,;:!?)]+$/);
       if (m) { fim = m[0]; u = u.slice(0, -fim.length); }
-      return '<a href="' + u + '" style="color:#6d2434;">' + u + "</a>" + fim;
+      return '<a href="' + u + '">' + u + "</a>" + fim;
     });
   }
   function linkBotaoOk(l) {
@@ -56,8 +58,27 @@
     return /^https?:\/\/[^\s]+\.[^\s]+/.test(l) ? l : "";
   }
 
-  /* MODO 1: monta o e-mail limpo a partir do texto simples */
+  /* Linha com o link do portfólio, para o estilo simples (sem botão). Só entra se o link ainda não estiver no texto. */
+  const semBarraFinal = (s) => String(s || "").replace(/\/+$/, "").toLowerCase();
+  function linhaDoLink(est) {
+    const link = linkBotaoOk(est.botaoLink);
+    if (!link || semBarraFinal(est.texto).indexOf(semBarraFinal(link)) !== -1) return "";
+    const rotulo = String(est.botaoTexto || "").trim();
+    return (rotulo ? rotulo + ": " : "") + link;
+  }
+
+  /* MODO 1: monta o e-mail a partir do texto simples.
+     Estilo "simples" (padrão): parece escrito à mão, sem botão e sem cores, o que ajuda a cair na caixa principal.
+     Estilo "visual": fundo branco, largura máxima e botão colorido. */
   function montarHtmlFacil(est) {
+    if (est.estilo !== "visual") {
+      const extra = linhaDoLink(est);
+      const blocos = String(est.texto || "").replace(/\r\n/g, "\n").trim().split(/\n{2,}/).filter((p) => p.trim())
+        .concat(extra ? [extra] : [])
+        .map((p) => '<p style="margin:0 0 14px 0;">' + linkar(escapar(p.trim())).replace(/\n/g, "<br>") + "</p>").join("\n");
+      return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222222;">\n' + blocos + "\n" +
+        '<p style="margin:22px 0 0 0;font-size:12px;color:#777777;">' + RODAPE + "</p>\n</div>";
+    }
     const paragrafos = String(est.texto || "").replace(/\r\n/g, "\n").trim().split(/\n{2,}/).filter((p) => p.trim())
       .map((p) => '<p style="margin:0 0 16px 0;">' + linkar(escapar(p.trim())).replace(/\n/g, "<br>") + "</p>").join("\n");
     const link = linkBotaoOk(est.botaoLink);
@@ -143,9 +164,11 @@
       const salvo = lerLocal(CHAVE_RASCUNHO) || {};
       const est = Object.assign({
         modo: "facil", assunto: "Parceria de conteúdo UGC com a {{marca}}", texto: TEXTO_MODELO,
-        botaoTexto: "Ver meu portfólio", botaoLink: LINK_PORTFOLIO, html: "",
+        botaoTexto: "Meu portfólio", botaoLink: LINK_PORTFOLIO, html: "", estilo: "simples",
         dest: "selecionadas", pular: true, envio: "resend"
       }, salvo);
+      if (TEXTOS_ANTIGOS.some((t) => String(est.texto).indexOf(t) !== -1) && String(est.texto).indexOf("Meu portfólio:") === -1) est.texto = TEXTO_MODELO;
+      if (est.estilo !== "visual") est.estilo = "simples";
       let D = await carregarDados();
       let ocupado = false;
       let indiceFila = 0;
@@ -379,11 +402,19 @@
           const bLink = h("input", { type: "url", value: est.botaoLink, maxlength: "500", placeholder: "https://..." });
           bTexto.addEventListener("input", () => { est.botaoTexto = bTexto.value; aoDigitar(); });
           bLink.addEventListener("input", () => { est.botaoLink = bLink.value; aoDigitar(); });
+          const trocarEstilo = (e) => { est.estilo = e; salvarRascunho(); desenharEditor(); atualizarPrevia(); atualizarBotoes(); if (est.envio === "rascunho") desenharFila(); };
+          const estilos = h("div", { class: "filtros", role: "group", "aria-label": "Visual do e-mail" },
+            h("button", { type: "button", "aria-pressed": String(est.estilo === "simples"), text: "Simples (recomendado)", onclick: () => trocarEstilo("simples") }),
+            h("button", { type: "button", "aria-pressed": String(est.estilo === "visual"), text: "Com botão e cores", onclick: () => trocarEstilo("visual") }));
           miolo = h("div", null,
+            h("div", { class: "prosp-modo" }, h("span", { class: "fraco", text: "Visual:" }), estilos),
+            est.estilo === "simples" ? h("p", { class: "dica prosp-dica-estilo", text: "O e-mail simples parece escrito à mão (sem botão e sem cores). É o que mais ajuda a chegar na caixa principal." }) : null,
             P.campo("Texto do e-mail", campoTexto, "Cada marca recebe o próprio nome onde estiver {{nome}} ou {{marca}}. Links viram clicáveis sozinhos. O aviso para responder SAIR entra no rodapé automaticamente."),
             botoesVariaveis(() => campoTexto),
-            h("p", { class: "sub-rotulo", text: "Botão (opcional)" }),
-            h("div", { class: "grade2" }, P.campo("Texto do botão", bTexto), P.campo("Link do botão", bLink, "Só aparece se os dois estiverem preenchidos.")));
+            est.estilo === "visual" ? h("p", { class: "sub-rotulo", text: "Botão (opcional)" }) : h("p", { class: "sub-rotulo", text: "Link do portfólio" }),
+            h("div", { class: "grade2" }, P.campo(est.estilo === "visual" ? "Texto do botão" : "Texto antes do link", bTexto),
+              P.campo(est.estilo === "visual" ? "Link do botão" : "Link", bLink,
+                est.estilo === "visual" ? "Só aparece se os dois estiverem preenchidos." : "Se o link já estiver escrito no texto, ele não é repetido. Se não estiver, entra numa linha no fim.")));
         } else {
           campoTexto = h("textarea", { class: "prosp-texto prosp-codigo", spellcheck: "false", placeholder: "Cole aqui o HTML do seu e-mail", "aria-label": "HTML do e-mail" });
           campoTexto.value = est.html;
@@ -526,7 +557,8 @@
         const bruto = trocar(htmlBruto(), item.saudacao, item.marca);
         return est.modo === "facil" ? (function () {
           const link = linkBotaoOk(est.botaoLink), tb = String(est.botaoTexto || "").trim();
-          return trocar(String(est.texto || "").trim(), item.saudacao, item.marca) + ((link && tb) ? "\n\n" + tb + ": " + link : "") + "\n\n" + RODAPE;
+          const extra = est.estilo === "visual" ? ((link && tb) ? tb + ": " + link : "") : linhaDoLink(est);
+          return trocar(String(est.texto || "").trim(), item.saudacao, item.marca) + (extra ? "\n\n" + extra : "") + "\n\n" + RODAPE;
         })() : htmlParaTexto(bruto);
       }
       function desenharFila() {
