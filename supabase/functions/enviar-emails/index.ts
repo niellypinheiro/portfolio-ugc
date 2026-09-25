@@ -113,8 +113,7 @@ Deno.serve(async (req) => {
             to: [emailDestino],
             subject: assuntoFinal,
             html: htmlFinal,
-            reply_to: EMAIL_CONTATO,
-            headers: { "List-Unsubscribe": "<mailto:" + EMAIL_CONTATO + "?subject=SAIR>" }
+            reply_to: EMAIL_CONTATO
           })
         });
         const dadosResposta = await resp.json().catch(() => ({}));
