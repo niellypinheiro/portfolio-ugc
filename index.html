@@ -226,13 +226,18 @@ main,.rodape{position:relative;z-index:1}
 .assinatura svg{display:block;width:min(220px,70%);height:14px}
 
 /* ---------- 3. destaques ---------- */
-.destaques{display:grid;grid-template-columns:1fr;gap:clamp(20px,2.6vw,32px);max-width:400px;margin-inline:auto}
-@media (min-width:860px){.destaques{grid-template-columns:repeat(3,1fr);max-width:none}}
+.destaques{display:flex;flex-direction:column;gap:10px}
+.destaques .setas{align-self:flex-end}
+.destaques .carrossel .destaque{flex:0 0 calc((100% - 44px)/3);min-width:0;scroll-snap-align:start}
+@media (max-width:899px){.destaques .carrossel .destaque{flex-basis:calc((100% - 22px)/2)}}
+@media (max-width:559px){.destaques .carrossel{gap:16px}.destaques .carrossel .destaque{flex-basis:80%}}
 .destaque{display:flex;flex-direction:column;padding:14px 14px 24px;text-decoration:none;transition:transform .3s}
 .destaque:hover{transform:translateY(-6px)}
 .tela{position:relative;aspect-ratio:9/16;overflow:hidden;border-radius:3px;display:flex;align-items:flex-end;justify-content:center;padding:16px;
   background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.14),transparent 55%),linear-gradient(170deg,var(--g1,#6d2434),var(--g2,#2a1219))}
 .tela img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tela iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.tela.tocavel{width:100%;margin:0;border:0;font:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
 .play{position:absolute;left:50%;top:50%;z-index:2;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:50%;background:rgba(246,239,226,.95);box-shadow:0 0 0 5px rgba(201,162,39,.7),0 10px 24px rgba(0,0,0,.4);transition:transform .25s}
 .play::before{content:"";position:absolute;left:30px;top:24px;border-style:solid;border-width:14px 0 14px 22px;border-color:transparent transparent transparent var(--bordo)}
 .destaque:hover .play{transform:scale(1.08)}
@@ -1014,23 +1019,117 @@ const DEPOIMENTOS = [
     })(ini);
   }
 
-  /* ---------- destaques ---------- */
+  /* ---------- destaques (cases de sucesso): carrossel com o vídeo tocando aqui dentro ---------- */
   function montarDestaques(lista) {
-    var alvo = $("#destaquesLista");
-    (lista || DESTAQUES).forEach(function (d, i) {
+    var raiz = $("#destaquesLista");
+    var fonte = lista || DESTAQUES;
+    if (!fonte.length) return;
+
+    var trilho = h("div", { class: "carrossel", tabindex: "0", role: "region", "aria-label": "Cases de sucesso" });
+    var tocando = null;
+    function pararVideo() {
+      if (!tocando) return;
+      tocando.caixa.replaceWith(tocando.capa);
+      tocando = null;
+    }
+    function tocarYoutube(capa, d, corVars) {
+      if (location.protocol === "file:") { window.open(d.link, "_blank", "noopener"); return; }
+      pararVideo();
+      registrarAcao("video:" + d.titulo + (d.contexto ? " · " + d.contexto : ""));
+      var caixa = h("div", { class: "tela", estilo: corVars },
+        h("iframe", { src: "https://www.youtube-nocookie.com/embed/" + d.youtube + "?autoplay=1&playsinline=1&rel=0&cc_load_policy=0",
+          title: "Vídeo: " + d.titulo, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "",
+          referrerpolicy: "strict-origin-when-cross-origin" }));
+      capa.replaceWith(caixa);
+      tocando = { caixa: caixa, capa: capa };
+    }
+
+    /* o vídeo do Instagram só carrega quando o cartão chega perto da tela (mais leve para quem só passa o olho) */
+    var observador = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        var caixa = e.target;
+        if (!caixa.dataset.carregado && caixa.__ig) {
+          caixa.dataset.carregado = "1";
+          caixa.append(h("iframe", { src: "https://www.instagram.com/" + caixa.__ig.tipo + "/" + caixa.__ig.cod + "/embed/",
+            title: "Vídeo do Instagram", loading: "lazy", allow: "autoplay; encrypted-media", referrerpolicy: "strict-origin-when-cross-origin" }));
+        }
+        observador.unobserve(caixa);
+      });
+    }, { rootMargin: "250px" }) : null;
+
+    fonte.forEach(function (d, i) {
       var cores = d.cores || ["#6d2434", "#2a1219"];
-      alvo.append(h("a", { class: "destaque papel revela", href: d.link, target: "_blank", rel: "noopener noreferrer", estilo: atraso(i, 120) },
-        h("div", { class: "tela", "aria-hidden": d.capa ? null : "true", estilo: { "--g1": cores[0], "--g2": cores[1] } },
-          d.capa ? h("img", { src: d.capa, alt: "Capa do vídeo: " + d.titulo, loading: "lazy", decoding: "async", width: 720, height: 1280 })
-                 : h("span", { class: "legenda-ph", text: "capa do vídeo 9:16" }),
-          h("span", { class: "play", "aria-hidden": "true" })),
-        h("div", { class: "destaque-corpo" },
-          h("p", { class: "destaque-num", text: d.numero }),
-          h("p", { class: "destaque-rot", text: d.rotulo }),
-          h("h3", { text: d.titulo }),
-          h("p", { class: "destaque-ctx", text: d.contexto }),
-          h("span", { class: "sr-only", text: "(abre em nova aba)" }))));
+      var corVars = { "--g1": cores[0], "--g2": cores[1] };
+      var corpo = h("div", { class: "destaque-corpo" },
+        h("p", { class: "destaque-num", text: d.numero }),
+        h("p", { class: "destaque-rot", text: d.rotulo }),
+        h("h3", { text: d.titulo }),
+        h("p", { class: "destaque-ctx", text: d.contexto }));
+
+      var cartao;
+      if (d.instagram) {
+        /* Instagram: a própria incorporação da Meta já mostra a capa de verdade e toca aqui dentro, sem sair do site */
+        var caixaIg = h("div", { class: "tela", "aria-hidden": "true", estilo: corVars }, h("span", { class: "legenda-ph", text: "capa do vídeo 9:16" }));
+        caixaIg.__ig = d.instagram;
+        if (observador) observador.observe(caixaIg);
+        else caixaIg.append(h("iframe", { src: "https://www.instagram.com/" + d.instagram.tipo + "/" + d.instagram.cod + "/embed/",
+          title: "Vídeo do Instagram", loading: "lazy", referrerpolicy: "strict-origin-when-cross-origin" }));
+        cartao = h("article", { class: "destaque papel revela", estilo: atraso(i, 120) }, caixaIg, corpo);
+      } else if (d.youtube) {
+        var img = h("img", { src: d.capa, alt: "Capa do vídeo: " + d.titulo, loading: "lazy", decoding: "async", width: 720, height: 1280 });
+        img.addEventListener("error", function () { img.remove(); });
+        var capaBt = h("button", { class: "tela tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + d.titulo, estilo: corVars },
+          img, h("span", { class: "play", "aria-hidden": "true" }));
+        capaBt.addEventListener("click", function () { tocarYoutube(capaBt, d, corVars); });
+        cartao = h("article", { class: "destaque papel revela", estilo: atraso(i, 120) }, capaBt, corpo);
+      } else {
+        /* link que não é YouTube nem Instagram: mantém o comportamento antigo, abre em nova aba */
+        cartao = h("a", { class: "destaque papel revela", href: d.link, target: "_blank", rel: "noopener noreferrer", estilo: atraso(i, 120) },
+          h("div", { class: "tela", "aria-hidden": "true", estilo: corVars }, h("span", { class: "legenda-ph", text: "capa do vídeo 9:16" }), h("span", { class: "play", "aria-hidden": "true" })),
+          corpo, h("span", { class: "sr-only", text: "(abre em nova aba)" }));
+      }
+      trilho.append(cartao);
     });
+
+    var ant = h("button", { class: "seta", type: "button", "aria-label": "Ver os anteriores" }, h("span", { "aria-hidden": "true", text: "‹" })),
+        prox = h("button", { class: "seta", type: "button", "aria-label": "Ver os próximos" }, h("span", { "aria-hidden": "true", text: "›" })),
+        setas = h("div", { class: "setas" }, ant, prox);
+    function passo() {
+      var c = trilho.firstElementChild;
+      var vao = parseFloat(getComputedStyle(trilho).columnGap) || 22;
+      return c ? c.getBoundingClientRect().width + vao : trilho.clientWidth * 0.8;
+    }
+    function atualizar() {
+      setas.hidden = trilho.scrollWidth <= trilho.clientWidth + 4;
+      ant.disabled = trilho.scrollLeft <= 2;
+      prox.disabled = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
+    }
+    ant.addEventListener("click", function () { trilho.scrollBy({ left: -passo(), behavior: reduzir ? "auto" : "smooth" }); });
+    prox.addEventListener("click", function () { trilho.scrollBy({ left: passo(), behavior: reduzir ? "auto" : "smooth" }); });
+    trilho.addEventListener("scroll", atualizar, { passive: true });
+
+    var esperaAuto = null;
+    function pararAuto() { if (esperaAuto) { clearTimeout(esperaAuto); esperaAuto = null; } }
+    function agendarAuto() {
+      pararAuto();
+      if (reduzir || trilho.scrollWidth <= trilho.clientWidth + 4) return;
+      esperaAuto = setTimeout(function () {
+        var noFim = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
+        trilho.scrollTo({ left: noFim ? 0 : trilho.scrollLeft + passo(), behavior: "smooth" });
+        agendarAuto();
+      }, 3800);
+    }
+    trilho.addEventListener("mouseenter", pararAuto);
+    trilho.addEventListener("mouseleave", agendarAuto);
+    trilho.addEventListener("focusin", pararAuto);
+    trilho.addEventListener("focusout", agendarAuto);
+    trilho.addEventListener("touchstart", pararAuto, { passive: true });
+
+    raiz.append(setas, trilho);
+    window.addEventListener("resize", atualizar);
+    window.addEventListener("load", atualizar);
+    requestAnimationFrame(function () { atualizar(); agendarAuto(); });
   }
 
   /* ---------- trabalhos: um carrossel para cada nicho, na ordem dos nichos ---------- */
@@ -1418,6 +1517,27 @@ const DEPOIMENTOS = [
     var m = String(url || "").match(/(?:shorts\/|[?&]v=|youtu\.be\/|embed\/)([\w-]{11})/);
     return m ? m[1] : null;
   }
+  /* Reels e posts do Instagram: devolve {tipo, cod} para montar o link de incorporação oficial da Meta */
+  function codigoInstagram(url) {
+    var m = String(url || "").match(/instagram\.com\/(?:[^/?#]+\/)?(reel|reels|p|tv)\/([\w-]+)/i);
+    if (!m) return null;
+    return { tipo: m[1].toLowerCase() === "p" ? "p" : "reel", cod: m[2] };
+  }
+  /* Lê o número do campo Destaque (ex.: "7M", "776 mil", "45,2 mil") para poder ordenar do maior para o menor */
+  function valorDestaque(texto) {
+    var s = String(texto || "").trim();
+    var m = s.match(/^(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ÿ]*)/);
+    if (!m) return 0;
+    var n = parseFloat(m[1].replace(",", "."));
+    if (!isFinite(n)) return 0;
+    var unidade = (m[2] || "").toLowerCase();
+    var resto = s.slice(m[0].length).toLowerCase();
+    var junto = unidade + " " + resto;
+    if (/^(m|mi)\b/.test(unidade) || /milh/.test(junto)) return n * 1e6;
+    if (/^(b|bi)\b/.test(unidade) || /bilh/.test(junto)) return n * 1e9;
+    if (unidade === "mil" || unidade === "k" || /\bmil\b/.test(junto)) return n * 1e3;
+    return n;
+  }
   /* Lê os vídeos marcados como visíveis no painel. Devolve null se o banco não responder em 3 segundos,
      der erro ou estiver vazio: nesse caso o site usa as listas de RESERVA lá em cima e continua igual a antes. */
   function carregarVideos() {
@@ -1446,15 +1566,20 @@ const DEPOIMENTOS = [
         else { item.formato = v.formato === "foto" ? "foto" : "video"; item.link = v.link; }
         trabalhos.push(item);
       }
-      if (v.destaque && destaques.length < 5) {
+      if (v.destaque) {
         var partes = String(v.destaque).trim().match(/^(\S+)\s*(.*)$/);
         destaques.push({
           link: v.link, capa: id ? "https://i.ytimg.com/vi/" + id + "/oar2.jpg" : "",
+          youtube: id, instagram: id ? null : codigoInstagram(v.link),
           numero: partes ? partes[1] : v.destaque, rotulo: partes ? partes[2] : "",
-          titulo: titulo, contexto: sub, cores: DESTAQUES[destaques.length % DESTAQUES.length].cores
+          titulo: titulo, contexto: sub, valor: valorDestaque(v.destaque)
         });
       }
     });
+    /* do maior número de visualizações para o menor; no máximo 5 cartões */
+    destaques.sort(function (a, b) { return b.valor - a.valor; });
+    destaques = destaques.slice(0, 5);
+    destaques.forEach(function (d, i) { d.cores = DESTAQUES[i % DESTAQUES.length].cores; });
     return { trabalhos: trabalhos, destaques: destaques };
   }
   /* Sem nenhum vídeo com "destaque" preenchido no painel, a seção de destaques sai do ar (e o link do menu também) */
