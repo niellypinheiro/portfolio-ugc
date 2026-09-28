@@ -408,7 +408,7 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
     <nav class="menu" id="menu" aria-label="Menu principal">
       <ul>
         <li><a href="#sobre">Sobre</a></li>
-        <li><a href="#destaques">Destaques</a></li>
+        <li><a href="#destaques">Cases de sucesso</a></li>
         <li><a href="#trabalhos">Trabalhos</a></li>
         <li><a href="#fotos">Fotos</a></li>
         <li><a href="#servicos">Serviços</a></li>
@@ -495,15 +495,16 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
   </div>
 </section>
 
-<!-- ============ 3. CONTEÚDOS DE DESTAQUE ============ -->
+<!-- ============ 3. CASES DE SUCESSO ============ -->
 <section id="destaques" class="secao" aria-labelledby="destaques-titulo">
   <div class="wrap">
     <div class="cab-couro revela">
       <p class="eyebrow">páginas marcadas</p>
-      <h2 id="destaques-titulo">Conteúdos de <em>destaque</em></h2>
+      <h2 id="destaques-titulo">Cases de <em>sucesso</em></h2>
       <span class="ornamento" aria-hidden="true"></span>
     </div>
-    <!-- Os três cards são montados a partir da lista DESTAQUES (script, no fim do arquivo).
+    <!-- Os cards são montados a partir da lista DESTAQUES (script, no fim do arquivo), ou dos vídeos do
+         painel que tiverem o campo "Destaque" preenchido (até 5).
          LINK DO VÍDEO: campo "link" de cada item.  CAPA DO VÍDEO (imagem vertical 9:16): campo "capa". -->
     <div class="destaques" id="destaquesLista"></div>
   </div>
@@ -795,7 +796,7 @@ const METRICAS = [
   { rotulo: "anos de experiência", alvo: 3, prefixo: "+", sufixo: "", casas: 0 }
 ];
 
-/* CONTEÚDOS DE DESTAQUE (3 cards).
+/* CASES DE SUCESSO (até 5 cards).
    link: endereço do vídeo (Reels, TikTok, YouTube...). É onde o card inteiro clica.
    capa: imagem vertical 9:16 da capa do vídeo (ex.: "capa-01.jpg"). Vazio = bloco com degradê.
    numero e rotulo: o número forte e o que ele mede. */
@@ -1441,7 +1442,7 @@ const DEPOIMENTOS = [
       else if (/\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i.test(v.link)) { item.formato = "foto"; item.imagem = v.link; }
       else { item.formato = v.formato === "foto" ? "foto" : "video"; item.link = v.link; }
       trabalhos.push(item);
-      if (v.destaque && destaques.length < 3) {
+      if (v.destaque && destaques.length < 5) {
         var partes = String(v.destaque).trim().match(/^(\S+)\s*(.*)$/);
         destaques.push({
           link: v.link, capa: id ? "https://i.ytimg.com/vi/" + id + "/oar2.jpg" : "",
