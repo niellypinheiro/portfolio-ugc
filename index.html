@@ -1434,14 +1434,18 @@ const DEPOIMENTOS = [
   function converterVideos(linhas) {
     var trabalhos = [], destaques = [];
     linhas.forEach(function (v) {
-      if (!NICHOS.some(function (n) { return n.id === v.nicho; })) return;
+      var nichoValido = NICHOS.some(function (n) { return n.id === v.nicho; });
       var titulo = v.marca || v.titulo, sub = v.marca ? v.titulo : "";
       var id = idDoYoutube(v.link);
-      var item = { nicho: v.nicho, titulo: titulo, marca: sub, destaque: v.destaque || "" };
-      if (id) item.video = v.link;
-      else if (/\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i.test(v.link)) { item.formato = "foto"; item.imagem = v.link; }
-      else { item.formato = v.formato === "foto" ? "foto" : "video"; item.link = v.link; }
-      trabalhos.push(item);
+      /* Um vídeo sem nicho dos que você atende (ex.: "outro") não entra na galeria por nicho,
+         mas pode continuar aparecendo em Cases de sucesso se tiver o campo Destaque preenchido. */
+      if (nichoValido) {
+        var item = { nicho: v.nicho, titulo: titulo, marca: sub, destaque: v.destaque || "" };
+        if (id) item.video = v.link;
+        else if (/\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i.test(v.link)) { item.formato = "foto"; item.imagem = v.link; }
+        else { item.formato = v.formato === "foto" ? "foto" : "video"; item.link = v.link; }
+        trabalhos.push(item);
+      }
       if (v.destaque && destaques.length < 5) {
         var partes = String(v.destaque).trim().match(/^(\S+)\s*(.*)$/);
         destaques.push({
