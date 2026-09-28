@@ -1047,11 +1047,13 @@ const DEPOIMENTOS = [
     fonte.forEach(function (d, i) {
       var cores = d.cores || ["#6d2434", "#2a1219"];
       var corVars = { "--g1": cores[0], "--g2": cores[1] };
+      /* "Vídeo 1", "Vídeo 2"... é só um rótulo interno do painel; não aparece aqui */
+      var ctxGenerico = /^v[ií]deo\s*\d+$/i.test(String(d.contexto || "").trim());
       var corpo = h("div", { class: "destaque-corpo" },
         h("p", { class: "destaque-num", text: d.numero }),
         h("p", { class: "destaque-rot", text: d.rotulo }),
         h("h3", { text: d.titulo }),
-        h("p", { class: "destaque-ctx", text: d.contexto }));
+        (d.contexto && !ctxGenerico) ? h("p", { class: "destaque-ctx", text: d.contexto }) : null);
 
       var cartao;
       if (d.youtube) {
