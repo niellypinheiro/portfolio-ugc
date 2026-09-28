@@ -1044,20 +1044,6 @@ const DEPOIMENTOS = [
       tocando = { caixa: caixa, capa: capa };
     }
 
-    /* o vídeo do Instagram só carrega quando o cartão chega perto da tela (mais leve para quem só passa o olho) */
-    var observador = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
-      es.forEach(function (e) {
-        if (!e.isIntersecting) return;
-        var caixa = e.target;
-        if (!caixa.dataset.carregado && caixa.__ig) {
-          caixa.dataset.carregado = "1";
-          caixa.append(h("iframe", { src: "https://www.instagram.com/" + caixa.__ig.tipo + "/" + caixa.__ig.cod + "/embed/",
-            title: "Vídeo do Instagram", loading: "lazy", allow: "autoplay; encrypted-media", referrerpolicy: "strict-origin-when-cross-origin" }));
-        }
-        observador.unobserve(caixa);
-      });
-    }, { rootMargin: "250px" }) : null;
-
     fonte.forEach(function (d, i) {
       var cores = d.cores || ["#6d2434", "#2a1219"];
       var corVars = { "--g1": cores[0], "--g2": cores[1] };
@@ -1068,15 +1054,7 @@ const DEPOIMENTOS = [
         h("p", { class: "destaque-ctx", text: d.contexto }));
 
       var cartao;
-      if (d.instagram) {
-        /* Instagram: a própria incorporação da Meta já mostra a capa de verdade e toca aqui dentro, sem sair do site */
-        var caixaIg = h("div", { class: "tela", "aria-hidden": "true", estilo: corVars }, h("span", { class: "legenda-ph", text: "capa do vídeo 9:16" }));
-        caixaIg.__ig = d.instagram;
-        if (observador) observador.observe(caixaIg);
-        else caixaIg.append(h("iframe", { src: "https://www.instagram.com/" + d.instagram.tipo + "/" + d.instagram.cod + "/embed/",
-          title: "Vídeo do Instagram", loading: "lazy", referrerpolicy: "strict-origin-when-cross-origin" }));
-        cartao = h("article", { class: "destaque papel revela", estilo: atraso(i, 120) }, caixaIg, corpo);
-      } else if (d.youtube) {
+      if (d.youtube) {
         var img = h("img", { src: d.capa, alt: "Capa do vídeo: " + d.titulo, loading: "lazy", decoding: "async", width: 720, height: 1280 });
         img.addEventListener("error", function () { img.remove(); });
         var capaBt = h("button", { class: "tela tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + d.titulo, estilo: corVars },
@@ -1084,7 +1062,7 @@ const DEPOIMENTOS = [
         capaBt.addEventListener("click", function () { tocarYoutube(capaBt, d, corVars); });
         cartao = h("article", { class: "destaque papel revela", estilo: atraso(i, 120) }, capaBt, corpo);
       } else {
-        /* link que não é YouTube nem Instagram: mantém o comportamento antigo, abre em nova aba */
+        /* Instagram (e qualquer outro link): capa igual à dos outros cartões do portfólio, sem nada do Instagram aparecendo */
         cartao = h("a", { class: "destaque papel revela", href: d.link, target: "_blank", rel: "noopener noreferrer", estilo: atraso(i, 120) },
           h("div", { class: "tela", "aria-hidden": "true", estilo: corVars }, h("span", { class: "legenda-ph", text: "capa do vídeo 9:16" }), h("span", { class: "play", "aria-hidden": "true" })),
           corpo, h("span", { class: "sr-only", text: "(abre em nova aba)" }));
