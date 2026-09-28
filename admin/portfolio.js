@@ -79,7 +79,9 @@
     const v = video || { titulo: "", link: "", nicho: "casa", formato: "video", marca: "", destaque: "", visivel: true };
     const titulo = h("input", { type: "text", value: v.titulo, maxlength: "200", autocomplete: "off" });
     const link = h("input", { type: "url", value: v.link, placeholder: "https://youtube.com/shorts/...", autocomplete: "off" });
-    const nicho = h("select", null, P.opcoes(P.NICHOS.map((n) => [n.id, n.nome]), v.nicho));
+    const nicho = h("select", null,
+      P.opcoes(P.NICHOS.map((n) => [n.id, n.nome]), v.nicho),
+      h("option", { value: "outro", text: "Nenhum (fica só em Cases de sucesso)", selected: v.nicho === "outro" }));
     const formato = h("select", null, P.opcoes(FORMATOS, v.formato));
     const marca = h("input", { type: "text", value: v.marca || "", maxlength: "120", placeholder: "Nome da marca" });
     const destaque = h("input", { type: "text", value: v.destaque || "", maxlength: "60", placeholder: "Ex.: 2,4M views" });
@@ -88,7 +90,7 @@
     const corpo = h("div", null,
       P.campo("Título", titulo, "Como esse vídeo se chama para você."),
       P.campo("Link", link, "Cole o link do YouTube (Shorts ou vídeo comum). No YouTube ele precisa estar Público ou Não listado."),
-      h("div", { class: "grade2" }, P.campo("Nicho", nicho), P.campo("Formato", formato)),
+      h("div", { class: "grade2" }, P.campo("Nicho", nicho, "\"Nenhum\" é para um vídeo que você quer só em Cases de sucesso, sem entrar na galeria por nicho do site."), P.campo("Formato", formato)),
       h("div", { class: "grade2" }, P.campo("Marca", marca), P.campo("Destaque", destaque, "Opcional. Aparece no cartão do site.")),
       h("label", { class: "marcar", for: "cvis" }, visivel, "Mostrar no site"));
 
