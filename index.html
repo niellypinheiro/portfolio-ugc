@@ -1174,7 +1174,7 @@ const DEPOIMENTOS = [
       var id = idYoutube(t.video);
       if (id) {
         /* vídeo do YouTube: capa vertical com botão de play; o player só carrega quando a pessoa clica */
-        var img = h("img", { src: "https://i.ytimg.com/vi/" + id + "/oar2.jpg", alt: "", loading: "lazy", decoding: "async", width: 720, height: 1280 });
+        var img = h("img", { src: "https://i.ytimg.com/vi/" + id + "/hq720.jpg", alt: "", loading: "lazy", decoding: "async", width: 720, height: 1280 });
         img.addEventListener("error", function () { img.remove(); });
         var capa = h("button", { class: "trab-midia v tocavel", type: "button", "aria-label": "Assistir ao vídeo: " + t.titulo, estilo: cores },
           img, h("span", { class: "play", "aria-hidden": "true" }));
@@ -1547,7 +1547,7 @@ const DEPOIMENTOS = [
       if (v.destaque) {
         var partes = String(v.destaque).trim().match(/^(\S+)\s*(.*)$/);
         destaques.push({
-          link: v.link, capa: id ? "https://i.ytimg.com/vi/" + id + "/oar2.jpg" : "",
+          link: v.link, capa: id ? "https://i.ytimg.com/vi/" + id + "/hq720.jpg" : "",
           youtube: id, instagram: id ? null : codigoInstagram(v.link),
           numero: partes ? partes[1] : v.destaque, rotulo: partes ? partes[2] : "",
           titulo: titulo, contexto: sub, valor: valorDestaque(v.destaque)
