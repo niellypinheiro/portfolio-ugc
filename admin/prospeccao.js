@@ -38,8 +38,6 @@
   function assinatura(s) { let x = 5381; for (let i = 0; i < s.length; i++) x = ((x << 5) + x + s.charCodeAt(i)) | 0; return String(x); }
   function guardarLocal(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento: segue sem salvar */ } }
   function lerLocal(k) { try { const t = localStorage.getItem(k); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
-  function guardarSessao(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* segue */ } }
-  function lerSessao(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   const dataHora = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
   const traco = "-";
 
@@ -443,7 +441,7 @@
         return p;
       }
       const assinaturaAtual = () => assinatura(est.assunto.trim() + "\n" + htmlBruto());
-      const testeFeito = () => lerSessao(CHAVE_TESTE) === assinaturaAtual();
+      const testeFeito = () => lerLocal(CHAVE_TESTE) === assinaturaAtual();
 
       function atualizarBotoes() {
         if (!botaoTeste) return;
@@ -467,7 +465,7 @@
         try {
           const res = await chamarCarteiro([{ id: null, email: EMAIL_DONA, nome: ex, marca: ex, saudacao: ex }], "[TESTE] " + est.assunto.trim(), htmlBruto(), false);
           if (res.enviados > 0) {
-            guardarSessao(CHAVE_TESTE, assinaturaAtual());
+            guardarLocal(CHAVE_TESTE, assinaturaAtual());
             P.toast("Teste enviado para " + EMAIL_DONA + ". Abra no celular para conferir.");
           } else {
             const r = await ler("email_envios", (t) => t.select("erro").eq("email", EMAIL_DONA).gte("criado_em", inicio).order("criado_em", { ascending: false }).limit(1));
