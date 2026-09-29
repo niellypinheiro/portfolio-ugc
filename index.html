@@ -1089,27 +1089,10 @@ const DEPOIMENTOS = [
     prox.addEventListener("click", function () { trilho.scrollBy({ left: passo(), behavior: reduzir ? "auto" : "smooth" }); });
     trilho.addEventListener("scroll", atualizar, { passive: true });
 
-    var esperaAuto = null;
-    function pararAuto() { if (esperaAuto) { clearTimeout(esperaAuto); esperaAuto = null; } }
-    function agendarAuto() {
-      pararAuto();
-      if (reduzir || trilho.scrollWidth <= trilho.clientWidth + 4) return;
-      esperaAuto = setTimeout(function () {
-        var noFim = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
-        trilho.scrollTo({ left: noFim ? 0 : trilho.scrollLeft + passo(), behavior: "smooth" });
-        agendarAuto();
-      }, 3800);
-    }
-    trilho.addEventListener("mouseenter", pararAuto);
-    trilho.addEventListener("mouseleave", agendarAuto);
-    trilho.addEventListener("focusin", pararAuto);
-    trilho.addEventListener("focusout", agendarAuto);
-    trilho.addEventListener("touchstart", pararAuto, { passive: true });
-
     raiz.append(setas, trilho);
     window.addEventListener("resize", atualizar);
     window.addEventListener("load", atualizar);
-    requestAnimationFrame(function () { atualizar(); agendarAuto(); });
+    requestAnimationFrame(atualizar);
   }
 
   /* ---------- trabalhos: um carrossel para cada nicho, na ordem dos nichos ---------- */
@@ -1232,30 +1215,9 @@ const DEPOIMENTOS = [
       trilho.addEventListener("scroll", atualizar, { passive: true });
       atualizadores.push(atualizar);
 
-      /* passa sozinho para os próximos vídeos, sem precisar clicar na setinha; para quando o mouse
-         está em cima (para a marca poder ver a prévia parada) e volta a rolar quando ele sai */
-      var esperaAuto = null;
-      function pararAuto() { if (esperaAuto) { clearTimeout(esperaAuto); esperaAuto = null; } }
-      function agendarAuto() {
-        pararAuto();
-        if (reduzir || trilho.scrollWidth <= trilho.clientWidth + 4) return;
-        esperaAuto = setTimeout(function () {
-          var noFim = trilho.scrollLeft + trilho.clientWidth >= trilho.scrollWidth - 2;
-          trilho.scrollTo({ left: noFim ? 0 : trilho.scrollLeft + passo(), behavior: "smooth" });
-          agendarAuto();
-        }, 3800);
-      }
-      trilho.addEventListener("mouseenter", pararAuto);
-      trilho.addEventListener("mouseleave", agendarAuto);
-      trilho.addEventListener("focusin", pararAuto);
-      trilho.addEventListener("focusout", agendarAuto);
-      trilho.addEventListener("touchstart", pararAuto, { passive: true });
-
       area.append(h("section", { class: "nicho revela", id: "nicho-" + n.id, "aria-labelledby": "nicho-" + n.id + "-titulo" },
         h("div", { class: "nicho-cab" }, h("h3", { id: "nicho-" + n.id + "-titulo", text: n.nome }), setas),
         trilho));
-      /* só agora o trilho está de verdade na página, então dá pra medir a largura e começar a rolar sozinho */
-      agendarAuto();
     });
 
     function atualizarTodos() { atualizadores.forEach(function (f) { f(); }); }
