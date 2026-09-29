@@ -61,7 +61,7 @@ create table if not exists public.marcas (
   email          text check (char_length(email) <= 200),
   telefone       text check (char_length(telefone) <= 40),
   situacao       text not null default 'lead'
-                 check (situacao in ('lead', 'conversando', 'cliente', 'parada')),
+                 check (situacao in ('lead', 'conversando', 'cliente', 'parada', 'email_enviado')),
   nicho          text check (nicho is null or nicho in ('casa', 'gastronomia', 'tech', 'cabelo', 'bodycare', 'entretenimento', 'moda')),
   obs            text check (char_length(obs) <= 3000),
   ultimo_contato date,
@@ -69,6 +69,12 @@ create table if not exists public.marcas (
 );
 -- Se a tabela já existia de antes, isto acrescenta o campo do nicho (não apaga nada)
 alter table public.marcas add column if not exists nicho text;
+
+-- Se a tabela já existia de antes com a lista antiga de situação, isto troca a trava
+-- pela lista nova, que agora também aceita "email_enviado" (não apaga nenhuma marca)
+alter table public.marcas drop constraint if exists marcas_situacao_check;
+alter table public.marcas add constraint marcas_situacao_check
+  check (situacao in ('lead', 'conversando', 'cliente', 'parada', 'email_enviado'));
 
 -- 2.3 CALENDARIO: o que você precisa gravar, editar ou postar.
 create table if not exists public.calendario (
