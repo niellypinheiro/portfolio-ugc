@@ -16,7 +16,7 @@
   const CHAVE_RASCUNHO = "prospeccao_rascunho_v1";
   const CHAVE_TESTE = "prospeccao_teste_v1";
 
-  const SITUACOES = { lead: "Lead", conversando: "Conversando", cliente: "Cliente", parada: "Parada" };
+  const SITUACOES = { lead: "Lead", email_enviado: "E-mail enviado", conversando: "Conversando", cliente: "Cliente", parada: "Parada" };
   const nomeSituacao = (s) => SITUACOES[s] || (s ? s.charAt(0).toUpperCase() + s.slice(1) : "Sem situação");
 
   const TEXTO_MODELO = "Oi, {{nome}}! Tudo bem?\n\n" +

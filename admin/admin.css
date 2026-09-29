@@ -166,6 +166,7 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 /* ---------- pílulas ---------- */
 .pilula{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;background:var(--cinza-suave);color:var(--tinta-2)}
 .p-lead{background:var(--amarelo-suave);color:var(--amarelo)}
+.p-email_enviado{background:var(--azul-suave);color:var(--azul)}
 .p-conversando{background:var(--laranja-suave);color:var(--laranja)}
 .p-cliente{background:var(--verde-suave);color:var(--verde)}
 .p-parada{background:var(--cinza-suave);color:var(--tinta-2)}

@@ -5,7 +5,7 @@
   "use strict";
   const P = window.Painel, h = P.h;
 
-  const SITUACOES = [["lead", "Lead"], ["conversando", "Conversando"], ["cliente", "Cliente"], ["parada", "Parada"]];
+  const SITUACOES = [["lead", "Lead"], ["email_enviado", "E-mail enviado"], ["conversando", "Conversando"], ["cliente", "Cliente"], ["parada", "Parada"]];
   const nomeSituacao = (s) => (SITUACOES.find((x) => x[0] === s) || [s, s])[1];
   const pilula = (s) => h("span", { class: "pilula p-" + s, text: nomeSituacao(s) });
 
