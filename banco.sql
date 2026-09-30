@@ -304,7 +304,49 @@ create policy "so_eu_configuracoes" on public.configuracoes
   using (public.eh_a_nielly()) with check (public.eh_a_nielly());
 
 -- =====================================================================
--- BLOCO 8 (OPCIONAL): TESTE DA TRANCA
+-- BLOCO 8: SMARTBRAND TECNOLOGIA (empresas de serviços)
+--   Uma aba separada do seu portfólio, para captar empresas interessadas
+--   nos produtos e serviços da sua loja física (a SmartBrand Tecnologia).
+--   Só você e o e-mail smartbrand1217@gmail.com (seu marido) enxergam
+--   esta tabela. O resto do painel (Portfólio, Marcas etc.) continua
+--   só seu: esta trava nova não muda nenhuma das outras.
+-- =====================================================================
+create or replace function public.eh_da_smartbrand()
+returns boolean
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', '')) in (
+    'niellypinheirougccreator@gmail.com',
+    'smartbrand1217@gmail.com'
+  )
+$$;
+
+create table if not exists public.empresas_servicos (
+  id             uuid primary key default gen_random_uuid(),
+  nome_empresa   text not null check (char_length(nome_empresa) between 1 and 200),
+  cnpj           text check (char_length(cnpj) <= 20),
+  contato        text check (char_length(contato) <= 200),
+  email          text check (char_length(email) <= 200),
+  telefone       text check (char_length(telefone) <= 40),
+  situacao       text not null default 'lead'
+                 check (situacao in ('lead', 'email_enviado', 'conversando', 'cliente', 'parada')),
+  interesse      text check (char_length(interesse) <= 200),
+  obs            text check (char_length(obs) <= 3000),
+  ultimo_contato date,
+  criado_em      timestamptz not null default now()
+);
+
+alter table public.empresas_servicos enable row level security;
+grant select, insert, update, delete on public.empresas_servicos to authenticated;
+
+drop policy if exists "so_smartbrand_empresas_servicos" on public.empresas_servicos;
+create policy "so_smartbrand_empresas_servicos" on public.empresas_servicos
+  for all to authenticated
+  using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
+-- =====================================================================
+-- BLOCO 9 (OPCIONAL): TESTE DA TRANCA
 -- Não precisa colar junto com o resto. Depois que tudo estiver rodado,
 -- cole SÓ este bloco, tire os dois traços "--" do começo de cada linha
 -- e clique em Run. Ele finge ser um visitante qualquer, sem login.
@@ -318,6 +360,7 @@ create policy "so_eu_configuracoes" on public.configuracoes
 --   union all select 'visitas', count(*) from public.visitas
 --   union all select 'transcricoes', count(*) from public.transcricoes
 --   union all select 'configuracoes', count(*) from public.configuracoes
+--   union all select 'empresas_servicos', count(*) from public.empresas_servicos
 --   union all select 'videos escondidos', count(*) from public.videos where visivel = false;
 --   rollback;
 --
