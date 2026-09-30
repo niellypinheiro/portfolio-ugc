@@ -17,6 +17,9 @@
     url: URL_DO_PROJETO,
     chave: CHAVE_PUBLICA,
     emailDaDona: "niellypinheirougccreator@gmail.com",
+    /* Quem pode entrar no painel. O e-mail da SmartBrand só enxerga a aba
+       "Empresas de Serviços" (o app.js e o banco.sql cuidam disso). */
+    emailsAutorizados: ["niellypinheirougccreator@gmail.com", "smartbrand1217@gmail.com"],
     /* endereço da pasta do site (funciona no GitHub Pages e no computador) */
     raiz: "https://niellypinheiro.com.br/"
   };
