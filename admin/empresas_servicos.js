@@ -78,6 +78,44 @@
         if (r.ok) lista = r.dados;
         desenhar();
       }
+
+      /* ---------- seleção de empresas para a Prospecção (fica salva no banco, coluna "selecionada") ---------- */
+      const temEmail = (e) => !!(e.email && String(e.email).trim());
+      const resumoBox = h("div");
+      function desenharResumo() {
+        const marcadas = lista.filter((e) => e.selecionada).length;
+        const alvo = filtrada().filter(temEmail);
+        const faltam = alvo.filter((e) => !e.selecionada).length;
+        P.limpar(resumoBox).append(h("div", { class: "resumo-selecao" + (marcadas ? " ativo" : ""), role: "status" },
+          h("b", { text: marcadas === 0 ? "Nenhuma empresa selecionada" : marcadas + (marcadas === 1 ? " empresa selecionada" : " empresas selecionadas") }),
+          h("span", { class: "fraco", text: marcadas ? "para o próximo disparo" : "Marque as caixinhas para escolher quem recebe seu e-mail" }),
+          h("span", { class: "espaco" }),
+          h("button", { type: "button", class: "btn", disabled: !faltam, onclick: () => marcarLote(alvo, true),
+            text: "Selecionar as " + alvo.length + " da lista atual (com e-mail)" }),
+          h("button", { type: "button", class: "btn", disabled: !marcadas, onclick: () => marcarLote(lista.filter((e) => e.selecionada), false), text: "Limpar seleção" }),
+          marcadas ? h("button", { type: "button", class: "btn p", onclick: () => P.ir("prospeccao_smartbrand") }, P.ic("prospeccao"), "Ir para Prospecção") : null));
+      }
+      async function marcarLote(itens, valor) {
+        const alvo = itens.filter((e) => !!e.selecionada !== valor);
+        if (!alvo.length) return;
+        let feito = 0;
+        for (let i = 0; i < alvo.length; i += 100) {
+          const ids = alvo.slice(i, i + 100).map((e) => e.id);
+          const r = await P.gravar(() => window.sb.from("empresas_servicos").update({ selecionada: valor }).in("id", ids));
+          if (!r.ok) break;
+          feito += ids.length;
+          alvo.slice(i, i + 100).forEach((e) => { e.selecionada = valor; });
+        }
+        if (feito) P.toast(valor ? feito + " empresas selecionadas" : "Seleção limpa");
+        desenharTabela();
+      }
+      async function marcarUma(e, caixa) {
+        const valor = caixa.checked;
+        const r = await P.gravar(() => window.sb.from("empresas_servicos").update({ selecionada: valor }).eq("id", e.id));
+        if (!r.ok) { caixa.checked = !valor; return; }
+        e.selecionada = valor;
+        desenharResumo();
+      }
       function filtrada() {
         const q = P.semAcento(estado.busca);
         let itens = lista.filter((e) => estado.filtro === "todas" || e.situacao === estado.filtro);
@@ -98,25 +136,33 @@
       const tabelaBox = h("div");
       function desenharTabela() {
         P.limpar(tabelaBox);
+        desenharResumo();
         const cab = (r, c, cls) => P.cabecalho(r, c, estado, desenharTabela, cls);
         const thead = h("thead", null, h("tr", null,
+          h("th", { class: "col-marcar", "aria-label": "Selecionar para disparo" }),
           cab("Empresa", "nome_empresa"), cab("CNPJ", "cnpj"), cab("Contato", "contato"), cab("E-mail", "email"), cab("Telefone", "telefone"),
           cab("Situação", "situacao"), cab("Interesse", "interesse"), cab("Último contato", "ultimo_contato")));
         const tbody = h("tbody");
         if (!lista.length) {
           tabelaBox.append(h("p", { class: "aviso-pagina", text: "Sua base de empresas ainda está vazia. A linha abaixo é só um exemplo do formato e some quando você adicionar a primeira." }));
           tbody.append(h("tr", { class: "exemplo" },
+            h("td", { class: "col-marcar" }, h("input", { type: "checkbox", disabled: true, "aria-label": "Exemplo" })),
             h("td", null, "Nome da empresa", P.etiquetaExemplo()), h("td", { text: "00.000.000/0000-00" }), h("td", { text: "Fulano de Tal" }),
             h("td", { text: "contato@exemplo.com" }), h("td", { text: "(00) 00000-0000" }), h("td", null, pilula("lead")),
             h("td", { text: "Ar-condicionado" }), h("td", { text: P.fmtData(P.hoje()) })));
         } else {
           const itens = filtrada();
-          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "8", class: "fraco", text: "Nenhuma empresa encontrada com esse filtro ou busca." })));
+          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "9", class: "fraco", text: "Nenhuma empresa encontrada com esse filtro ou busca." })));
           itens.forEach((e) => {
             const zap = P.linkWhats(e.telefone);
+            const caixa = h("input", { type: "checkbox", checked: !!e.selecionada && temEmail(e), disabled: !temEmail(e),
+              title: temEmail(e) ? "Selecionar para o disparo de e-mail" : "Esta empresa não tem e-mail",
+              "aria-label": (temEmail(e) ? "Selecionar " : "Sem e-mail, não dá para selecionar ") + e.nome_empresa });
+            caixa.addEventListener("change", () => marcarUma(e, caixa));
             const tr = h("tr", { class: "clicavel", tabindex: "0", "aria-label": "Editar " + e.nome_empresa,
               onclick: () => abrirFormulario(e, recarregar),
               onkeydown: (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target === tr) { ev.preventDefault(); abrirFormulario(e, recarregar); } } },
+              h("td", { class: "col-marcar", onclick: (ev) => ev.stopPropagation(), onkeydown: (ev) => ev.stopPropagation() }, caixa),
               h("td", { class: "nw" }, h("b", { text: e.nome_empresa, style: "font-weight:500" })),
               h("td", { class: "nw", text: e.cnpj || "" }),
               h("td", { class: "truncar", text: e.contato || "" }),
@@ -147,7 +193,7 @@
             h("span", { class: "espaco" }),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar) }, P.ic("mais"), "Adicionar empresa")),
-          tabelaBox);
+          resumoBox, tabelaBox);
         desenharTabela();
       }
       desenhar();
