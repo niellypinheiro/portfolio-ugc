@@ -66,6 +66,7 @@
     play: '<path d="M8 5l11 7-11 7z"/>',
     check: '<path d="M5 12l5 5 9-10"/>',
     transcricao: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/>',
+    empresas_servicos: '<path d="M4 21V8l7-4 7 4v13"/><path d="M9 21v-6h4v6M9 12h.01M13 12h.01M9 16h.01M13 16h.01"/>',
     copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'
   };
   P.ic = function (nome, cheio) {

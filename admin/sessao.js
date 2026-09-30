@@ -14,9 +14,10 @@
   function falha(msg) {
     textoDaTela("<div><p>" + msg + "</p><p style=\"margin-top:10px\"><a href=\"./\">Tentar de novo</a> &nbsp;|&nbsp; <a href=\"" + IR_PARA_LOGIN + "\">Ir para o login</a></p></div>");
   }
-  function ehADona(sessao) {
+  function temAcesso(sessao) {
     var e = sessao && sessao.user && sessao.user.email ? sessao.user.email.toLowerCase() : "";
-    return e === window.BANCO.emailDaDona.toLowerCase();
+    var lista = window.BANCO.emailsAutorizados || [window.BANCO.emailDaDona];
+    return lista.some(function (a) { return a.toLowerCase() === e; });
   }
 
   /* Sem a biblioteca do Supabase o painel não tem como conferir nada: avisa, nunca fica em branco */
@@ -35,7 +36,7 @@
     clearTimeout(relogio);
     var s = r && r.data && r.data.session;
     if (!s) { location.replace(IR_PARA_LOGIN); return new Promise(function () {}); }
-    if (!ehADona(s)) {
+    if (!temAcesso(s)) {
       return window.sb.auth.signOut().then(function () {
         location.replace(IR_PARA_LOGIN);
         return new Promise(function () {});

@@ -12,11 +12,18 @@
     ["calendario", "Calendário", "calendario"],
     ["campanhas", "Campanhas", "campanhas"],
     ["checklist", "Checklist portfólio", "checklist"],
-    ["transcricoes", "Transcrições", "transcricao"]
+    ["transcricoes", "Transcrições", "transcricao"],
+    ["empresas_servicos", "Empresas de Serviços", "empresas_servicos"]
   ];
+  /* Abas que o e-mail da SmartBrand (data-aba fora deste e-mail) pode ver.
+     O resto do painel (Portfólio, Marcas etc.) fica escondido para ele aqui,
+     e o banco.sql também recusa esses dados para o e-mail dele, então a
+     trava de verdade não depende só desta lista. */
+  const ABAS_RESTRITAS = ["empresas_servicos"];
   const $ = (id) => document.getElementById(id);
   let abaAtual = "portfolio";
   let ficha = 0;
+  let restrito = false;
 
   function fecharGaveta() {
     $("lateral").classList.remove("aberta");
@@ -30,7 +37,7 @@
   }
 
   async function ir(nome) {
-    if (!P.abas[nome]) nome = "portfolio";
+    if (!P.abas[nome] || (restrito && !ABAS_RESTRITAS.includes(nome))) nome = restrito ? "empresas_servicos" : "portfolio";
     abaAtual = nome;
     if (location.hash !== "#" + nome) history.replaceState(null, "", "#" + nome);
     const def = ABAS.find((a) => a[0] === nome);
@@ -70,8 +77,20 @@
     const email = (sessao && sessao.user && sessao.user.email) || "";
     $("emailLogado").textContent = email;
     $("emailLogado").title = email;
+    restrito = email.toLowerCase() !== window.BANCO.emailDaDona.toLowerCase();
 
-    document.querySelectorAll("#menu .item").forEach((b) => {
+    const menu = $("menu");
+    if (restrito) {
+      /* tira do menu tudo que não é a aba liberada para este e-mail */
+      menu.querySelectorAll(".item").forEach((b) => { if (!ABAS_RESTRITAS.includes(b.dataset.aba)) b.remove(); });
+      /* e some com os títulos de grupo que ficaram sem nenhuma aba embaixo */
+      menu.querySelectorAll(".lateral-grupo").forEach((rotulo) => {
+        let prox = rotulo.nextElementSibling, temItem = false;
+        while (prox && !prox.classList.contains("lateral-grupo")) { if (prox.classList.contains("item")) temItem = true; prox = prox.nextElementSibling; }
+        if (!temItem) rotulo.remove();
+      });
+    }
+    menu.querySelectorAll(".item").forEach((b) => {
       const def = ABAS.find((a) => a[0] === b.dataset.aba);
       b.append(P.ic(def[2]), h("span", { text: def[1] }));
       b.addEventListener("click", () => ir(def[0]));
@@ -90,6 +109,6 @@
 
     /* Agora sim o painel aparece */
     document.body.classList.remove("carregando");
-    ir(location.hash.slice(1) || "portfolio");
+    ir(restrito ? "empresas_servicos" : (location.hash.slice(1) || "portfolio"));
   });
 })();
