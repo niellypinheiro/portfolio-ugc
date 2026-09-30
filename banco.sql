@@ -345,6 +345,46 @@ create policy "so_smartbrand_empresas_servicos" on public.empresas_servicos
   for all to authenticated
   using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
 
+-- As mesmas duas colunas que a aba Marcas tem, para marcar quem vai receber
+-- o próximo e-mail e guardar quando recebeu o último.
+alter table public.empresas_servicos add column if not exists selecionada boolean not null default false;
+alter table public.empresas_servicos add column if not exists ultimo_envio timestamptz;
+
+-- EMPRESAS_ENVIOS e EMPRESAS_OPTOUT: o mesmo registro de envios e de quem
+-- pediu para sair, só que separado do seu (o da SmartBrand não se mistura
+-- com o "email_envios"/"email_optout" da sua Prospecção pessoal).
+create table if not exists public.empresas_envios (
+  id          uuid primary key default gen_random_uuid(),
+  empresa_id  uuid references public.empresas_servicos(id) on delete set null,
+  email       text not null,
+  assunto     text not null,
+  status      text not null check (status in ('ok', 'erro')),
+  erro        text,
+  resend_id   text,
+  criado_em   timestamptz not null default now()
+);
+create index if not exists empresas_envios_email_idx on public.empresas_envios (email);
+create index if not exists empresas_envios_assunto_idx on public.empresas_envios (assunto);
+
+create table if not exists public.empresas_optout (
+  email      text primary key,
+  criado_em  timestamptz not null default now()
+);
+
+alter table public.empresas_envios enable row level security;
+alter table public.empresas_optout enable row level security;
+grant select, insert, update, delete on public.empresas_envios, public.empresas_optout to authenticated;
+
+drop policy if exists "so_smartbrand_empresas_envios" on public.empresas_envios;
+create policy "so_smartbrand_empresas_envios" on public.empresas_envios
+  for all to authenticated
+  using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
+drop policy if exists "so_smartbrand_empresas_optout" on public.empresas_optout;
+create policy "so_smartbrand_empresas_optout" on public.empresas_optout
+  for all to authenticated
+  using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
 -- =====================================================================
 -- BLOCO 9 (OPCIONAL): TESTE DA TRANCA
 -- Não precisa colar junto com o resto. Depois que tudo estiver rodado,
