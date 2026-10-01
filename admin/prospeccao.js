@@ -530,7 +530,13 @@
         try {
           const r = await ler("email_envios", (t) => t.select("marca_id").eq("status", "ok").gte("criado_em", desde).limit(1000));
           const ids = Array.from(new Set(r.dados.map((x) => x.marca_id).filter(Boolean)));
-          for (let i = 0; i < ids.length; i += 100) await window.sb.from("marcas").update({ ultimo_contato: P.hoje() }).in("id", ids.slice(i, i + 100));
+          for (let i = 0; i < ids.length; i += 100) {
+            const lote = ids.slice(i, i + 100);
+            await window.sb.from("marcas").update({ ultimo_contato: P.hoje() }).in("id", lote);
+            /* Promove de "Lead" para "E-mail enviado" sozinho. Quem já estava em outra
+               situação (conversando, cliente, parada) não é mexido, para não perder o progresso. */
+            await window.sb.from("marcas").update({ situacao: "email_enviado" }).in("id", lote).eq("situacao", "lead");
+          }
         } catch (e) { console.error(e); }
       }
       function mostrarResumo(somas, cota, restantes, erroGeral) {
