@@ -502,7 +502,10 @@
         if (!ok) return;
 
         ocupado = true; atualizarBotoes();
-        const inicio = new Date().toISOString();
+        /* Começa a procura 10 minutos antes de agora: cobre qualquer diferença entre o
+           relógio do seu computador e o relógio do servidor, para nunca ficar sem achar
+           os e-mails que acabaram de sair. */
+        const inicio = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const total = r.itens.length;
         const somas = { enviados: 0, falhas: 0, pulados: 0 };
         let cota = false, restantes = 0, erroGeral = "";
