@@ -231,8 +231,60 @@
     if (!a.gancho.analise && !a.funcionou.length && !a.pontoForte) throw new ErroIA("A resposta veio incompleta. Tente de novo.");
     return a;
   }
-  /* Pede um texto ao Gemini, tentando os modelos disponíveis um por um. Serve para a análise e para a modelagem. */
+  /* ---------- plano B gratuito: Groq (usado só quando o Google falha ou está sobrecarregado) ---------- */
+  const CHAVE_GROQ = "groq_api_key";
+  const SERVICO_GROQ = "https://api.groq.com";
+  const MODELOS_GROQ = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+  let chaveGroq = "";
+  async function pedirGroq(caminho, chave, corpo) {
+    const ctrl = new AbortController();
+    const relogio = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      const cab = { Authorization: "Bearer " + chave };
+      if (corpo) cab["content-type"] = "application/json";
+      const r = await fetch(SERVICO_GROQ + caminho, { method: corpo ? "POST" : "GET", headers: cab, body: corpo ? JSON.stringify(corpo) : undefined, signal: ctrl.signal });
+      let json = null;
+      try { json = await r.json(); } catch (e) { /* sem corpo */ }
+      return { status: r.status, corpo: json };
+    } catch (e) {
+      throw new ErroIA("Não consegui falar com o Groq. Confira a internet.");
+    } finally { clearTimeout(relogio); }
+  }
+  async function testarChaveGroq(chave) {
+    try {
+      const r = await pedirGroq("/openai/v1/models", chave);
+      if (r.status === 401) return { estado: "recusada" };
+      if (r.status === 200) return { estado: "ok" };
+    } catch (e) { /* sem teste */ }
+    return { estado: "sem-teste" };
+  }
+  async function gerarComGroq(sistema, entrada) {
+    let ultimo = "";
+    for (const modelo of MODELOS_GROQ) {
+      const r = await pedirGroq("/openai/v1/chat/completions", chaveGroq, {
+        model: modelo, temperature: 0.7, max_tokens: 4096, response_format: { type: "json_object" },
+        messages: [{ role: "system", content: sistema }, { role: "user", content: entrada }]
+      });
+      if (r.status === 200) {
+        const texto = r.corpo && r.corpo.choices && r.corpo.choices[0] && r.corpo.choices[0].message && r.corpo.choices[0].message.content;
+        if (texto) return { texto, modelo: "groq " + modelo };
+      }
+      if (r.status === 401) throw new ErroIA("O Groq recusou a chave guardada.", 401);
+      ultimo = String((r.corpo && r.corpo.error && r.corpo.error.message) || ("erro " + r.status)).slice(0, 100);
+    }
+    throw new ErroIA("O Groq também não respondeu (" + ultimo + ").");
+  }
+  /* Tenta o Google primeiro. Se ele falhar e existir chave do Groq, o Groq assume sozinho. */
   async function gerarComGemini(chave, sistema, entrada) {
+    try { return await gerarComGeminiSo(chave, sistema, entrada); }
+    catch (e) {
+      if (!chaveGroq) throw e;
+      try { return await gerarComGroq(sistema, entrada); }
+      catch (e2) { throw new ErroIA(e.message + " Plano B: " + e2.message, e.status); }
+    }
+  }
+  /* Pede um texto ao Gemini, tentando os modelos disponíveis um por um. Serve para a análise e para a modelagem. */
+  async function gerarComGeminiSo(chave, sistema, entrada) {
     let ultimo = null;
     const tentados = [];
     for (const modelo of await modelosDoGoogle(chave)) {
@@ -377,6 +429,7 @@
       const chaveGuardada = (nome) => { const x = rc.dados.find((c) => c.chave === nome); return (x && x.valor) || ""; };
       let chaveServico = chaveGuardada(CHAVE_CONFIG);
       let chaveIA = chaveGuardada(CHAVE_IA);
+      chaveGroq = chaveGuardada(CHAVE_GROQ);
       const cartoes = new Map();          /* id -> { el, dados } */
       let idAberto = null;
 
@@ -455,6 +508,41 @@
           chaveIA = ""; atualizarEstadoIA(); P.toast("Chave removida.");
         } });
         P.modal({ titulo: "Configurar análise", corpo, botoes });
+      }
+
+      /* ---------- plano B da análise (a chave do Groq, gratuita) ---------- */
+      const estadoGroq = h("span");
+      function atualizarEstadoGroq() {
+        P.limpar(estadoGroq).append(chaveGroq
+          ? h("span", { class: "pilula p-cliente", text: "Plano B pronto" })
+          : h("span", { class: "pilula p-lead", text: "Sem plano B" }));
+      }
+      function abrirConfiguracaoGroq() {
+        const campo = h("input", { type: "password", autocomplete: "off", placeholder: chaveGroq ? "Chave já guardada (termina em " + chaveGroq.slice(-4) + "). Cole outra para trocar." : "Cole aqui a chave do Groq (começa com gsk_)" });
+        const corpo = h("div", null,
+          h("p", { text: "Quando o Google estiver sobrecarregado ou der erro, o painel troca sozinho para o Groq e termina a análise e os roteiros. É grátis e sem cartão. Você faz isso uma vez só:" }),
+          h("ol", { class: "passos" },
+            h("li", null, "Entre em ", h("a", { href: "https://console.groq.com/keys", target: "_blank", rel: "noopener noreferrer", text: "console.groq.com/keys" }), " e crie uma conta (pode entrar com o Google)."),
+            h("li", { text: "Clique em \"Create API Key\", dê um nome qualquer e copie a chave." }),
+            h("li", { text: "Cole a chave aqui embaixo e salve." })),
+          P.campo("Chave do Groq", campo, "Ela fica guardada só no seu banco, onde só você lê. Nunca aparece no site público."));
+        const botoes = [{ texto: "Cancelar" }, { texto: "Salvar a chave", classe: "p", aoClicar: async () => {
+          const v = limparChave(campo.value);
+          if (!v) { P.erroNoCampo(campo, "Cole a chave para salvar."); return false; }
+          if (!/^gsk_/i.test(v)) { P.erroNoCampo(campo, "A chave do Groq começa com gsk_. Copie de novo em console.groq.com/keys."); return false; }
+          const teste = await testarChaveGroq(v);
+          if (teste.estado === "recusada") { P.erroNoCampo(campo, "O Groq não aceitou esta chave. Crie uma nova em console.groq.com/keys."); return false; }
+          const r = await P.gravar(() => window.sb.from("configuracoes").upsert({ chave: CHAVE_GROQ, valor: v, atualizado_em: new Date().toISOString() }, { onConflict: "chave" }));
+          if (!r.ok) return false;
+          chaveGroq = v; atualizarEstadoGroq();
+          P.toast("Plano B salvo. Se o Google falhar, o Groq assume.");
+        } }];
+        if (chaveGroq) botoes.unshift({ texto: "Remover a chave", classe: "perigo", esquerda: true, aoClicar: async () => {
+          const r = await P.gravar(() => window.sb.from("configuracoes").delete().eq("chave", CHAVE_GROQ));
+          if (!r.ok) return false;
+          chaveGroq = ""; atualizarEstadoGroq(); P.toast("Chave removida.");
+        } });
+        P.modal({ titulo: "Plano B da análise (Groq)", corpo, botoes });
       }
 
       /* ---------- guardar um conteúdo novo ---------- */
@@ -719,7 +807,7 @@
       }
 
       /* ---------- montagem da página ---------- */
-      atualizarEstadoCfg(); atualizarEstadoIA();
+      atualizarEstadoCfg(); atualizarEstadoIA(); atualizarEstadoGroq();
       lista.forEach((t) => adicionarCartao(t, false));
       raiz.append(
         h("div", { class: "transc-topo" },
@@ -727,7 +815,9 @@
           h("div", { class: "cfg-estado" }, estadoCfg,
             h("button", { type: "button", class: "btn", onclick: () => abrirConfiguracao() }, "Configurar transcrição"),
             estadoIA,
-            h("button", { type: "button", class: "btn", onclick: () => abrirConfiguracaoIA() }, "Configurar análise"))),
+            h("button", { type: "button", class: "btn", onclick: () => abrirConfiguracaoIA() }, "Configurar análise"),
+            estadoGroq,
+            h("button", { type: "button", class: "btn", onclick: () => abrirConfiguracaoGroq() }, "Plano B (Groq)"))),
         h("section", { class: "cartao-bloco novo-conteudo" },
           h("div", { class: "rotulo", text: "Guardar um conteúdo novo" }),
           h("div", { class: "novo-linha" }, campoLink, botaoGuardar),
