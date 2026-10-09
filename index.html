@@ -96,6 +96,11 @@ main,.rodape{position:relative;z-index:1}
 .topo-in{display:flex;align-items:center;justify-content:space-between;height:var(--topo-h);padding:0 78px 0 var(--gutter)}
 .marca{font:600 1.55rem/1 var(--fonte-titulo);color:var(--papel);text-decoration:none;white-space:nowrap}
 .marca em{color:var(--ouro-claro);font-weight:500}
+.marca-grupo{display:flex;align-items:center;gap:14px}
+.idiomas{display:inline-flex;gap:4px}
+.idiomas button{font:500 .68rem/1 var(--fonte-corpo);letter-spacing:.06em;padding:5px 8px;border-radius:999px;border:1px solid rgba(240,215,127,.55);background:transparent;color:var(--papel);cursor:pointer;transition:background .2s,color .2s}
+.idiomas button:hover{border-color:var(--ouro-claro);color:var(--ouro-claro)}
+.idiomas button[aria-pressed="true"]{background:var(--ouro);border-color:var(--ouro);color:var(--couro-esc)}
 .menu ul{display:flex;gap:clamp(12px,1.6vw,28px)}
 .menu a{display:block;padding:8px 2px;font-size:.98rem;font-weight:500;letter-spacing:.03em;color:var(--papel);text-decoration:none;border-bottom:2px solid transparent;transition:border-color .2s,color .2s}
 .menu a:hover,.menu a[aria-current="true"]{color:var(--ouro-claro);border-bottom-color:var(--ouro)}
@@ -406,7 +411,13 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 
 <header class="topo" id="topo">
   <div class="topo-in">
-    <a class="marca" href="#capa" aria-label="Nielly Pinheiro, voltar ao início">Nielly <em>Pinheiro</em></a>
+    <div class="marca-grupo">
+      <a class="marca" href="#capa" aria-label="Nielly Pinheiro, voltar ao início">Nielly <em>Pinheiro</em></a>
+      <div class="idiomas" role="group" aria-label="Idioma">
+        <button type="button" data-idioma="pt" aria-pressed="true" title="Português">PT</button>
+        <button type="button" data-idioma="en" aria-pressed="false" title="English">EN</button>
+      </div>
+    </div>
     <button class="hamb" id="hamb" type="button" aria-expanded="false" aria-controls="menu">
       <span class="sr-only">Abrir menu</span><span class="hamb-barras" aria-hidden="true"></span>
     </button>
@@ -915,6 +926,7 @@ const DEPOIMENTOS = [
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var emIngles = function () { return document.documentElement.lang === "en"; };
 
   /* cria elementos sem usar innerHTML (texto sempre entra como texto) */
   function h(tag, props) {
@@ -1367,9 +1379,9 @@ const DEPOIMENTOS = [
       botao.disabled = true;
       botao.textContent = "Enviando...";
       enviarParaMarcas({ nome: nome.slice(0, 200), email: email.slice(0, 200), situacao: "lead", obs: ("Mensagem pelo formulário do site: " + msg).slice(0, 3000), ultimo_contato: hojeISO() }).then(function (estado) {
-        var resumo = "Oi, Nielly! Aqui é " + nome + " (" + email + "). " + msg;
+        var resumo = emIngles() ? "Hi Nielly! This is " + nome + " (" + email + "). " + msg : "Oi, Nielly! Aqui é " + nome + " (" + email + "). " + msg;
         conf.replaceChildren.apply(conf, confirmacao({
-          nome: nome, estado: estado, resumo: resumo, assunto: "Contato pelo portfólio: " + nome,
+          nome: nome, estado: estado, resumo: resumo, assunto: (emIngles() ? "Portfolio contact: " : "Contato pelo portfólio: ") + nome,
           textoOk: "Recebi a sua mensagem e respondo em breve.",
           textoManual: "Sua mensagem está pronta. Para ela chegar até mim agora, escolha um caminho:",
           textoErro: "Tente por um destes caminhos, com a sua mensagem já preenchida:"
@@ -1432,9 +1444,9 @@ const DEPOIMENTOS = [
       botao.disabled = true;
       botao.textContent = "Enviando...";
       enviarParaMarcas({ nome: nome.slice(0, 200), email: email.slice(0, 200), situacao: "lead", obs: "Pediu o mídia kit pelo cartão do site.", ultimo_contato: hojeISO() }).then(function (estado) {
-        var resumo = "Oi, Nielly! Aqui é " + nome + " (" + email + "). Quero receber o seu mídia kit completo.";
+        var resumo = emIngles() ? "Hi Nielly! This is " + nome + " (" + email + "). I would like to receive your full media kit." : "Oi, Nielly! Aqui é " + nome + " (" + email + "). Quero receber o seu mídia kit completo.";
         conf.replaceChildren.apply(conf, confirmacao({
-          nome: nome, estado: estado, resumo: resumo, assunto: "Pedido de mídia kit: " + nome,
+          nome: nome, estado: estado, resumo: resumo, assunto: (emIngles() ? "Media kit request: " : "Pedido de mídia kit: ") + nome,
           textoOk: "Recebi o seu pedido e envio o meu mídia kit para o seu e-mail.",
           textoManual: "Seu pedido está pronto. Para ele chegar até mim agora, escolha um caminho:",
           textoErro: "Peça por um destes caminhos, com o pedido já preenchido:"
@@ -1599,6 +1611,227 @@ const DEPOIMENTOS = [
     }
     montarAnimacoes();          /* anima só o que acabou de entrar */
   });
+})();
+</script>
+
+<!-- ============ IDIOMA: português / inglês ============ -->
+<script>
+/* Troca de idioma. O site é escrito em português. Quando a pessoa clica em EN, cada texto que está
+   neste dicionário vira o inglês correspondente (e volta ao português ao clicar em PT).
+   Para traduzir um texto novo, acrescente uma linha: "texto em português": "english text".
+   Nomes de marcas e de pessoas não entram aqui, ficam como estão. */
+(function () {
+  "use strict";
+  var DIC = {
+    "Pular para o conteúdo": "Skip to content",
+    "Nielly Pinheiro, voltar ao início": "Nielly Pinheiro, back to top",
+    "Idioma": "Language",
+    "Abrir menu": "Open menu", "Fechar menu": "Close menu", "Menu principal": "Main menu",
+    "Sobre": "About", "Cases de sucesso": "Success stories", "Trabalhos": "Work", "Fotos": "Photos",
+    "Serviços": "Services", "Números": "Numbers", "Contato": "Contact",
+    "Portfólio UGC · Cascavel": "UGC Portfolio · Cascavel",
+    "Vídeos UGC orgânicos e naturais que humanizam a sua marca e criam conexão de verdade com o público.": "Organic, natural UGC videos that humanize your brand and create a real connection with your audience.",
+    "Falar comigo": "Talk to me", "Ver os trabalhos": "See my work",
+    "Números da Nielly": "Nielly's numbers",
+    "Marcas com quem já trabalhei": "Brands I have worked with",
+    "foto da creator 4:5": "creator photo 4:5",
+    "Espaço reservado para a foto de Nielly Pinheiro, formato 4:5": "Space reserved for Nielly Pinheiro's photo, 4:5 format",
+    "mim": "me",
+    "Mãe de dois: um adolescente com 15 anos e um pequeno de 2 anos.": "Mother of two: a 15-year-old teenager and a 2-year-old little one.",
+    "Nordestina morando no Sul": "Northeasterner living in the South of Brazil",
+    "+ de 7 Milhões de visualizações em um único vídeo.": "Over 7 million views on a single video.",
+    "Meu olhar como mãe me permite criar vídeos tradicionais, orgânicos e naturais com narrativas que humanizam a marca e criam uma conexão com o público.": "My view as a mother lets me create traditional, organic and natural videos with narratives that humanize the brand and build a connection with the audience.",
+    "Minhas promessas para você": "My promises to you",
+    "Roteiro aprovado antes de gravar": "Script approved before filming",
+    "Uma rodada de ajuste inclusa": "One round of adjustments included",
+    "Entrega em até 3 dias úteis": "Delivery within 3 business days",
+    "com carinho,": "with love,",
+    "páginas marcadas": "bookmarked pages", "Cases de": "Success", "sucesso": "stories",
+    "folheie por nicho": "browse by niche", "Trabalhos por": "Work by", "nicho": "niche",
+    "registros em imagem": "moments in pictures", "Fotos dos": "Photos of my", "trabalhos": "work",
+    "o que eu faço": "what I do", "Como eu te": "How I can", "ajudo": "help you",
+    "o que fica registrado": "what stays on record", "Números e": "Numbers and", "depoimentos": "testimonials",
+    "em números": "in numbers", "quem já trabalhou comigo": "who has worked with me",
+    "vamos conversar": "let's talk", "Bora criar": "Let's create", "juntos": "together",
+    "Conte sobre a sua marca e sobre o produto que você quer mostrar. Depois eu te respondo para combinarmos os próximos passos.": "Tell me about your brand and the product you want to showcase. Then I will reply so we can agree on the next steps.",
+    "(abre em nova aba)": "(opens in a new tab)",
+    "ou escreva aqui": "or write here",
+    "Seu nome": "Your name", "Seu e-mail": "Your email", "Sua mensagem": "Your message",
+    "Como posso te chamar?": "What should I call you?",
+    "voce@email.com": "you@email.com",
+    "Conte sobre a marca e sobre o que você quer criar": "Tell me about the brand and what you want to create",
+    "Digite seu nome.": "Enter your name.", "Digite um e-mail válido.": "Enter a valid email.", "Escreva uma mensagem.": "Write a message.",
+    "Enviar mensagem": "Send message", "Enviando...": "Sending...",
+    "E-mail": "Email", "Minhas redes": "My social links",
+    "Nielly Pinheiro · Cascavel · Todos os direitos reservados": "Nielly Pinheiro · Cascavel · All rights reserved",
+    "Quer meu mídia kit completo?": "Want my full media kit?",
+    "Deixe seu nome e seu e-mail para receber.": "Leave your name and email to receive it.",
+    "Quero receber": "I want it", "Fechar": "Close",
+    "Não deu para enviar agora": "Could not send right now",
+    "Recebi a sua mensagem e respondo em breve.": "I received your message and will reply soon.",
+    "Sua mensagem está pronta. Para ela chegar até mim agora, escolha um caminho:": "Your message is ready. To reach me right now, choose a way:",
+    "Tente por um destes caminhos, com a sua mensagem já preenchida:": "Try one of these ways, with your message already filled in:",
+    "Continuar no WhatsApp": "Continue on WhatsApp", "Continuar por e-mail": "Continue by email",
+    "Escrever outra mensagem": "Write another message",
+    "Recebi o seu pedido e envio o meu mídia kit para o seu e-mail.": "I received your request and will send my media kit to your email.",
+    "Seu pedido está pronto. Para ele chegar até mim agora, escolha um caminho:": "Your request is ready. To reach me right now, choose a way:",
+    "Peça por um destes caminhos, com o pedido já preenchido:": "Request it one of these ways, with the request already filled in:",
+    "Casa e decoração": "Home and decor", "Gastronomia": "Food", "Entretenimento": "Entertainment",
+    "Em breve, novos vídeos por aqui.": "Coming soon: new videos here.",
+    "Ir para um nicho": "Jump to a niche",
+    "Ver os anteriores": "See previous", "Ver os próximos": "See next",
+    "capa do vídeo 9:16": "video cover 9:16", "vídeo 9:16": "video 9:16", "foto 4:5": "photo 4:5",
+    "Métricas": "Metrics",
+    "vídeos entregues": "videos delivered", "marcas trabalhadas": "brands worked with",
+    "visualizações em um único vídeo": "views on a single video", "anos de experiência": "years of experience",
+    "views no reels": "views on reels", "salvamentos": "saves", "compartilhamentos": "shares",
+    "visualizações": "views", "curtidas": "likes", "comentários": "comments",
+    "mil views": "thousand views", "mil visualizações": "thousand views", "milhões de views": "million views",
+    "Vídeo UGC": "UGC video",
+    "Vídeo autêntico, gravado por mim, mostrando o seu produto no dia a dia do jeito que o público gosta de ver.": "Authentic video, filmed by me, showing your product in everyday life the way audiences like to see it.",
+    "Corte para anúncio": "Ad cut",
+    "Edição pensada para tráfego pago, com gancho nos primeiros segundos, ritmo e chamada clara para a sua campanha.": "Editing designed for paid traffic, with a hook in the first seconds, pacing and a clear call to action for your campaign.",
+    "Fotos do produto": "Product photos",
+    "Imagens naturais do produto em uso, prontas para o perfil da marca, a loja virtual e os anúncios.": "Natural images of the product in use, ready for the brand profile, online store and ads.",
+    "Unboxing": "Unboxing",
+    "A abertura do produto registrada com surpresa e reação sincera, do jeitinho que desperta curiosidade.": "The product opening captured with genuine surprise and reaction, just the way that sparks curiosity.",
+    "Publicação no meu perfil": "Post on my profile",
+    "Divulgo o seu produto no meu Instagram, com legenda combinada antes e a sua marca marcada.": "I promote your product on my Instagram, with a caption agreed in advance and your brand tagged.",
+    "Pacote mensal": "Monthly package",
+    "Conteúdos recorrentes com calendário e valor combinados, para a sua marca aparecer todo mês sem correria.": "Recurring content with an agreed schedule and price, so your brand shows up every month without the rush.",
+    "Amamos acompanhar sua rotina e como você mostra a discrição e a proteção dos nossos absorventes e protetores diários. Agradecemos pela parceria e por compartilhar essa experiência com a linha LADY Discreet!": "We love following your routine and how you show the discretion and protection of our pads and daily liners. Thank you for the partnership and for sharing this experience with the LADY Discreet line!",
+    "Adoramos o trabalho da Nielly, foi muito mais do que o esperado. Ela entendeu perfeitamente o nosso briefing e entregou um material que vai ser perfeito para a nossa marca. Com certeza queremos fazer novos trabalhos com ela. Parabéns": "We loved Nielly's work, it was far more than expected. She understood our briefing perfectly and delivered material that will be perfect for our brand. We definitely want to do more work with her. Congratulations",
+    "Adoramos trabalhar com a Nielly! Boa comunicação, entrega muito rápida e a edição do vídeo ficou super bacana, destacando bem o produto e cumprindo com o que solicitamos à ela!": "We loved working with Nielly! Good communication, very fast delivery and the video editing turned out great, highlighting the product well and delivering what we asked of her!",
+    "Foi uma boa parceria com a Nielly. Ela cumpriu as entregas combinadas, apresentou o produto de forma objetiva e manteve comunicação clara. Conteúdo correto e dentro do esperado.": "It was a good partnership with Nielly. She met the agreed deliveries, presented the product objectively and kept communication clear. Correct content, as expected.",
+    "Parabéns pela entrega do conteúdo para a Natalia Beauty! Ficamos encantados com o seu trabalho, entregue corretamente e dentro do prazo. Agradecemos o seu empenho e dedicação. 💖": "Congratulations on delivering the content for Natalia Beauty! We were delighted with your work, delivered correctly and on time. Thank you for your effort and dedication. 💖",
+    "Um prazer trabalhar com a Nielly! Atenta ao briefing, boa comunicação e ótimos vídeos.": "A pleasure working with Nielly! Attentive to the briefing, good communication and great videos.",
+    "Excelente Profissional. Recomendo!": "Excellent professional. I recommend her!",
+    "Arrasou no conteúdo, ficou bastante dinâmico e além disso foi super prestativa e entregou antes do prazo, atendendo o que pedimos no briefing. Super indico 🥰": "She nailed the content, it turned out very dynamic, and she was also super helpful and delivered ahead of time, meeting what we asked for in the briefing. Highly recommend 🥰",
+    "Ótima experiência! Recomendo!": "Great experience! I recommend her!",
+    "A Nielly fez um ótimo trabalho, super indicamos!!!": "Nielly did a great job, we highly recommend her!!!",
+    "Instituto Brasileiro de Idiomas (IBIIS)": "Brazilian Language Institute (IBIIS)",
+    "Cuidados íntimos": "Intimate care",
+    "Avaliação · 5 estrelas": "Review · 5 stars",
+    "UGC Creator · 4,5 estrelas": "UGC Creator · 4.5 stars",
+    "Campanha Criadores Juninos · 5 estrelas": "June Creators Campaign · 5 stars",
+    "Formação em Espanhol 100% Online · 5 estrelas": "100% Online Spanish Course · 5 stars",
+    "Campanha UGC · Alisamento · 5 estrelas": "UGC Campaign · Hair Straightening · 5 stars",
+    "Foto de Nielly Pinheiro": "Photo of Nielly Pinheiro",
+    "Foto de trabalho de Nielly Pinheiro": "Work photo by Nielly Pinheiro"
+  };
+  var PREFIXOS = [
+    ["Assistir ao vídeo: ", "Watch video: "], ["Capa do vídeo: ", "Video cover: "], ["Vídeo: ", "Video: "],
+    ["Trabalhos de ", "Work in "], ["Foto de ", "Photo of "]
+  ];
+  var REGRAS = [
+    [/^Tudo certo, (.+)!$/, "All set, $1!"],
+    [/^([\d.,]+)\s*mil\s+(?:visualizações|views)$/i, function (m, n) { return n.replace(",", ".") + " thousand views"; }],
+    [/^([\d.,]+\s*[KkMm]?)\s+visualizações$/, "$1 views"]
+  ];
+
+  function trad(s) {
+    var t = String(s).trim();
+    if (!t) return null;
+    if (Object.prototype.hasOwnProperty.call(DIC, t)) return DIC[t];
+    for (var i = 0; i < REGRAS.length; i++) if (REGRAS[i][0].test(t)) return t.replace(REGRAS[i][0], REGRAS[i][1]);
+    for (var j = 0; j < PREFIXOS.length; j++) {
+      var p = PREFIXOS[j];
+      if (t.indexOf(p[0]) === 0) {
+        var resto = t.slice(p[0].length);
+        return p[1] + (Object.prototype.hasOwnProperty.call(DIC, resto) ? DIC[resto] : resto);
+      }
+    }
+    return null;
+  }
+
+  var ATRIBUTOS = ["aria-label", "placeholder", "alt", "title"];
+  var textos = new Map();      /* nó de texto -> { pt, en } */
+  var atribs = new Map();      /* elemento -> { atributo: { pt, en } } */
+  var idioma = "pt";
+  var ocupado = false;
+
+  function traduzirTexto(no) {
+    var reg = textos.get(no);
+    var atual = no.nodeValue;
+    if (reg && atual === reg.en) return;        /* já está em inglês */
+    var en = trad(atual);
+    if (en == null) return;
+    var ini = atual.match(/^\s*/)[0], fim = atual.match(/\s*$/)[0];
+    var novo = ini + en + fim;
+    textos.set(no, { pt: atual, en: novo });
+    no.nodeValue = novo;
+  }
+  function traduzirAtributos(el) {
+    for (var i = 0; i < ATRIBUTOS.length; i++) {
+      var a = ATRIBUTOS[i], v = el.getAttribute(a);
+      if (v == null) continue;
+      var m = atribs.get(el) || {};
+      if (m[a] && m[a].en === v) continue;
+      var en = trad(v);
+      if (en == null) continue;
+      m[a] = { pt: v, en: en };
+      atribs.set(el, m);
+      el.setAttribute(a, en);
+    }
+  }
+  function aplicar() {
+    if (idioma !== "en" || ocupado) return;
+    ocupado = true;
+    var andador = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentNode;
+        if (!p || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(p.nodeName)) return NodeFilter.FILTER_REJECT;
+        if (p.classList && p.classList.contains("contador")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var no;
+    while ((no = andador.nextNode())) traduzirTexto(no);
+    var els = document.querySelectorAll("[aria-label],[placeholder],[alt],[title]");
+    for (var i = 0; i < els.length; i++) traduzirAtributos(els[i]);
+    ocupado = false;
+  }
+  function restaurar() {
+    textos.forEach(function (reg, no) { if (no.isConnected && no.nodeValue === reg.en) no.nodeValue = reg.pt; });
+    textos.clear();
+    atribs.forEach(function (m, el) {
+      Object.keys(m).forEach(function (a) { if (el.isConnected && el.getAttribute(a) === m[a].en) el.setAttribute(a, m[a].pt); });
+    });
+    atribs.clear();
+  }
+
+  var metaDesc = document.querySelector('meta[name="description"]');
+  var TITULO_PT = document.title, DESC_PT = metaDesc ? metaDesc.getAttribute("content") : "";
+  var TITULO_EN = "Nielly Pinheiro | UGC Portfolio";
+  var DESC_EN = "UGC portfolio of Nielly Pinheiro: organic, natural videos that humanize your brand. See success stories, work, services and get in touch.";
+
+  function definir(novo, salvar) {
+    idioma = novo === "en" ? "en" : "pt";
+    document.documentElement.lang = idioma === "en" ? "en" : "pt-BR";
+    document.title = idioma === "en" ? TITULO_EN : TITULO_PT;
+    if (metaDesc) metaDesc.setAttribute("content", idioma === "en" ? DESC_EN : DESC_PT);
+    if (idioma === "en") aplicar(); else restaurar();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-idioma]"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-idioma") === idioma));
+    });
+    if (salvar) { try { localStorage.setItem("idioma", idioma); } catch (e) { /* sem armazenamento: segue sem lembrar */ } }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-idioma]"), function (b) {
+    b.addEventListener("click", function () { definir(b.getAttribute("data-idioma"), true); });
+  });
+
+  /* o que o site monta depois (vídeos do painel, mensagens do formulário) também é traduzido */
+  var espera = null;
+  new MutationObserver(function () {
+    if (idioma !== "en" || ocupado) return;
+    clearTimeout(espera);
+    espera = setTimeout(aplicar, 120);
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ATRIBUTOS });
+
+  var salvo = null;
+  try { salvo = localStorage.getItem("idioma"); } catch (e) { /* sem armazenamento */ }
+  if (salvo === "en") definir("en", false);
 })();
 </script>
 </body>
