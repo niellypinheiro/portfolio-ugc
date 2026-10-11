@@ -110,54 +110,6 @@
     P.modal({ titulo: novo ? "Adicionar ao catálogo" : "Editar item do catálogo", corpo, botoes, larga: true });
   }
 
-  /* ---------- sugestões iniciais: linhas de produtos das marcas parceiras (entram ocultas) ---------- */
-  const SUGESTOES = [
-    ["Celulares Samsung Galaxy", "Samsung", "Celulares e tablets", "Linha de celulares Samsung Galaxy, da entrada à linha premium. Informe o modelo e a quantidade desejados no pedido de orçamento."],
-    ["Tablets Samsung Galaxy Tab", "Samsung", "Celulares e tablets", "Tablets Samsung Galaxy Tab para trabalho, estudo e atendimento ao cliente."],
-    ["Notebooks Samsung Galaxy Book", "Samsung", "Computadores e periféricos", "Notebooks Samsung para uso profissional e no dia a dia da empresa."],
-    ["Monitores Samsung", "Samsung", "Monitores", "Monitores Samsung para escritório, atendimento e uso profissional."],
-    ["Smart TVs Samsung", "Samsung", "TVs e áudio", "Smart TVs Samsung para salas de reunião, recepção e ambientes de atendimento."],
-    ["Ar-condicionado Samsung", "Samsung", "Ar-condicionado", "Ar-condicionado Samsung para escritórios, lojas e consultórios."],
-    ["Smart TVs LG", "LG", "TVs e áudio", "Smart TVs LG para recepção, salas de reunião e ambientes comerciais."],
-    ["Ar-condicionado LG", "LG", "Ar-condicionado", "Ar-condicionado LG para escritórios, lojas e consultórios, com opções de diferentes capacidades."],
-    ["Monitores LG", "LG", "Monitores", "Monitores LG para escritório e uso profissional."],
-    ["Soundbars LG", "LG", "TVs e áudio", "Soundbars LG para melhorar o som de TVs em salas e ambientes de atendimento."],
-    ["Celulares Motorola Moto G", "Motorola", "Celulares e tablets", "Linha Moto G da Motorola, com boas opções para uso profissional e corporativo."],
-    ["Celulares Motorola Edge", "Motorola", "Celulares e tablets", "Linha Motorola Edge, com modelos de melhor desempenho para quem precisa de mais."],
-    ["Tablets Motorola", "Motorola", "Celulares e tablets", "Tablets Motorola para trabalho, estudo e atendimento."],
-    ["Celulares Xiaomi Redmi", "Xiaomi", "Celulares e tablets", "Linha Redmi da Xiaomi, com bom custo-benefício para equipes e empresas."],
-    ["Celulares Xiaomi POCO", "Xiaomi", "Celulares e tablets", "Linha POCO da Xiaomi, com foco em desempenho."],
-    ["Tablets Xiaomi Redmi Pad", "Xiaomi", "Celulares e tablets", "Tablets Xiaomi Redmi Pad para trabalho e estudo."],
-    ["Smart Band e relógios Xiaomi", "Xiaomi", "Acessórios", "Pulseiras e relógios inteligentes Xiaomi."],
-    ["Mouses Logitech", "Logitech", "Computadores e periféricos", "Mouses Logitech com e sem fio, para escritório e uso profissional."],
-    ["Teclados Logitech", "Logitech", "Computadores e periféricos", "Teclados Logitech com e sem fio, para o dia a dia de trabalho."],
-    ["Combos de teclado e mouse Logitech", "Logitech", "Computadores e periféricos", "Combos de teclado e mouse Logitech, ideais para equipar estações de trabalho."],
-    ["Webcams Logitech", "Logitech", "Computadores e periféricos", "Webcams Logitech para reuniões e atendimento online."],
-    ["Headsets Logitech", "Logitech", "Computadores e periféricos", "Headsets Logitech para atendimento, reuniões e call center."],
-    ["Ar-condicionado Elgin", "Elgin", "Ar-condicionado", "Ar-condicionado Elgin para escritórios, lojas e consultórios."],
-    ["Automação comercial Elgin", "Elgin", "Automação comercial", "Impressoras e equipamentos Elgin para automação comercial e ponto de venda."],
-    ["Caixas de som Amvox", "Amvox", "TVs e áudio", "Caixas de som Amvox para ambientes comerciais, eventos e uso geral."],
-    ["Soundbars Amvox", "Amvox", "TVs e áudio", "Soundbars Amvox para melhorar o som de TVs."],
-    ["Linha Unbox", "Unbox", "Acessórios", "Produtos da linha Unbox. Edite este item com os modelos que você trabalha."],
-    ["Filtros", "", "Filtros", "Filtros para o ambiente de trabalho. Edite este item com os modelos e marcas que você trabalha."],
-    ["Manutenção de celulares", "SmartBrand", "Serviços", "Reparo e manutenção de celulares para empresas e equipes: troca de tela, bateria e outros reparos.", true],
-    ["Manutenção de tablets", "SmartBrand", "Serviços", "Reparo e manutenção de tablets para empresas e equipes.", true],
-    ["Manutenção de computadores", "SmartBrand", "Serviços", "Manutenção de computadores e notebooks: limpeza, formatação, troca de peças e suporte.", true],
-    ["Troca de aparelhos para empresas", "SmartBrand", "Serviços", "Renovação dos aparelhos da sua equipe, com condições especiais para quantidade. Peça um orçamento.", true]
-  ];
-  async function carregarSugestoes(lista, aoSalvar) {
-    const existentes = new Set(lista.map((x) => P.semAcento(x.nome)));
-    const novas = SUGESTOES.filter((s) => !existentes.has(P.semAcento(s[0])));
-    if (!novas.length) { P.toast("Todas as sugestões já estão no catálogo."); return; }
-    if (!(await P.confirmar("Vou adicionar " + novas.length + " itens (linhas de produtos das suas marcas e os seus serviços). As linhas de produtos entram como Ocultas, para você ligar só as que vende. Os serviços já entram visíveis. Continuar?", { botao: "Adicionar " + novas.length, titulo: "Carregar sugestões" }))) return;
-    const base = lista.reduce((m, x) => Math.max(m, x.ordem || 0), 0);
-    const linhas = novas.map((s, i) => ({ nome: s[0], marca: s[1] || null, categoria: s[2], descricao: s[3], ordem: base + 10 * (i + 1), visivel: !!s[4] }));
-    const r = await P.gravar(() => window.sb.from("catalogo_produtos").insert(linhas));
-    if (!r.ok) return;
-    P.toast(novas.length + " itens adicionados");
-    aoSalvar();
-  }
-
   /* ---------- aba CATÁLOGO ---------- */
   P.abas.catalogo = {
     async renderizar(raiz) {
@@ -220,7 +172,6 @@
           h("p", { class: "dica", style: "margin-bottom:12px", text: "Os itens marcados como \"Visível\" aparecem no catálogo público, sem preço. O cliente escolhe o que quer e envia um pré-pedido de orçamento (veja na aba Pré-pedidos)." }),
           h("div", { class: "ferramentas" },
             h("div", { class: "busca" }, P.ic("busca"), busca), filtros, h("span", { class: "espaco" }),
-            h("button", { type: "button", class: "btn", onclick: () => carregarSugestoes(lista, recarregar) }, "Carregar sugestões das marcas"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirProduto(null, lista, recarregar) }, P.ic("mais"), "Adicionar item")),
           tabelaBox);
         desenharTabela();
