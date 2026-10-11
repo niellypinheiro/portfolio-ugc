@@ -386,6 +386,81 @@ create policy "so_smartbrand_empresas_optout" on public.empresas_optout
   using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
 
 -- =====================================================================
+-- BLOCO 8B: CATÁLOGO DA SMARTBRAND
+--   catalogo_produtos: os produtos e serviços que aparecem no catálogo
+--     público (sem preço). O visitante só LÊ os que estão visíveis.
+--   catalogo_pedidos: os pré-pedidos de orçamento enviados pelo catálogo.
+--     O visitante só CRIA um pedido (sempre como "novo"); quem lê e mexe
+--     são só os dois e-mails da SmartBrand.
+--   Fotos: guardadas no bucket público "catalogo" do Storage.
+-- =====================================================================
+create table if not exists public.catalogo_produtos (
+  id         uuid primary key default gen_random_uuid(),
+  nome       text not null check (char_length(nome) between 1 and 200),
+  marca      text check (char_length(marca) <= 100),
+  categoria  text check (char_length(categoria) <= 100),
+  descricao  text check (char_length(descricao) <= 3000),
+  imagem     text check (char_length(imagem) <= 500),
+  ordem      integer not null default 0,
+  visivel    boolean not null default true,
+  criado_em  timestamptz not null default now()
+);
+
+create table if not exists public.catalogo_pedidos (
+  id         uuid primary key default gen_random_uuid(),
+  nome       text not null check (char_length(nome) between 1 and 200),
+  empresa    text check (char_length(empresa) <= 200),
+  email      text check (char_length(email) <= 200),
+  telefone   text check (char_length(telefone) <= 40),
+  observacao text check (char_length(observacao) <= 3000),
+  itens      jsonb not null check (jsonb_typeof(itens) = 'array' and jsonb_array_length(itens) between 1 and 60),
+  status     text not null default 'novo' check (status in ('novo', 'em_orcamento', 'fechado', 'perdido')),
+  criado_em  timestamptz not null default now()
+);
+
+drop trigger if exists carimbo_catalogo_pedidos on public.catalogo_pedidos;
+create trigger carimbo_catalogo_pedidos before insert on public.catalogo_pedidos
+  for each row execute function public.carimbar_agora();
+
+alter table public.catalogo_produtos enable row level security;
+alter table public.catalogo_pedidos  enable row level security;
+
+grant select on public.catalogo_produtos to anon;
+grant select, insert, update, delete on public.catalogo_produtos to authenticated;
+grant insert on public.catalogo_pedidos to anon;
+grant select, insert, update, delete on public.catalogo_pedidos to authenticated;
+
+drop policy if exists "publico_le_catalogo" on public.catalogo_produtos;
+create policy "publico_le_catalogo" on public.catalogo_produtos
+  for select to anon, authenticated
+  using (visivel = true);
+
+drop policy if exists "so_smartbrand_catalogo" on public.catalogo_produtos;
+create policy "so_smartbrand_catalogo" on public.catalogo_produtos
+  for all to authenticated
+  using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
+drop policy if exists "site_cria_pedido" on public.catalogo_pedidos;
+create policy "site_cria_pedido" on public.catalogo_pedidos
+  for insert to anon, authenticated
+  with check (status = 'novo');
+
+drop policy if exists "so_smartbrand_pedidos" on public.catalogo_pedidos;
+create policy "so_smartbrand_pedidos" on public.catalogo_pedidos
+  for all to authenticated
+  using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
+insert into storage.buckets (id, name, public)
+values ('catalogo', 'catalogo', true)
+on conflict (id) do nothing;
+
+drop policy if exists "catalogo_smartbrand_fotos" on storage.objects;
+create policy "catalogo_smartbrand_fotos" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'catalogo' and public.eh_da_smartbrand())
+  with check (bucket_id = 'catalogo' and public.eh_da_smartbrand());
+
+-- =====================================================================
 -- BLOCO 9 (OPCIONAL): TESTE DA TRANCA
 -- Não precisa colar junto com o resto. Depois que tudo estiver rodado,
 -- cole SÓ este bloco, tire os dois traços "--" do começo de cada linha
