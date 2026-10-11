@@ -14,13 +14,15 @@
     ["checklist", "Checklist portfólio", "checklist"],
     ["transcricoes", "Transcrições", "transcricao"],
     ["empresas_servicos", "Empresas de Serviços", "empresas_servicos"],
-    ["prospeccao_smartbrand", "Prospecção", "prospeccao"]
+    ["prospeccao_smartbrand", "Prospecção", "prospeccao"],
+    ["catalogo", "Catálogo", "catalogo"],
+    ["pre_pedidos", "Pré-pedidos", "pedidos"]
   ];
   /* Abas que o e-mail da SmartBrand (data-aba fora deste e-mail) pode ver.
      O resto do painel (Portfólio, Marcas etc.) fica escondido para ele aqui,
      e o banco.sql também recusa esses dados para o e-mail dele, então a
      trava de verdade não depende só desta lista. */
-  const ABAS_RESTRITAS = ["empresas_servicos", "prospeccao_smartbrand"];
+  const ABAS_RESTRITAS = ["empresas_servicos", "prospeccao_smartbrand", "catalogo", "pre_pedidos"];
   const $ = (id) => document.getElementById(id);
   let abaAtual = "portfolio";
   let ficha = 0;
