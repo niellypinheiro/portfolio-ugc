@@ -111,7 +111,7 @@
   }
 
   /* ---------- importar vários itens de uma vez (planilha ou catálogo em PDF) ---------- */
-  const limpoTxt = (v, max) => String(v == null ? "" : v).replace(/\s*[—–]\s*/g, ", ").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim().slice(0, max);
+  const limpoTxt = (v, max) => String(v == null ? "" : v).replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim().slice(0, max);
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   function carregarScript(src, pronto) {
     if (pronto()) return Promise.resolve();
@@ -130,7 +130,7 @@
     if (!novos.length) return { feitos: 0, repetidos: itens.length };
     let ordem = todos.reduce((m, x) => Math.max(m, x.ordem || 0), 0);
     const linhas = novos.map((i) => ({ nome: limpoTxt(i.nome, 200), marca: limpoTxt(i.marca, 100) || null, categoria: limpoTxt(i.categoria, 100) || null,
-      descricao: limpoTxt(i.descricao, 3000) || null, ordem: (ordem += 10), visivel: !!visivel }));
+      descricao: limpoTxt(i.descricao, 3000) || null, imagem: limpoTxt(i.imagem, 500) || null, ordem: (ordem += 10), visivel: !!visivel }));
     let feitos = 0;
     for (let i = 0; i < linhas.length; i += 80) {
       const r = await P.gravar(() => window.sb.from("catalogo_produtos").insert(linhas.slice(i, i + 80)));
@@ -273,6 +273,81 @@
     });
     return saida;
   }
+  /* --- páginas vistas como imagem: a IA acha cada produto e a caixa onde está a foto dele --- */
+  const SISTEMA_VISAO = "Você organiza catálogos de produtos de uma marca para o catálogo digital de uma loja de tecnologia. Receberá a imagem de UMA página de um catálogo. " +
+    "Liste cada produto que aparece na página. Ignore preços, parcelas, avisos legais, rodapés e textos de marketing da empresa. Nunca invente produtos nem características que não estejam na página. " +
+    "Para cada produto, informe a caixa da FOTO dele na imagem, no formato [ymin, xmin, ymax, xmax] com valores de 0 a 1000 (0 é o topo ou a esquerda da página, 1000 é a base ou a direita). " +
+    "A caixa deve conter só a foto do produto, sem textos ao redor. Se a foto mostrar vários produtos juntos, ou não houver foto clara do produto, use null. " +
+    "Escreva em português do Brasil, sem travessão e sem markdown. Responda SOMENTE com JSON válido neste formato: " +
+    "{\"produtos\":[{\"nome\":\"nome do produto com o modelo\",\"categoria\":\"categoria curta, como Celulares, Ar-condicionado, Mouses\",\"descricao\":\"1 ou 2 frases curtas com o que a página diz sobre o produto, sem preço\",\"foto\":[0,0,0,0]}]} " +
+    "Se não houver produtos na página, responda {\"produtos\":[]}.";
+  async function renderizarPagina(doc, n) {
+    const pg = await doc.getPage(n);
+    const v1 = pg.getViewport({ scale: 1 });
+    const vp = pg.getViewport({ scale: Math.min(2.5, 1500 / v1.width) });
+    const c = document.createElement("canvas");
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+    await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    return c;
+  }
+  function lerProdutosComFoto(texto) {
+    const i = texto.indexOf("{"), j = texto.lastIndexOf("}");
+    let o = null;
+    try { o = JSON.parse(texto.slice(i, j + 1)); } catch (e) { return []; }
+    return (o && Array.isArray(o.produtos) ? o.produtos : []).map((p) => {
+      const f = p && Array.isArray(p.foto) && p.foto.length === 4 ? p.foto.map(Number) : null;
+      const ok = f && f.every((v) => isFinite(v) && v >= 0 && v <= 1000) && f[2] - f[0] > 40 && f[3] - f[1] > 40;
+      return { nome: limpoTxt(p && p.nome, 200), categoria: limpoTxt(p && p.categoria, 100), descricao: limpoTxt(p && p.descricao, 1500), foto: ok ? f : null };
+    }).filter((p) => p.nome);
+  }
+  async function lerPaginaComFoto(chave, canvas, marca, n) {
+    const dados = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+    let motivo = "";
+    for (const pausa of [0, 8000, 20000]) {
+      if (pausa) await esperar(pausa);
+      for (const modelo of ["gemini-flash-latest", "gemini-2.5-flash"]) {
+        try {
+          const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + modelo + ":generateContent", { method: "POST",
+            headers: { "x-goog-api-key": chave, "content-type": "application/json" },
+            body: JSON.stringify({ systemInstruction: { parts: [{ text: SISTEMA_VISAO }] },
+              contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: dados } }, { text: "Marca: " + (marca || "não informada") + ". Página " + n + " do catálogo." }] }],
+              generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 } }) });
+          const j = await r.json().catch(() => null);
+          if (r.ok && j) {
+            const partes = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+            const t = partes.filter((p) => typeof p.text === "string" && !p.thought).map((p) => p.text).join("");
+            if (t) return lerProdutosComFoto(t);
+            return [];
+          }
+          motivo = "Google " + r.status;
+          if (r.status === 401 || r.status === 403) throw new Error("chave");
+        } catch (e) { if (e.message === "chave") throw e; motivo = "sem conexão com o Google"; }
+      }
+    }
+    throw new Error(motivo || "sem resposta");
+  }
+  function recortar(canvas, caixa) {
+    const pad = 0.012;
+    const y0 = Math.max(0, caixa[0] / 1000 - pad), x0 = Math.max(0, caixa[1] / 1000 - pad), y1 = Math.min(1, caixa[2] / 1000 + pad), x1 = Math.min(1, caixa[3] / 1000 + pad);
+    const sx = x0 * canvas.width, sy = y0 * canvas.height, w = (x1 - x0) * canvas.width, hh = (y1 - y0) * canvas.height;
+    if (w < 80 || hh < 80) return Promise.resolve(null);
+    const esc = Math.min(1, 900 / Math.max(w, hh));
+    const o = document.createElement("canvas");
+    o.width = Math.max(1, Math.round(w * esc)); o.height = Math.max(1, Math.round(hh * esc));
+    const ctx = o.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, o.width, o.height);
+    ctx.drawImage(canvas, sx, sy, w, hh, 0, 0, o.width, o.height);
+    return new Promise((ok) => o.toBlob((b) => ok(b), "image/jpeg", 0.85));
+  }
+  async function enviarBlob(blob) {
+    const caminho = "produtos/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".jpg";
+    const r = await window.sb.storage.from(BUCKET).upload(caminho, blob, { contentType: "image/jpeg", upsert: false });
+    if (r.error) throw r.error;
+    return window.sb.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl;
+  }
+
   function importarCatalogoPdf(todos, aoSalvar) {
     const input = h("input", { type: "file", accept: ".pdf,application/pdf", hidden: true });
     input.addEventListener("change", async () => {
@@ -295,17 +370,34 @@
       const total = doc.numPages;
       const marca = h("input", { type: "text", maxlength: "100", placeholder: "Ex.: Samsung", autocomplete: "off", value: arquivo.name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").slice(0, 40) });
       const de = h("input", { type: "number", min: "1", max: String(total), value: "1" });
-      const ate = h("input", { type: "number", min: "1", max: String(total), value: String(Math.min(total, 25)) });
+      const ate = h("input", { type: "number", min: "1", max: String(total), value: String(Math.min(total, 15)) });
+      const comFotos = h("input", { type: "checkbox", checked: !!chaves.gemini, disabled: !chaves.gemini });
       const mostrar = h("input", { type: "checkbox" });
       const status = h("p", { class: "dica", role: "status" });
       const resultado = h("div");
       let lidos = [], cancelar = false, lendo = false;
       const corpo = h("div", null,
-        h("p", null, "O PDF tem ", h("b", { text: String(total) }), " páginas. A IA lê o texto das páginas e monta a lista de produtos (sem preço). Catálogos grandes é melhor ler em partes, de 25 em 25 páginas. As fotos não são importadas: você sobe depois, se quiser."),
+        h("p", null, "O PDF tem ", h("b", { text: String(total) }), " páginas. A IA olha cada página, monta a lista de produtos (sem preço) e recorta a foto de cada um. Leia em partes pequenas (de 10 a 15 páginas por vez), porque cada página leva alguns segundos."),
         P.campo("Marca deste catálogo", marca),
         h("div", { class: "grade2" }, P.campo("Da página", de), P.campo("Até a página", ate)),
+        P.campo("Importar as fotos também?", h("label", { class: "marcar" }, comFotos, chaves.gemini ? "Sim, recortar a foto de cada produto" : "Precisa da chave do Google (aba Transcrições)")),
         P.campo("Mostrar no catálogo já?", h("label", { class: "marcar" }, mostrar, "Sim. Se deixar desmarcado, os itens entram ocultos para você conferir.")),
         status, resultado);
+
+      function mostrarResultados() {
+        P.limpar(resultado);
+        const caixas = lidos.map((p) => { const c = h("input", { type: "checkbox", checked: true }); p._c = c; return c; });
+        resultado.append(h("div", { class: "rolagem", style: "max-height:340px;overflow:auto" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, [" ", "Foto", "Produto", "Categoria", "Descrição"].map((t) => h("th", { text: t })))),
+          h("tbody", null, lidos.map((p, i) => h("tr", null, h("td", null, caixas[i]),
+            h("td", null, p._url ? h("img", { src: p._url, alt: "", class: "cat-mini" }) : ""),
+            h("td", { text: p.nome }), h("td", { class: "nw", text: p.categoria }), h("td", { class: "truncar", text: p.descricao })))))));
+      }
+      function juntar(novos) {
+        const vistos = new Set(lidos.map((p) => P.semAcento(p.nome)));
+        novos.forEach((p) => { const k = P.semAcento(p.nome); if (!vistos.has(k)) { vistos.add(k); lidos.push(p); } });
+      }
+
       P.modal({ titulo: "Importar catálogo em PDF", larga: true, aoFechar: () => { cancelar = true; }, corpo, botoes: [
         { texto: "Cancelar" },
         { texto: "Ler o catálogo", classe: "p", aoClicar: async () => {
@@ -313,35 +405,48 @@
           const a = Math.max(1, parseInt(de.value, 10) || 1), b = Math.min(total, parseInt(ate.value, 10) || total);
           if (b < a) { status.textContent = "A página final precisa ser maior ou igual à inicial."; return false; }
           lendo = true; cancelar = false; lidos = []; P.limpar(resultado);
+          let falhas = 0;
           try {
-            const paginas = [];
-            for (let n = a; n <= b; n++) { status.textContent = "Lendo a página " + n + " de " + b + "..."; paginas.push({ n, t: (await textoDaPagina(doc, n)).trim() }); }
-            const comTexto = paginas.filter((p) => p.t.length > 20);
-            if (!comTexto.length) { status.textContent = "Essas páginas não têm texto selecionável (parecem imagens escaneadas), então a IA não consegue ler. Tente outro intervalo ou peça o catálogo em planilha."; return false; }
-            const blocos = []; let atual = { de: 0, ate: 0, t: "" };
-            comTexto.forEach((p) => {
-              if (atual.t && atual.t.length + p.t.length > 7000) { blocos.push(atual); atual = { de: 0, ate: 0, t: "" }; }
-              if (!atual.t) atual.de = p.n;
-              atual.ate = p.n; atual.t += "\n\n[Página " + p.n + "]\n" + p.t;
-            });
-            if (atual.t) blocos.push(atual);
-            let falhas = 0;
-            for (let k = 0; k < blocos.length && !cancelar; k++) {
-              status.textContent = "A IA está organizando os produtos (parte " + (k + 1) + " de " + blocos.length + "). Encontrados até agora: " + lidos.length + ".";
-              try { lidos = lidos.concat(lerProdutos(await pedirComTentativas(chaves, "Marca: " + (marca.value.trim() || "não informada") + "\nPáginas " + blocos[k].de + " a " + blocos[k].ate + ":\n<<<\n" + blocos[k].t + "\n>>>"))); }
-              catch (e) { falhas++; }
-              if (k < blocos.length - 1) await esperar(3500);
+            if (comFotos.checked && chaves.gemini) {
+              for (let n = a; n <= b && !cancelar; n++) {
+                status.textContent = "A IA está olhando a página " + n + " (de " + a + " a " + b + "). Produtos encontrados até agora: " + lidos.length + ".";
+                try {
+                  const canvas = await renderizarPagina(doc, n);
+                  const itens = await lerPaginaComFoto(chaves.gemini, canvas, marca.value.trim(), n);
+                  for (const it of itens) {
+                    if (it.foto) { it._blob = await recortar(canvas, it.foto); if (it._blob) it._url = URL.createObjectURL(it._blob); }
+                  }
+                  juntar(itens);
+                } catch (e) {
+                  if (e.message === "chave") { status.textContent = "O Google recusou a chave. Confira a chave na aba Transcrições."; return false; }
+                  falhas++;
+                }
+                if (n < b) await esperar(3500);
+              }
+            } else {
+              const paginas = [];
+              for (let n = a; n <= b; n++) { status.textContent = "Lendo a página " + n + " de " + b + "..."; paginas.push({ n, t: (await textoDaPagina(doc, n)).trim() }); }
+              const comTexto = paginas.filter((p) => p.t.length > 20);
+              if (!comTexto.length) { status.textContent = "Essas páginas não têm texto selecionável (parecem imagens escaneadas). Ative a opção de importar com fotos, ou peça a planilha."; return false; }
+              const blocos = []; let atual = { de: 0, ate: 0, t: "" };
+              comTexto.forEach((p) => {
+                if (atual.t && atual.t.length + p.t.length > 7000) { blocos.push(atual); atual = { de: 0, ate: 0, t: "" }; }
+                if (!atual.t) atual.de = p.n;
+                atual.ate = p.n; atual.t += "\n\n[Página " + p.n + "]\n" + p.t;
+              });
+              if (atual.t) blocos.push(atual);
+              for (let k = 0; k < blocos.length && !cancelar; k++) {
+                status.textContent = "A IA está organizando os produtos (parte " + (k + 1) + " de " + blocos.length + "). Encontrados até agora: " + lidos.length + ".";
+                try { juntar(lerProdutos(await pedirComTentativas(chaves, "Marca: " + (marca.value.trim() || "não informada") + "\nPáginas " + blocos[k].de + " a " + blocos[k].ate + ":\n<<<\n" + blocos[k].t + "\n>>>"))); }
+                catch (e) { falhas++; }
+                if (k < blocos.length - 1) await esperar(3500);
+              }
             }
             if (cancelar) return false;
-            const unicosL = []; const vistos = new Set();
-            lidos.forEach((p) => { const kk = P.semAcento(p.nome); if (!vistos.has(kk)) { vistos.add(kk); unicosL.push(p); } });
-            lidos = unicosL;
             if (!lidos.length) { status.textContent = falhas ? "A IA não respondeu agora (limite do serviço gratuito ou instabilidade). Espere uns minutos e tente de novo, ou leia menos páginas por vez." : "Não encontrei produtos nessas páginas. Tente outro intervalo."; return false; }
-            status.textContent = "Encontrei " + lidos.length + " produtos" + (falhas ? " (" + falhas + " parte(s) não puderam ser lidas, tente de novo para completar)" : "") + ". Desmarque os que não quiser e clique em Importar.";
-            const caixas = lidos.map((p) => { const c = h("input", { type: "checkbox", checked: true }); p._c = c; return c; });
-            resultado.append(h("div", { class: "rolagem", style: "max-height:320px;overflow:auto" }, h("table", { class: "tabela" },
-              h("thead", null, h("tr", null, [" ", "Produto", "Categoria", "Descrição"].map((t) => h("th", { text: t })))),
-              h("tbody", null, lidos.map((p, i) => h("tr", null, h("td", null, caixas[i]), h("td", { text: p.nome }), h("td", { class: "nw", text: p.categoria }), h("td", { class: "truncar", text: p.descricao })))))));
+            const comFoto = lidos.filter((p) => p._url).length;
+            status.textContent = "Encontrei " + lidos.length + " produtos" + (comFoto ? ", " + comFoto + " com foto" : "") + (falhas ? " (" + falhas + " parte(s) não puderam ser lidas, leia de novo para completar)" : "") + ". Desmarque os que não quiser e clique em Importar selecionados.";
+            mostrarResultados();
           } catch (e) { status.textContent = "Algo deu errado na leitura. Tente de novo com menos páginas."; }
           finally { lendo = false; }
           return false;
@@ -350,8 +455,18 @@
           const escolhidos = lidos.filter((p) => p._c && p._c.checked);
           if (!escolhidos.length) { P.toast("Primeiro clique em \"Ler o catálogo\" e deixe marcados os itens que quer importar.", true); return false; }
           const m = marca.value.trim();
-          const r = await inserirItens(escolhidos.map((p) => ({ nome: p.nome, marca: m, categoria: p.categoria, descricao: p.descricao })), todos, mostrar.checked);
-          P.toast(r.feitos + (r.feitos === 1 ? " item importado" : " itens importados") + (r.repetidos ? " (" + r.repetidos + " repetidos pulados)" : ""));
+          const chave = (x) => P.semAcento(x.nome) + "|" + P.semAcento(x.marca || "");
+          const ja = new Set(todos.map(chave));
+          const novos = escolhidos.filter((p) => !ja.has(chave({ nome: p.nome, marca: m })));
+          const comBlob = novos.filter((p) => p._blob);
+          let fotosOk = 0;
+          for (let i = 0; i < comBlob.length; i++) {
+            status.textContent = "Guardando as fotos: " + (i + 1) + " de " + comBlob.length + "...";
+            try { comBlob[i]._imagem = await enviarBlob(comBlob[i]._blob); fotosOk++; } catch (e) { /* fica sem foto, o item entra do mesmo jeito */ }
+          }
+          if (comBlob.length && !fotosOk) P.toast("Não consegui guardar as fotos (confira se o SQL do catálogo foi rodado). Os itens entram sem foto.", true);
+          const r = await inserirItens(escolhidos.map((p) => ({ nome: p.nome, marca: m, categoria: p.categoria, descricao: p.descricao, imagem: p._imagem || "" })), todos, mostrar.checked);
+          P.toast(r.feitos + (r.feitos === 1 ? " item importado" : " itens importados") + (fotosOk ? ", " + fotosOk + " com foto" : "") + (r.repetidos ? " (" + r.repetidos + " repetidos pulados)" : ""));
           aoSalvar();
         } }
       ] });
