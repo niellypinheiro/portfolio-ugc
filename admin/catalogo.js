@@ -292,17 +292,24 @@
     await pg.render({ canvasContext: ctx, viewport: vp }).promise;
     return c;
   }
+  function lerCaixa(p) {
+    let v = p && (p.foto != null ? p.foto : (p.box_2d != null ? p.box_2d : p.caixa));
+    if (v && !Array.isArray(v) && typeof v === "object") v = [v.ymin, v.xmin, v.ymax, v.xmax];
+    if (!Array.isArray(v) || v.length !== 4) return null;
+    let f = v.map(Number);
+    if (!f.every((n) => isFinite(n) && n >= 0)) return null;
+    if (Math.max.apply(null, f) <= 1.5) f = f.map((n) => n * 1000);
+    f = f.map((n) => Math.min(1000, n));
+    return f[2] - f[0] > 40 && f[3] - f[1] > 40 ? f : null;
+  }
   function lerProdutosComFoto(texto) {
     const i = texto.indexOf("{"), j = texto.lastIndexOf("}");
     let o = null;
     try { o = JSON.parse(texto.slice(i, j + 1)); } catch (e) { return []; }
-    return (o && Array.isArray(o.produtos) ? o.produtos : []).map((p) => {
-      const f = p && Array.isArray(p.foto) && p.foto.length === 4 ? p.foto.map(Number) : null;
-      const ok = f && f.every((v) => isFinite(v) && v >= 0 && v <= 1000) && f[2] - f[0] > 40 && f[3] - f[1] > 40;
-      return { nome: limpoTxt(p && p.nome, 200), categoria: limpoTxt(p && p.categoria, 100), descricao: limpoTxt(p && p.descricao, 1500), foto: ok ? f : null };
-    }).filter((p) => p.nome);
-  }
-  async function lerPaginaComFoto(chave, canvas, marca, n) {
+    return (o && Array.isArray(o.produtos) ? o.produtos : []).map((p) => ({
+      nome: limpoTxt(p && p.nome, 200), categoria: limpoTxt(p && p.categoria, 100), descricao: limpoTxt(p && p.descricao, 1500), foto: lerCaixa(p)
+    })).filter((p) => p.nome);
+  }  async function lerPaginaComFoto(chave, canvas, marca, n) {
     const dados = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
     let motivo = "";
     for (const pausa of [0, 8000, 20000]) {
@@ -405,7 +412,7 @@
           const a = Math.max(1, parseInt(de.value, 10) || 1), b = Math.min(total, parseInt(ate.value, 10) || total);
           if (b < a) { status.textContent = "A página final precisa ser maior ou igual à inicial."; return false; }
           lendo = true; cancelar = false; lidos = []; P.limpar(resultado);
-          let falhas = 0;
+          let falhas = 0, semCaixa = 0, semRecorte = 0;
           try {
             if (comFotos.checked && chaves.gemini) {
               for (let n = a; n <= b && !cancelar; n++) {
@@ -414,7 +421,7 @@
                   const canvas = await renderizarPagina(doc, n);
                   const itens = await lerPaginaComFoto(chaves.gemini, canvas, marca.value.trim(), n);
                   for (const it of itens) {
-                    if (it.foto) { it._blob = await recortar(canvas, it.foto); if (it._blob) it._url = URL.createObjectURL(it._blob); }
+                    if (!it.foto) semCaixa++; else { it._blob = await recortar(canvas, it.foto); if (it._blob) it._url = URL.createObjectURL(it._blob); else semRecorte++; }
                   }
                   juntar(itens);
                 } catch (e) {
@@ -445,7 +452,7 @@
             if (cancelar) return false;
             if (!lidos.length) { status.textContent = falhas ? "A IA não respondeu agora (limite do serviço gratuito ou instabilidade). Espere uns minutos e tente de novo, ou leia menos páginas por vez." : "Não encontrei produtos nessas páginas. Tente outro intervalo."; return false; }
             const comFoto = lidos.filter((p) => p._url).length;
-            status.textContent = "Encontrei " + lidos.length + " produtos" + (comFoto ? ", " + comFoto + " com foto" : "") + (falhas ? " (" + falhas + " parte(s) não puderam ser lidas, leia de novo para completar)" : "") + ". Desmarque os que não quiser e clique em Importar selecionados.";
+            status.textContent = "Encontrei " + lidos.length + " produtos" + (comFotos.checked && chaves.gemini ? ", " + comFoto + " com foto" + (semCaixa || semRecorte ? " (a IA não achou a foto de " + semCaixa + " e " + semRecorte + " ficaram pequenas demais para recortar)" : "") : " (modo só texto, sem fotos: " + (chaves.gemini ? "a opção de fotos estava desmarcada" : "falta a chave do Google nas Transcrições") + ")") + (falhas ? " (" + falhas + " parte(s) não puderam ser lidas, leia de novo para completar)" : "") + ". Desmarque os que não quiser e clique em Importar selecionados.";
             mostrarResultados();
           } catch (e) { status.textContent = "Algo deu errado na leitura. Tente de novo com menos páginas."; }
           finally { lendo = false; }
