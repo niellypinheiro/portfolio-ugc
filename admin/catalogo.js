@@ -482,6 +482,70 @@
     input.click();
   }
 
+  /* ---------- subir várias fotos de uma vez, ligando cada foto ao produto pelo nome do arquivo ---------- */
+  function palavrasDe(s) {
+    return P.semAcento(s).replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter((w) => w.length > 1);
+  }
+  function melhorItem(arquivo, itens) {
+    const a = new Set(palavrasDe(arquivo));
+    if (!a.size) return null;
+    let melhor = null, nota = 0;
+    itens.forEach((it) => {
+      const b = new Set(palavrasDe((it.marca || "") + " " + it.nome));
+      let comum = 0; a.forEach((w) => { if (b.has(w)) comum++; });
+      const n = comum / (a.size + b.size - comum);
+      if (n > nota) { nota = n; melhor = it; }
+    });
+    return nota >= 0.3 ? melhor : null;
+  }
+  function subirFotosEmLote(todos, aoSalvar) {
+    if (!todos.length) { P.toast("Cadastre ou importe os itens primeiro. Depois as fotos são ligadas a eles.", true); return; }
+    const input = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
+    input.addEventListener("change", () => {
+      const arquivos = Array.from(input.files || []);
+      input.remove();
+      if (!arquivos.length) return;
+      const linhas = arquivos.map((arq) => {
+        const sel = h("select", { "aria-label": "Produto da foto " + arq.name },
+          h("option", { value: "", text: "Não usar esta foto" }),
+          todos.map((it) => h("option", { value: it.id, text: (it.marca ? it.marca + " | " : "") + it.nome + (it.imagem ? " (já tem foto)" : "") })));
+        const m = melhorItem(arq.name, todos);
+        if (m) sel.value = m.id;
+        return { arq, sel, url: URL.createObjectURL(arq) };
+      });
+      const status = h("p", { class: "dica", role: "status" });
+      const corpo = h("div", null,
+        h("p", null, "Escolhi ", h("b", { text: String(arquivos.length) }), " foto" + (arquivos.length === 1 ? "" : "s") + ". Confira se cada uma está ligada ao produto certo (o painel tenta adivinhar pelo nome do arquivo). Se escolher um item que já tem foto, a foto nova substitui a antiga."),
+        h("div", { class: "rolagem", style: "max-height:380px;overflow:auto" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, ["Foto", "Arquivo", "Produto"].map((t) => h("th", { text: t })))),
+          h("tbody", null, linhas.map((l) => h("tr", null, h("td", null, h("img", { src: l.url, alt: "", class: "cat-mini" })), h("td", { class: "truncar", text: l.arq.name }), h("td", null, l.sel)))))),
+        status);
+      P.modal({ titulo: "Subir várias fotos", larga: true, corpo, botoes: [{ texto: "Cancelar" }, { texto: "Guardar as fotos", classe: "p", aoClicar: async () => {
+        const usar = linhas.filter((l) => l.sel.value);
+        if (!usar.length) { status.textContent = "Escolha o produto de pelo menos uma foto."; return false; }
+        /* se duas fotos apontam para o mesmo item, vale a última */
+        const porItem = new Map();
+        usar.forEach((l) => porItem.set(l.sel.value, l));
+        let feitas = 0, falhas = 0, i = 0;
+        for (const [id, l] of porItem) {
+          i++; status.textContent = "Guardando a foto " + i + " de " + porItem.size + "...";
+          const item = todos.find((x) => x.id === id);
+          try {
+            const url = await subirFoto(l.arq);
+            const r = await P.gravar(() => window.sb.from("catalogo_produtos").update({ imagem: url }).eq("id", id));
+            if (!r.ok) { falhas++; continue; }
+            if (item && item.imagem) await apagarFoto(item.imagem);
+            feitas++;
+          } catch (e) { falhas++; }
+        }
+        P.toast(feitas + (feitas === 1 ? " foto guardada" : " fotos guardadas") + (falhas ? ", " + falhas + " com problema (confira se o SQL do catálogo foi rodado)" : ""), !!falhas && !feitas);
+        aoSalvar();
+      } }] });
+    });
+    document.body.append(input);
+    input.click();
+  }
+
   /* ---------- aba CATÁLOGO ---------- */
   P.abas.catalogo = {
     async renderizar(raiz) {
@@ -544,6 +608,7 @@
           h("p", { class: "dica", style: "margin-bottom:12px", text: "Os itens marcados como \"Visível\" aparecem no catálogo público, sem preço. O cliente escolhe o que quer e envia um pré-pedido de orçamento (veja na aba Pré-pedidos)." }),
           h("div", { class: "ferramentas" },
             h("div", { class: "busca" }, P.ic("busca"), busca), filtros, h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", onclick: () => subirFotosEmLote(lista, recarregar) }, P.ic("subir"), "Subir várias fotos"),
             h("button", { type: "button", class: "btn", onclick: () => importarCatalogoPdf(lista, recarregar) }, P.ic("subir"), "Importar catálogo (PDF)"),
             h("button", { type: "button", class: "btn", onclick: () => importarPlanilha(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirProduto(null, lista, recarregar) }, P.ic("mais"), "Adicionar item")),
