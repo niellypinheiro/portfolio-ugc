@@ -336,7 +336,7 @@
     throw new Error(motivo || "sem resposta");
   }
   function recortar(canvas, caixa) {
-    const pad = 0.012;
+    const pad = 0.035;
     const y0 = Math.max(0, caixa[0] / 1000 - pad), x0 = Math.max(0, caixa[1] / 1000 - pad), y1 = Math.min(1, caixa[2] / 1000 + pad), x1 = Math.min(1, caixa[3] / 1000 + pad);
     const sx = x0 * canvas.width, sy = y0 * canvas.height, w = (x1 - x0) * canvas.width, hh = (y1 - y0) * canvas.height;
     if (w < 80 || hh < 80) return Promise.resolve(null);
@@ -380,6 +380,7 @@
       const ate = h("input", { type: "number", min: "1", max: String(total), value: String(Math.min(total, 15)) });
       const comFotos = h("input", { type: "checkbox", checked: !!chaves.gemini, disabled: !chaves.gemini });
       const mostrar = h("input", { type: "checkbox" });
+      const trocarFotos = h("input", { type: "checkbox" });
       const status = h("p", { class: "dica", role: "status" });
       const resultado = h("div");
       let lidos = [], cancelar = false, lendo = false;
@@ -389,6 +390,7 @@
         h("div", { class: "grade2" }, P.campo("Da página", de), P.campo("Até a página", ate)),
         P.campo("Importar as fotos também?", h("label", { class: "marcar" }, comFotos, chaves.gemini ? "Sim, recortar a foto de cada produto" : "Precisa da chave do Google (aba Transcrições)")),
         P.campo("Mostrar no catálogo já?", h("label", { class: "marcar" }, mostrar, "Sim. Se deixar desmarcado, os itens entram ocultos para você conferir.")),
+        P.campo("Itens que já estão no catálogo", h("label", { class: "marcar" }, trocarFotos, "Trocar só a foto deles pela que eu achar agora (não mexe no nome nem na descrição)")),
         status, resultado);
 
       function mostrarResultados() {
@@ -466,14 +468,27 @@
           const ja = new Set(todos.map(chave));
           const novos = escolhidos.filter((p) => !ja.has(chave({ nome: p.nome, marca: m })));
           const comBlob = novos.filter((p) => p._blob);
-          let fotosOk = 0;
+          let fotosOk = 0, fotosTrocadas = 0;
+          if (trocarFotos.checked) {
+            const existentes = escolhidos.filter((p) => p._blob && ja.has(chave({ nome: p.nome, marca: m })));
+            for (let i = 0; i < existentes.length; i++) {
+              status.textContent = "Trocando a foto de itens que já existem: " + (i + 1) + " de " + existentes.length + "...";
+              const alvo = todos.find((x) => chave(x) === chave({ nome: existentes[i].nome, marca: m }));
+              if (!alvo) continue;
+              try {
+                const url = await enviarBlob(existentes[i]._blob);
+                const up = await P.gravar(() => window.sb.from("catalogo_produtos").update({ imagem: url }).eq("id", alvo.id));
+                if (up.ok) { if (alvo.imagem) await apagarFoto(alvo.imagem); fotosTrocadas++; }
+              } catch (e) { /* esse item fica com a foto antiga */ }
+            }
+          }
           for (let i = 0; i < comBlob.length; i++) {
             status.textContent = "Guardando as fotos: " + (i + 1) + " de " + comBlob.length + "...";
             try { comBlob[i]._imagem = await enviarBlob(comBlob[i]._blob); fotosOk++; } catch (e) { /* fica sem foto, o item entra do mesmo jeito */ }
           }
           if (comBlob.length && !fotosOk) P.toast("Não consegui guardar as fotos (confira se o SQL do catálogo foi rodado). Os itens entram sem foto.", true);
           const r = await inserirItens(escolhidos.map((p) => ({ nome: p.nome, marca: m, categoria: p.categoria, descricao: p.descricao, imagem: p._imagem || "" })), todos, mostrar.checked);
-          P.toast(r.feitos + (r.feitos === 1 ? " item importado" : " itens importados") + (fotosOk ? ", " + fotosOk + " com foto" : "") + (r.repetidos ? " (" + r.repetidos + " repetidos pulados)" : ""));
+          P.toast(r.feitos + (r.feitos === 1 ? " item importado" : " itens importados") + (fotosOk ? ", " + fotosOk + " com foto" : "") + (fotosTrocadas ? "; " + fotosTrocadas + " foto(s) trocada(s) em itens que já existiam" : "") + (r.repetidos && !fotosTrocadas ? " (" + r.repetidos + " repetidos pulados)" : ""));
           aoSalvar();
         } }
       ] });
