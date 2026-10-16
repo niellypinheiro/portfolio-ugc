@@ -26,14 +26,16 @@
   --fonte-legenda:"Dancing Script","Brush Script MT",cursive;
   --gutter:clamp(20px,4.5vw,56px);
   --topo-h:60px;
+  --aviso-h:40px;
   --grao-couro:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .05 0 0 0 0 .02 0 0 0 .9 -.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --grao-papel:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .32 0 0 0 0 .18 0 0 0 .22 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-@media (min-width:1000px){:root{--topo-h:66px}}
+@media (min-width:1000px){:root{--topo-h:66px;--aviso-h:42px}}
+html.sem-aviso{--aviso-h:0px}
 
 /* ---------- base ---------- */
 *,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:var(--topo-h);-webkit-text-size-adjust:100%;background:var(--couro)}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--topo-h) + var(--aviso-h));-webkit-text-size-adjust:100%;background:var(--couro)}
 html.travado{overflow:hidden}
 body{margin:0;font-family:var(--fonte-corpo);font-size:1.0625rem;line-height:1.65;color:var(--tinta);overflow-x:clip;min-height:100vh}
 img{max-width:100%;display:block}
@@ -90,7 +92,7 @@ main,.rodape{position:relative;z-index:1}
 }
 
 /* ---------- menu fixo ---------- */
-.topo{position:fixed;top:0;left:0;right:0;z-index:50;background:var(--couro-esc);border-bottom:1px solid var(--ouro);transition:box-shadow .3s}
+.topo{position:fixed;top:var(--aviso-h);left:0;right:0;z-index:50;background:var(--couro-esc);border-bottom:1px solid var(--ouro);transition:box-shadow .3s}
 .topo::after{content:"";position:absolute;left:0;right:0;bottom:3px;border-bottom:1px dashed rgba(240,215,127,.28);pointer-events:none}
 .topo.rolou{box-shadow:0 8px 22px rgba(0,0,0,.4)}
 .topo-in{display:flex;align-items:center;justify-content:space-between;height:var(--topo-h);padding:0 78px 0 var(--gutter)}
@@ -177,11 +179,27 @@ main,.rodape{position:relative;z-index:1}
 .legenda-ph{position:relative;z-index:1;font:600 1.25rem/1.2 var(--fonte-legenda);color:var(--papel);background:rgba(38,20,10,.66);padding:.2rem .95rem .3rem;border-radius:999px;text-align:center}
 
 /* ---------- 1. capa ---------- */
-.capa{position:relative;padding-top:calc(var(--topo-h) + clamp(30px,6vw,72px))}
+.capa{position:relative;padding-top:calc(var(--topo-h) + var(--aviso-h) + clamp(30px,6vw,72px))}
 .capa::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 80% at 28% 45%,rgba(38,20,10,.62),transparent 72%)}
 .capa-grade{position:relative;display:grid;grid-template-columns:1fr;gap:clamp(36px,5vw,72px);align-items:center;padding-bottom:clamp(44px,6vw,72px)}
 @media (min-width:900px){.capa-grade{grid-template-columns:1.1fr .9fr}}
 .capa-etiqueta{font:600 .85rem/1.3 var(--fonte-corpo);letter-spacing:.22em;text-transform:uppercase;color:var(--ouro-claro)}
+.aviso-topo{position:fixed;top:0;left:0;right:0;z-index:52;height:var(--aviso-h);background:var(--bordo);color:var(--papel);border-bottom:1px solid rgba(240,215,127,.45)}
+html.sem-aviso .aviso-topo{display:none}
+.aviso-in{height:100%;display:flex;align-items:center;justify-content:center;gap:clamp(8px,1.6vw,18px);padding:0 78px 0 var(--gutter);font-size:.88rem;line-height:1;white-space:nowrap}
+@media (min-width:1000px){.aviso-in{padding-right:132px}}
+.aviso-pilula{background:#1c0f08;color:var(--ouro-claro);font:600 .66rem/1 var(--fonte-corpo);letter-spacing:.2em;text-transform:uppercase;padding:7px 12px;border-radius:999px}
+.aviso-dias{font-weight:600;color:#fff}
+.aviso-ponto{opacity:.55}
+.aviso-texto{color:rgba(246,239,226,.82)}
+.aviso-link{color:var(--ouro-claro);font-weight:600;text-decoration:none}
+.aviso-link:hover{text-decoration:underline}
+@media (max-width:760px){.aviso-texto,.aviso-ponto{display:none}.aviso-in{font-size:.8rem}}
+@media (max-width:480px){.aviso-link{display:none}.aviso-pilula{font-size:.6rem;padding:6px 9px}.aviso-in{font-size:.76rem}}
+.capa-etiqueta{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px}
+.capa-etiqueta .sep{opacity:.5;font-weight:400}
+.capa-etiqueta .local{display:inline-flex;align-items:center;gap:6px}
+.capa-etiqueta .pin{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .capa h1{font-size:clamp(3.7rem,13vw,8.6rem);line-height:.9;color:var(--papel);text-shadow:0 -1px 0 rgba(0,0,0,.45),0 2px 0 rgba(255,235,200,.16);margin:.18em 0 .24em}
 .capa h1 span{display:block}
 .capa h1 em{color:var(--ouro-claro);background:linear-gradient(180deg,#fbeeb4 0%,#e6c453 50%,#d0a52a 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35));padding-right:.05em}
@@ -401,6 +419,30 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 }
 </style>
 <noscript><style>.revela{opacity:1!important;transform:none!important}</style></noscript>
+<script>
+/* Faixa da Black Friday: conta sozinha os dias que faltam (a Black Friday é a sexta depois da 4ª quinta de novembro).
+   Aparece quando faltam 120 dias ou menos, e some depois da Black Friday até a próxima temporada. */
+(function () {
+  function sextaNegra(ano) {
+    var primeira = 1 + ((4 - new Date(ano, 10, 1).getDay() + 7) % 7);
+    return new Date(ano, 10, primeira + 21 + 1);
+  }
+  var hoje = new Date(), ano = hoje.getFullYear();
+  function dias(a) {
+    var bf = sextaNegra(a);
+    return Math.round((Date.UTC(bf.getFullYear(), bf.getMonth(), bf.getDate()) - Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / 86400000);
+  }
+  var d = dias(ano);
+  if (d < 0) d = dias(ano + 1);
+  var mostrar = d >= 0 && d <= 120;
+  if (!mostrar) document.documentElement.classList.add("sem-aviso");
+  document.addEventListener("DOMContentLoaded", function () {
+    var el = document.getElementById("avisoDias");
+    if (!el || !mostrar) return;
+    el.textContent = d === 0 ? "Hoje é Black Friday!" : d === 1 ? "Falta 1 dia pra Black Friday" : "Faltam " + d + " dias pra Black Friday";
+  });
+})();
+</script>
 </head>
 <body>
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
@@ -408,6 +450,16 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 <!-- Três fitas marcadoras de página e o elástico do diário (decorativos) -->
 <div class="fitas" aria-hidden="true"><i class="fita f1"></i><i class="fita f2"></i><i class="fita f3"></i></div>
 <div class="elastico" aria-hidden="true"></div>
+
+<div class="aviso-topo" id="avisoTopo" role="region" aria-label="Aviso">
+  <div class="aviso-in">
+    <span class="aviso-pilula">Black Friday</span>
+    <b class="aviso-dias" id="avisoDias"></b>
+    <span class="aviso-ponto" aria-hidden="true">·</span>
+    <span class="aviso-texto">conteúdo UGC que vende no dia</span>
+    <a class="aviso-link" href="#contato">reservar agenda →</a>
+  </div>
+</div>
 
 <header class="topo" id="topo">
   <div class="topo-in">
@@ -442,7 +494,7 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
 <section id="capa" class="capa" aria-labelledby="capa-titulo">
   <div class="wrap capa-grade">
     <div class="capa-texto">
-      <p class="capa-etiqueta revela">Portfólio UGC · Cascavel</p>
+      <p class="capa-etiqueta revela"><span>Portfólio UGC</span><span class="sep" aria-hidden="true">|</span><span class="local"><svg class="pin" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Cascavel, PR</span></p>
       <h1 id="capa-titulo" class="revela" style="--d:80ms"><span>Nielly</span><span><em>Pinheiro</em></span></h1>
       <p class="capa-frase revela" style="--d:160ms">Vídeos UGC orgânicos e naturais que humanizam a sua marca e criam conexão de verdade com o público.</p>
       <div class="capa-botoes revela" style="--d:240ms">
@@ -662,7 +714,7 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
       <a data-contato="whatsapp" href="https://wa.me/5545988188519" target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <a data-contato="email" href="mailto:niellypinheirougccreator@gmail.com">E-mail</a>
     </nav>
-    <small>© <span id="ano">2026</span> Nielly Pinheiro · Cascavel · Todos os direitos reservados</small>
+    <small>© <span id="ano">2026</span> Nielly Pinheiro · Cascavel, PR · Todos os direitos reservados</small>
   </div>
 </footer>
 
@@ -1629,7 +1681,11 @@ const DEPOIMENTOS = [
     "Abrir menu": "Open menu", "Fechar menu": "Close menu", "Menu principal": "Main menu",
     "Sobre": "About", "Cases de sucesso": "Success stories", "Trabalhos": "Work", "Fotos": "Photos",
     "Serviços": "Services", "Números": "Numbers", "Contato": "Contact",
-    "Portfólio UGC · Cascavel": "UGC Portfolio · Cascavel",
+    "Portfólio UGC": "UGC Portfolio",
+    "conteúdo UGC que vende no dia": "UGC content that sells on the day",
+    "reservar agenda →": "book your spot →",
+    "Hoje é Black Friday!": "Today is Black Friday!",
+    "Falta 1 dia pra Black Friday": "1 day until Black Friday",
     "Vídeos UGC orgânicos e naturais que humanizam a sua marca e criam conexão de verdade com o público.": "Organic, natural UGC videos that humanize your brand and create a real connection with your audience.",
     "Falar comigo": "Talk to me", "Ver os trabalhos": "See my work",
     "Números da Nielly": "Nielly's numbers",
@@ -1663,7 +1719,7 @@ const DEPOIMENTOS = [
     "Digite seu nome.": "Enter your name.", "Digite um e-mail válido.": "Enter a valid email.", "Escreva uma mensagem.": "Write a message.",
     "Enviar mensagem": "Send message", "Enviando...": "Sending...",
     "E-mail": "Email", "Minhas redes": "My social links",
-    "Nielly Pinheiro · Cascavel · Todos os direitos reservados": "Nielly Pinheiro · Cascavel · All rights reserved",
+    "Nielly Pinheiro · Cascavel, PR · Todos os direitos reservados": "Nielly Pinheiro · Cascavel, PR · All rights reserved",
     "Quer meu mídia kit completo?": "Want my full media kit?",
     "Deixe seu nome e seu e-mail para receber.": "Leave your name and email to receive it.",
     "Quero receber": "I want it", "Fechar": "Close",
@@ -1725,6 +1781,7 @@ const DEPOIMENTOS = [
   ];
   var REGRAS = [
     [/^Tudo certo, (.+)!$/, "All set, $1!"],
+    [/^Faltam (\d+) dias pra Black Friday$/, "$1 days until Black Friday"],
     [/^([\d.,]+)\s*mil\s+(?:visualizações|views)$/i, function (m, n) { return n.replace(",", ".") + " thousand views"; }],
     [/^([\d.,]+\s*[KkMm]?)\s+visualizações$/, "$1 views"]
   ];
