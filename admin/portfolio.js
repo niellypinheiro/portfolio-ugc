@@ -18,32 +18,51 @@
   }
 
   /* ---------- números das visitas ---------- */
-  function calcular(visitas, videos) {
-    const hoje = P.hoje();
-    const dias = [];
+  /* Períodos que dá para escolher. O número é a quantidade de dias, contando hoje (1 = só hoje). */
+  const PERIODOS = [[1, "Hoje"], [7, "Últimos 7 dias"], [14, "Últimos 14 dias"], [30, "Últimos 30 dias"], [90, "Últimos 90 dias"], [180, "Últimos 180 dias"]];
+  const nomePeriodo = (p) => (PERIODOS.find((x) => x[0] === p) || [p, "Últimos " + p + " dias"])[1];
+  const inicioDoPeriodo = (p) => { const d = new Date(); d.setDate(d.getDate() - (p - 1)); d.setHours(0, 0, 0, 0); return d; };
+
+  /* As barras do gráfico: por hora (hoje), por dia (até 31 dias) ou por semana (períodos maiores) */
+  function montarBarras(visitas, periodo) {
     const base = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
-      dias.push({ iso: P.iso(d), n: 0 });
+    const hoje0 = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    if (periodo === 1) {
+      const horas = Array.from({ length: 24 }, (_, i) => ({ n: 0, rotulo: String(i), dica: i + "h às " + (i + 1) + "h", hoje: i === base.getHours() }));
+      visitas.forEach((v) => { const d = new Date(v.data); if (P.iso(d) === P.iso(hoje0)) horas[d.getHours()].n++; });
+      return { barras: horas, por: "hora" };
     }
+    const dias = [];
+    for (let i = periodo - 1; i >= 0; i--) dias.push({ iso: P.iso(new Date(hoje0.getFullYear(), hoje0.getMonth(), hoje0.getDate() - i)), n: 0 });
     const porDia = Object.fromEntries(dias.map((d) => [d.iso, d]));
+    visitas.forEach((v) => { const dia = porDia[P.iso(new Date(v.data))]; if (dia) dia.n++; });
+    if (periodo <= 31) return { barras: dias.map((d) => ({ n: d.n, rotulo: d.iso.slice(8), dica: P.fmtData(d.iso), hoje: d.iso === P.hoje() })), por: "dia" };
+    const semanas = [];
+    for (let i = 0; i < dias.length; i += 7) {
+      const g = dias.slice(i, i + 7);
+      semanas.push({ n: g.reduce((s, d) => s + d.n, 0), rotulo: g[0].iso.slice(8) + "/" + g[0].iso.slice(5, 7), dica: P.fmtData(g[0].iso) + " a " + P.fmtData(g[g.length - 1].iso), hoje: g.some((d) => d.iso === P.hoje()) });
+    }
+    return { barras: semanas, por: "semana" };
+  }
+
+  /* "visitas" já vem só com o período escolhido; "todasAsVisitas" serve para contar as de hoje */
+  function calcular(visitas, videos, periodo, todasAsVisitas) {
+    const hoje = P.hoje();
+    const { barras, por } = montarBarras(visitas, periodo);
     const origens = {};
-    let total = 0, deHoje = 0;
     visitas.forEach((v) => {
-      const dia = porDia[P.iso(new Date(v.data))];
-      if (!dia) return;
-      dia.n++; total++;
-      if (dia.iso === hoje) deHoje++;
       const o = String(v.origem || "direto").trim().toLowerCase() || "direto";
       origens[o] = (origens[o] || 0) + 1;
     });
+    const total = visitas.length;
+    const deHoje = todasAsVisitas.filter((v) => P.iso(new Date(v.data)) === hoje).length;
     const listaOrigens = Object.entries(origens).sort((a, b) => b[1] - a[1]);
 
     const noAr = videos.filter((v) => v.visivel);
     const porNicho = {};
     noAr.forEach((v) => { porNicho[v.nicho] = (porNicho[v.nicho] || 0) + 1; });
     const forte = Object.entries(porNicho).sort((a, b) => b[1] - a[1])[0];
-    return { dias, total, deHoje, listaOrigens, noAr: noAr.length, forte };
+    return { barras, por, total, deHoje, listaOrigens, noAr: noAr.length, forte };
   }
 
   function metrica(rotulo, valor, sub) {
@@ -51,16 +70,18 @@
       h("div", { class: "num", text: valor, title: valor }), sub ? h("div", { class: "sub", text: sub }) : null);
   }
 
-  function desenharGrafico(r) {
+  function desenharGrafico(r, periodo) {
     if (r.total === 0) {
-      return h("div", { class: "vazio", text: "Quando as pessoas começarem a visitar o seu portfólio, aqui aparece um gráfico de barras com o número de visitas de cada um dos últimos 14 dias." });
+      return h("div", { class: "vazio", text: periodo === 1 ? "Ainda não houve visitas hoje. Quando houver, aqui aparece o gráfico por horário." : "Não houve visitas neste período. Quando houver, aqui aparece o gráfico de barras." });
     }
-    const maior = Math.max(1, ...r.dias.map((d) => d.n));
-    return h("div", { class: "barras", role: "img", "aria-label": "Visitas por dia nos últimos 14 dias" },
-      r.dias.map((d) => h("div", { class: "barra" + (d.iso === P.hoje() ? " hoje" : ""), title: P.fmtData(d.iso) + ": " + d.n + (d.n === 1 ? " visita" : " visitas") },
-        h("span", { class: "v", text: d.n ? String(d.n) : "" }),
+    const maior = Math.max(1, ...r.barras.map((d) => d.n));
+    const passo = Math.max(1, Math.ceil(r.barras.length / 12));   /* mostra só alguns rótulos quando são muitas barras */
+    const unidade = r.por === "hora" ? "por hora" : r.por === "semana" ? "por semana" : "por dia";
+    return h("div", { class: "barras", role: "img", "aria-label": "Visitas " + unidade + ", " + nomePeriodo(periodo).toLowerCase() },
+      r.barras.map((d, i) => h("div", { class: "barra" + (d.hoje ? " hoje" : ""), title: d.dica + ": " + d.n + (d.n === 1 ? " visita" : " visitas") },
+        h("span", { class: "v", text: d.n && r.barras.length <= 31 ? String(d.n) : "" }),
         h("div", { class: "col" + (d.n ? "" : " zero"), estilo: { height: d.n ? Math.max(4, Math.round((d.n / maior) * 100)) + "%" : "2px" } }),
-        h("span", { class: "d", text: d.iso.slice(8) }))));
+        h("span", { class: "d", text: i % passo === 0 ? d.rotulo : "" }))));
   }
   function desenharOrigens(r) {
     if (!r.listaOrigens.length) {
@@ -196,7 +217,7 @@
         h("div", { class: "fio" }, h("i", { estilo: { width: Math.round((n / maior) * 100) + "%" } })));
     }));
   }
-  function desenharExtras(visitas) {
+  function desenharExtras(visitas, periodo) {
     const e = extras(visitas);
     const cartao = (titulo, corpo) => h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: titulo })), h("div", { class: "corpo" }, corpo));
     const vazio = (t) => h("div", { class: "vazio", text: t });
@@ -215,19 +236,47 @@
       ? vazio("Aqui vai aparecer quais páginas do seu site as pessoas mais abrem.")
       : linhasComBarra(e.paginas.map(([p, n]) => [nomePagina(p), n]), e.reais);
     return h("div", { class: "secao" },
-      h("h2", { class: "titulo-secao", text: "Mais números (últimos 30 dias)" }),
+      h("h2", { class: "titulo-secao", text: "Mais números (" + nomePeriodo(periodo).toLowerCase() + ")" }),
       h("div", { class: "tres-colunas" }, cartao("Quando as pessoas visitam", quando), cartao("O que as pessoas fazem", fazem), cartao("Páginas mais vistas", paginas)));
   }
 
   P.abas.portfolio = {
     async renderizar(raiz) {
-      const desde = new Date(); desde.setDate(desde.getDate() - 29); desde.setHours(0, 0, 0, 0);
+      /* As visitas vêm em páginas de 1000 (é o máximo que o banco entrega de uma vez), até acabarem */
+      async function buscarVisitas(dias) {
+        const desde = inicioDoPeriodo(dias);
+        let tudo = [];
+        for (let i = 0; i < 40; i++) {
+          const r = await P.carregar("visitas", (t) => t.select("data,origem,pagina").gte("data", desde.toISOString())
+            .order("data", { ascending: false }).range(i * 1000, i * 1000 + 999));
+          if (!r.ok) return i ? { dados: tudo, ok: true } : r;
+          tudo = tudo.concat(r.dados);
+          if (r.dados.length < 1000) break;
+        }
+        return { dados: tudo, ok: true };
+      }
+      let periodo = 30;
+      try { const s = parseInt(localStorage.getItem("portfolio_periodo"), 10); if (PERIODOS.some((x) => x[0] === s)) periodo = s; } catch (e) { /* sem armazenamento: usa 30 dias */ }
+      let carregadoDias = periodo;
       const [rv, rvis] = await Promise.all([
         P.carregar("videos", (t) => t.select("*").order("ordem", { ascending: true })),
-        P.carregar("visitas", (t) => t.select("data,origem,pagina").gte("data", desde.toISOString()).order("data", { ascending: false }).limit(20000))
+        buscarVisitas(periodo)
       ]);
       let videos = rv.dados;
-      const visitas = rvis.dados;
+      let visitas = rvis.dados;
+      async function mudarPeriodo(novo) {
+        if (novo > carregadoDias) {
+          P.toast("Carregando as visitas desse período...");
+          const r = await buscarVisitas(novo);
+          if (!r.ok) { P.toast("Não consegui carregar esse período agora.", true); desenhar(); return; }
+          visitas = r.dados; carregadoDias = novo;
+        }
+        periodo = novo;
+        try { localStorage.setItem("portfolio_periodo", String(novo)); } catch (e) { /* sem armazenamento */ }
+        desenhar();
+        const sel = raiz.querySelector("select.seletor-periodo");
+        if (sel) sel.focus();
+      }
 
       async function recarregar() {
         const r = await P.carregar("videos", (t) => t.select("*").order("ordem", { ascending: true }));
@@ -291,18 +340,25 @@
       }
 
       function desenhar() {
-        const r = calcular(visitas.filter((v) => !ehAcao(v)), videos);   /* as ações (cliques e vídeos) não contam como visita */
+        const inicio = inicioDoPeriodo(periodo);
+        const doPeriodo = visitas.filter((v) => new Date(v.data) >= inicio);
+        const soVisitas = visitas.filter((v) => !ehAcao(v));
+        const r = calcular(doPeriodo.filter((v) => !ehAcao(v)), videos, periodo, soVisitas);   /* as ações (cliques e vídeos) não contam como visita */
+        const seletor = h("select", { class: "seletor-periodo", id: "seletorPeriodo", style: "max-width:260px", "aria-label": "Período das estatísticas" }, P.opcoes(PERIODOS.map(([v, t]) => [String(v), t]), String(periodo)));
+        seletor.addEventListener("change", () => mudarPeriodo(parseInt(seletor.value, 10)));
         P.limpar(raiz).append(
+          h("div", { class: "ferramentas", style: "margin-bottom:14px" },
+            h("label", { class: "fraco", for: "seletorPeriodo", text: "Período das estatísticas:" }), seletor),
           h("div", { class: "faixa-metricas" },
-            metrica("Visitas em 14 dias", P.numero(r.total)),
-            metrica("Visitas hoje", P.numero(r.deHoje)),
+            metrica(periodo === 1 ? "Visitas hoje" : "Visitas em " + periodo + " dias", P.numero(r.total)),
+            periodo === 1 ? null : metrica("Visitas hoje", P.numero(r.deHoje)),
             metrica("Vídeos no ar", P.numero(r.noAr), videos.length - r.noAr > 0 ? (videos.length - r.noAr) + " escondido(s)" : ""),
             metrica("Nicho mais forte", r.forte ? P.nomeNicho(r.forte[0]) : "Nenhum ainda", r.forte ? r.forte[1] + (r.forte[1] === 1 ? " vídeo" : " vídeos") : "Aparece com os vídeos"),
             metrica("De onde mais vêm", r.listaOrigens.length ? r.listaOrigens[0][0] : "Sem visitas ainda", r.listaOrigens.length ? r.listaOrigens[0][1] + (r.listaOrigens[0][1] === 1 ? " visita" : " visitas") : "")),
           h("div", { class: "secao duas-colunas" },
-            h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: "Visitas nos últimos 14 dias" })), h("div", { class: "corpo" }, desenharGrafico(r))),
+            h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: periodo === 1 ? "Visitas hoje, por horário" : "Visitas " + (periodo <= 31 ? "por dia" : "por semana") + " (" + nomePeriodo(periodo).toLowerCase() + ")" })), h("div", { class: "corpo" }, desenharGrafico(r, periodo))),
             h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: "Por onde chegaram" })), h("div", { class: "corpo" }, desenharOrigens(r)))),
-          desenharExtras(visitas),
+          desenharExtras(doPeriodo, periodo),
           h("div", { class: "secao" },
             h("div", { class: "ferramentas" },
               h("h2", { text: "Meus vídeos", style: "font-size:14px;font-weight:600;flex:1" }),
