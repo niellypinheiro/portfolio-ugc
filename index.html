@@ -199,13 +199,12 @@ html.sem-aviso .aviso-topo{display:none}
 .capa-etiqueta{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px}
 .capa-etiqueta .sep{opacity:.5;font-weight:400}
 @media (max-width:560px){.capa-etiqueta{font-size:.76rem;letter-spacing:.14em;gap:6px 10px}}
-.capa-redes{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}
-.capa-redes .rotulo{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,239,226,.7);margin-right:2px}
-.rede-btn{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;border:1px solid rgba(240,215,127,.55);background:rgba(0,0,0,.14);color:var(--papel);font-size:.84rem;font-weight:500;letter-spacing:.02em;text-decoration:none;transition:border-color .2s,color .2s,background .2s}
-.rede-btn:hover,.rede-btn:focus-visible{border-color:var(--ouro-claro);color:var(--ouro-claro);background:rgba(0,0,0,.24)}
-.rede-btn[hidden]{display:none}
-.rede-btn .logo{width:17px;height:17px;flex:none}
-.rede-btn .ir-seta{width:12px;height:12px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.capa-redes{display:flex;align-items:center;gap:16px;margin-top:22px}
+.rede-logo{display:inline-block;flex:none;width:52px;height:52px;line-height:0;border-radius:24%;box-shadow:0 4px 12px rgba(0,0,0,.35);transition:transform .2s,box-shadow .2s}
+.rede-logo.tk{border-radius:50%}
+.rede-logo img{width:100%;height:100%;display:block}
+.rede-logo:hover,.rede-logo:focus-visible{transform:translateY(-3px) scale(1.07);box-shadow:0 10px 20px rgba(0,0,0,.45)}
+.rede-logo[hidden]{display:none}
 .capa-etiqueta .local{display:inline-flex;align-items:center;gap:6px}
 .capa-etiqueta .pin{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .capa h1{font-size:clamp(3.7rem,13vw,8.6rem);line-height:.9;color:var(--papel);text-shadow:0 -1px 0 rgba(0,0,0,.45),0 2px 0 rgba(255,235,200,.16);margin:.18em 0 .24em}
@@ -510,10 +509,10 @@ a.trab:hover .trab-midia{box-shadow:0 0 0 4px var(--papel),0 0 0 5px var(--ouro)
         <a class="btn btn-claro" href="#trabalhos">Ver os trabalhos</a>
       </div>
       <div class="capa-redes revela" style="--d:280ms">
-        <span class="rotulo">Me siga</span>
-        <a class="rede-btn" data-contato="instagram" href="https://www.instagram.com/nielly.pinheiro/" target="_blank" rel="noopener noreferrer"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".8" fill="currentColor"/></svg><span>Instagram</span><svg class="ir-seta" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17L17 7M9 7h8v8"/></svg><span class="sr-only">(abre em nova aba)</span></a>
-        <a class="rede-btn" data-contato="tiktok" href="#" target="_blank" rel="noopener noreferrer" hidden><svg class="logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><path d="M16.5 3a4.6 4.6 0 0 0 3.5 4v3a7.6 7.6 0 0 1-3.5-1v6.2a5.2 5.2 0 1 1-5.2-5.2c.3 0 .6 0 .9.1v3.1a2.2 2.2 0 1 0 1.3 2V3h3z"/></svg><span>TikTok</span><svg class="ir-seta" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 17L17 7M9 7h8v8"/></svg><span class="sr-only">(abre em nova aba)</span></a>
-      </div>      <!-- Os três números vêm da lista METRICAS (script, no fim do arquivo) -->
+        <a class="rede-logo ig" data-contato="instagram" href="https://www.instagram.com/nielly.pinheiro/" target="_blank" rel="noopener noreferrer"><img src="logos/instagram.png" alt="" width="52" height="52" decoding="async"><span class="sr-only">Instagram</span><span class="sr-only">(abre em nova aba)</span></a>
+        <a class="rede-logo tk" data-contato="tiktok" href="#" target="_blank" rel="noopener noreferrer" hidden><img src="logos/tiktok.png" alt="" width="52" height="52" decoding="async"><span class="sr-only">TikTok</span><span class="sr-only">(abre em nova aba)</span></a>
+      </div>
+      <!-- Os três números vêm da lista METRICAS (script, no fim do arquivo) -->
       <ul class="capa-numeros revela" id="capaNumeros" style="--d:320ms" aria-label="Números da Nielly"></ul>
     </div>
 
@@ -1696,7 +1695,6 @@ const DEPOIMENTOS = [
     "Sobre": "About", "Cases de sucesso": "Success stories", "Trabalhos": "Work", "Fotos": "Photos",
     "Serviços": "Services", "Números": "Numbers", "Contato": "Contact",
     "Portfólio UGC": "UGC Portfolio",
-    "Me siga": "Follow me",
     "conteúdo UGC que vende no dia": "UGC content that sells on the day",
     "reservar agenda →": "book your spot →",
     "Hoje é Black Friday!": "Today is Black Friday!",
