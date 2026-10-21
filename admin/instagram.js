@@ -94,9 +94,9 @@
         if (erroTexto) { aviso = { tipo: "erro", texto: erroTexto }; if (!silencioso) P.toast("Não deu para atualizar o Instagram.", true); }
         else {
           /* o aviso de "0 comentários antigos" é esperado (a Meta não entrega o histórico), então não vale mostrar */
+          /* sem faixa amarela: avisos técnicos só aparecem rapidinho num toast */
           const extras = (dados.avisos || []).filter((e) => e.indexOf("Comentarios: consultei") !== 0);
-          if (extras.length && !silencioso) aviso = { tipo: "ok", texto: "Atualizado, com um aviso:", extras: extras };
-          if (!silencioso) P.toast("Instagram atualizado");
+          if (!silencioso) P.toast(extras.length ? "Instagram atualizado. Aviso: " + extras[0] : "Instagram atualizado");
         }
         await carregar();
         atualizando = false;
