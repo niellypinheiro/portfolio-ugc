@@ -418,6 +418,12 @@ create table if not exists public.catalogo_pedidos (
   criado_em  timestamptz not null default now()
 );
 
+-- Colunas que vieram depois (catalogo_extra.sql):
+--   departamento: o grupo grande (Eletroportáteis, Iluminação...), vira filtro no catálogo sozinho.
+--   avisado_em: quando saiu o e-mail de aviso do pedido para a SmartBrand.
+alter table public.catalogo_produtos add column if not exists departamento text check (char_length(departamento) <= 100);
+alter table public.catalogo_pedidos add column if not exists avisado_em timestamptz;
+
 drop trigger if exists carimbo_catalogo_pedidos on public.catalogo_pedidos;
 create trigger carimbo_catalogo_pedidos before insert on public.catalogo_pedidos
   for each row execute function public.carimbar_agora();
@@ -450,6 +456,64 @@ create policy "so_smartbrand_pedidos" on public.catalogo_pedidos
   for all to authenticated
   using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
 
+-- Cada pré-pedido vira (ou atualiza) uma empresa na aba "Empresas de Serviços",
+-- como Lead, para a SmartBrand mandar e-mails depois pela Prospecção.
+create or replace function public.pedido_vira_empresa()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  e text := lower(trim(coalesce(new.email, '')));
+  resumo text;
+begin
+  if e = '' then return new; end if;
+  select string_agg((i ->> 'quantidade') || 'x ' || (i ->> 'nome'), ', ') into resumo
+    from jsonb_array_elements(new.itens) as i;
+  if exists (select 1 from public.empresas_servicos where lower(email) = e) then
+    update public.empresas_servicos set ultimo_contato = current_date where lower(email) = e;
+  else
+    insert into public.empresas_servicos (nome_empresa, contato, email, telefone, situacao, interesse, obs, ultimo_contato)
+    values (left(coalesce(nullif(trim(new.empresa), ''), new.nome), 200), left(new.nome, 200), left(trim(new.email), 200),
+            left(new.telefone, 40), 'lead', left(resumo, 200), left('Pré-pedido pelo catálogo: ' || resumo, 3000), current_date);
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists pedido_para_empresas on public.catalogo_pedidos;
+create trigger pedido_para_empresas after insert on public.catalogo_pedidos
+  for each row execute function public.pedido_vira_empresa();
+
+-- Cada pré-pedido também chama a função "avisar-pedido", que manda um e-mail
+-- para smartbrand1217@gmail.com. Se o aviso falhar, o pedido entra igual.
+create extension if not exists pg_net;
+
+create or replace function public.pedido_avisa_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  begin
+    perform net.http_post(
+      url := 'https://pirfpsdiaajbnriqszvd.supabase.co/functions/v1/avisar-pedido',
+      body := jsonb_build_object('id', new.id),
+      headers := '{"Content-Type": "application/json"}'::jsonb
+    );
+  exception when others then
+    null;
+  end;
+  return new;
+end
+$$;
+
+drop trigger if exists pedido_avisa_email on public.catalogo_pedidos;
+create trigger pedido_avisa_email after insert on public.catalogo_pedidos
+  for each row execute function public.pedido_avisa_email();
+
 insert into storage.buckets (id, name, public)
 values ('catalogo', 'catalogo', true)
 on conflict (id) do nothing;
@@ -459,6 +523,70 @@ create policy "catalogo_smartbrand_fotos" on storage.objects
   for all to authenticated
   using (bucket_id = 'catalogo' and public.eh_da_smartbrand())
   with check (bucket_id = 'catalogo' and public.eh_da_smartbrand());
+
+-- =====================================================================
+-- BLOCO 8C: INSTAGRAM (aba "Instagram" do painel)
+--   Os dados vêm da API oficial do Instagram, buscados pela função
+--   "instagram-sync" (o token fica só como segredo no Supabase).
+--   A função grava aqui; só você (Nielly) lê. Ninguém mais enxerga.
+-- =====================================================================
+create table if not exists public.instagram_posts (
+  id                 text primary key,
+  legenda            text,
+  tipo               text,
+  formato            text,
+  permalink          text,
+  miniatura          text,
+  publicado_em       timestamptz,
+  curtidas           integer not null default 0,
+  comentarios        integer not null default 0,
+  alcance            integer,
+  visualizacoes      integer,
+  salvos             integer,
+  compartilhamentos  integer,
+  interacoes         integer,
+  atualizado_em      timestamptz not null default now()
+);
+create index if not exists instagram_posts_data_idx on public.instagram_posts (publicado_em desc);
+
+create table if not exists public.instagram_comentarios (
+  id            text primary key,
+  post_id       text not null references public.instagram_posts(id) on delete cascade,
+  usuario       text,
+  texto         text,
+  curtidas      integer not null default 0,
+  publicado_em  timestamptz
+);
+create index if not exists instagram_comentarios_usuario_idx on public.instagram_comentarios (usuario);
+create index if not exists instagram_comentarios_post_idx on public.instagram_comentarios (post_id);
+
+create table if not exists public.instagram_dias (
+  dia                   date primary key,
+  usuario               text,
+  seguidores            integer,
+  seguindo              integer,
+  midias                integer,
+  alcance_30d           integer,
+  visitas_perfil_30d    integer,
+  contas_engajadas_30d  integer,
+  demografia            jsonb,
+  criado_em             timestamptz not null default now()
+);
+
+alter table public.instagram_posts       enable row level security;
+alter table public.instagram_comentarios enable row level security;
+alter table public.instagram_dias        enable row level security;
+grant select on public.instagram_posts, public.instagram_comentarios, public.instagram_dias to authenticated;
+
+drop policy if exists "so_eu_instagram_posts" on public.instagram_posts;
+create policy "so_eu_instagram_posts" on public.instagram_posts
+  for all to authenticated using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+drop policy if exists "so_eu_instagram_comentarios" on public.instagram_comentarios;
+create policy "so_eu_instagram_comentarios" on public.instagram_comentarios
+  for all to authenticated using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+drop policy if exists "so_eu_instagram_dias" on public.instagram_dias;
+create policy "so_eu_instagram_dias" on public.instagram_dias
+  for all to authenticated using (public.eh_a_nielly()) with check (public.eh_a_nielly());
 
 -- =====================================================================
 -- BLOCO 9 (OPCIONAL): TESTE DA TRANCA
