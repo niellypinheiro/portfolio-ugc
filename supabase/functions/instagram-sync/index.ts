@@ -28,7 +28,7 @@ function json(corpo, status) {
   });
 }
 
-const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
 
 async function chamar(url) {
   try {
@@ -42,6 +42,11 @@ async function chamar(url) {
   } catch (e) {
     return { ok: false, status: 0, erro: String((e && e.message) || e) };
   }
+}
+
+async function impressao(texto) {
+  const dados = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+  return Array.from(new Uint8Array(dados)).map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 24);
 }
 
 function valorDaMetrica(m) {
@@ -72,15 +77,19 @@ Deno.serve(async (req) => {
     const avisos = [];
 
     // token: o renovado (se existir) tem prioridade sobre o segredo
-    const cfg = await sb.from("configuracoes").select("chave,valor,atualizado_em").in("chave", ["instagram_token", "instagram_token_renovado"]);
+    const cfg = await sb.from("configuracoes").select("chave,valor,atualizado_em").in("chave", ["instagram_token", "instagram_token_renovado", "instagram_token_origem"]);
     const linhas = cfg.data || [];
     const tokenGuardado = (linhas.find((l) => l.chave === "instagram_token") || {}).valor || "";
     const renovadoEm = (linhas.find((l) => l.chave === "instagram_token_renovado") || {}).valor || "";
-    let token = tokenGuardado || TOKEN_SEGREDO || "";
+    const origemGuardada = (linhas.find((l) => l.chave === "instagram_token_origem") || {}).valor || "";
+    const minhaImpressao = TOKEN_SEGREDO ? await impressao(TOKEN_SEGREDO) : "";
+    /* o token renovado so vale enquanto o segredo for o mesmo de quando ele foi guardado; se voce colar um token novo no segredo, o novo passa a valer */
+    const usarGuardado = !!tokenGuardado && (!minhaImpressao || origemGuardada === minhaImpressao);
+    let token = usarGuardado ? tokenGuardado : (TOKEN_SEGREDO || "");
     if (!token) return json({ ok: false, passo: "token", erro: "Falta o segredo INSTAGRAM_TOKEN nas Edge Functions do Supabase." });
 
     // renova o token (vale 60 dias) a cada ~20 dias
-    const idadeDias = renovadoEm ? (Date.now() - new Date(renovadoEm).getTime()) / 86400000 : 999;
+    const idadeDias = usarGuardado && renovadoEm ? (Date.now() - new Date(renovadoEm).getTime()) / 86400000 : 999;
     if (idadeDias > 20) {
       const rn = await chamar("https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=" + encodeURIComponent(token));
       if (rn.ok && rn.dados && rn.dados.access_token) {
@@ -88,7 +97,8 @@ Deno.serve(async (req) => {
         const agora = new Date().toISOString();
         await sb.from("configuracoes").upsert([
           { chave: "instagram_token", valor: token, atualizado_em: agora },
-          { chave: "instagram_token_renovado", valor: agora, atualizado_em: agora }
+          { chave: "instagram_token_renovado", valor: agora, atualizado_em: agora },
+          { chave: "instagram_token_origem", valor: minhaImpressao, atualizado_em: agora }
         ], { onConflict: "chave" });
       } else if (!rn.ok) {
         avisos.push("Nao consegui renovar o token agora (" + rn.erro + "). Se o painel parar de atualizar, gere outro token.");
@@ -162,7 +172,7 @@ Deno.serve(async (req) => {
     }
 
     // 4) comentarios dos posts mais recentes que tem comentario
-    let comentariosGravados = 0, comentariosOk = true;
+    let comentariosGravados = 0, comentariosOk = true, comentariosBrutos = 0, erroGravarComentarios = "", amostraComentarios = "";
     const comComentario = alvo.filter((m) => (m.comments_count || 0) > 0).slice(0, 40);
     for (let i = 0; i < comComentario.length && comentariosOk; i += 5) {
       const lote = await Promise.all(comComentario.slice(i, i + 5).map(async (m) => {
@@ -174,18 +184,26 @@ Deno.serve(async (req) => {
           if (comentariosOk) avisos.push("Nao consegui ler os comentarios (" + r.erro + "). Sem eles, o ranking de quem mais comenta fica vazio. Gere o token de novo marcando a permissao de comentarios.");
           comentariosOk = false; break;
         }
-        const itens = (r.dados.data || []).map((c) => ({
+        const brutos = r.dados.data || [];
+        comentariosBrutos += brutos.length;
+        if (!amostraComentarios && !brutos.length) amostraComentarios = JSON.stringify(r.dados).slice(0, 220);
+        const itens = brutos.map((c) => ({
           id: c.id, post_id: post, usuario: c.username || null, texto: c.text ? String(c.text).slice(0, 1500) : null,
           curtidas: c.like_count || 0, publicado_em: c.timestamp || null
         }));
         if (itens.length) {
           const g = await sb.from("instagram_comentarios").upsert(itens, { onConflict: "id" });
-          if (!g.error) comentariosGravados += itens.length;
+          if (!g.error) comentariosGravados += itens.length; else if (!erroGravarComentarios) erroGravarComentarios = g.error.message;
         }
       }
     }
 
     // 5) numeros da conta nos ultimos 30 dias e o publico
+    if (comentariosOk && comComentario.length && comentariosGravados === 0) {
+      avisos.push("Comentarios: consultei " + comComentario.length + " posts que tem comentarios e a API devolveu " + comentariosBrutos + " comentarios" +
+        (erroGravarComentarios ? ". Erro ao gravar: " + erroGravarComentarios : "") + (amostraComentarios ? ". Resposta da API: " + amostraComentarios : "") + ".");
+    }
+
     const fim = Math.floor(Date.now() / 1000), ini = fim - 29 * 86400;
     const conta30 = {};
     for (const nome of ["reach", "profile_views", "accounts_engaged"]) {
