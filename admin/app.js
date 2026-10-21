@@ -9,6 +9,7 @@
     ["portfolio", "Portfólio", "portfolio"],
     ["marcas", "Marcas", "marcas"],
     ["prospeccao", "Prospecção", "prospeccao"],
+    ["instagram", "Instagram", "instagram"],
     ["calendario", "Calendário", "calendario"],
     ["campanhas", "Campanhas", "campanhas"],
     ["checklist", "Checklist portfólio", "checklist"],
