@@ -93,7 +93,9 @@
         }
         if (erroTexto) { aviso = { tipo: "erro", texto: erroTexto }; if (!silencioso) P.toast("Não deu para atualizar o Instagram.", true); }
         else {
-          aviso = { tipo: "ok", texto: "Atualizado: " + dados.posts + " posts, " + dados.comentarios + " comentários" + (dados.postsComNumeros ? ", números de " + dados.postsComNumeros + " posts" : "") + ".", extras: dados.avisos || [] };
+          /* o aviso de "0 comentários antigos" é esperado (a Meta não entrega o histórico), então não vale mostrar */
+          const extras = (dados.avisos || []).filter((e) => e.indexOf("Comentarios: consultei") !== 0);
+          if (extras.length && !silencioso) aviso = { tipo: "ok", texto: "Atualizado, com um aviso:", extras: extras };
           if (!silencioso) P.toast("Instagram atualizado");
         }
         await carregar();
@@ -232,9 +234,20 @@
       }
       desenhar();
 
-      /* se a última busca tem mais de 12 horas, atualiza sozinho ao abrir a aba */
+      /* atualiza sozinho: ao abrir a aba (se a última busca tem mais de 1 hora) e a cada 30 minutos enquanto ela estiver aberta */
       const u = ultima();
-      if (posts.length && u && Date.now() - new Date(u).getTime() > 12 * 3600 * 1000) atualizar(true);
+      if (posts.length && u && Date.now() - new Date(u).getTime() > 3600 * 1000) atualizar(true);
+
+      const relogio = setInterval(async () => {
+        if (!document.body.contains(raiz)) { clearInterval(relogio); return; }
+        if (document.hidden || atualizando) return;
+        const u2 = ultima();
+        if (!u2 || Date.now() - new Date(u2).getTime() > 29 * 60 * 1000) { atualizar(true); return; }
+        /* entre uma busca e outra, só confere se chegou comentário novo (o Instagram avisa na hora) */
+        const antes = comentarios.length;
+        await carregar();
+        if (comentarios.length !== antes && document.body.contains(raiz)) desenhar();
+      }, 3 * 60 * 1000);
     }
   };
 })();
