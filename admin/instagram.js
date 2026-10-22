@@ -9,13 +9,20 @@
   "use strict";
   const P = window.Painel, h = P.h;
 
-  const PERIODOS = [[7, "Últimos 7 dias"], [30, "Últimos 30 dias"], [90, "Últimos 90 dias"], [365, "Último ano"]];
-  const ORDENS = [["interacoes", "Engajamento (curtidas, comentários, salvos e envios)"], ["alcance", "Alcance"], ["visualizacoes", "Visualizações"],
-    ["curtidas", "Curtidas"], ["comentarios", "Comentários"], ["compartilhamentos", "Compartilhamentos"], ["salvos", "Salvamentos"]];
+  const PERIODOS = [[7, "7 dias"], [30, "30 dias"], [90, "90 dias"], [365, "1 ano"]];
+  const ORDENS = [["interacoes", "Melhores"], ["curtidas", "Mais curtidos"], ["comentarios", "Mais comentados"], ["salvos", "Mais salvos"], ["visualizacoes", "Mais vistos"]];
   const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
   const FAIXAS = ["Madrugada (0h às 6h)", "Manhã (6h às 12h)", "Tarde (12h às 18h)", "Noite (18h às 24h)"];
 
   const dataHora = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+  const haQuanto = (iso) => {
+    const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    if (!iso || isNaN(min)) return "";
+    if (min < 2) return "agora";
+    if (min < 60) return "há " + min + " min";
+    if (min < 1440) return "há " + Math.round(min / 60) + " h";
+    return "há " + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? " dia" : " dias");
+  };
   const soData = (iso) => { try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch (e) { return ""; } };
   const soma = (lista, f) => lista.reduce((s, x) => s + (Number(f(x)) || 0), 0);
   const media = (lista, f) => (lista.length ? soma(lista, f) / lista.length : 0);
@@ -38,7 +45,7 @@
         h("div", { class: "fio" }, h("i", { estilo: { width: Math.round((n / maior) * 100) + "%" } })))));
   }
   function metrica(rotulo, valor, sub) {
-    return h("div", { class: "metrica" }, h("div", { class: "rot", text: rotulo }), h("div", { class: "num", text: valor, title: valor }), sub ? h("div", { class: "sub", text: sub }) : null);
+    return h("div", { class: "metrica" }, h("div", { class: "rot", text: rotulo }), h("div", { class: "num" + (String(valor).charAt(0) === "@" ? " nome" : ""), text: valor, title: valor }), sub ? h("div", { class: "sub", text: sub }) : null);
   }
   const cartao = (titulo, corpo) => h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: titulo })), h("div", { class: "corpo" }, corpo));
   const vazio = (t) => h("div", { class: "vazio", text: t });
@@ -106,16 +113,25 @@
       }
 
       function desenhar() {
-        const seletor = h("select", { class: "seletor-periodo", id: "seletorIg", style: "max-width:240px", "aria-label": "Período" }, P.opcoes(PERIODOS.map(([v, t]) => [String(v), t]), String(periodo)));
-        seletor.addEventListener("change", () => {
-          periodo = parseInt(seletor.value, 10);
-          try { localStorage.setItem("instagram_periodo", String(periodo)); } catch (e) { /* sem armazenamento */ }
-          desenhar(); const n = raiz.querySelector("#seletorIg"); if (n) n.focus();
-        });
-        const botao = h("button", { type: "button", class: "btn p", disabled: atualizando, onclick: () => atualizar(false) }, atualizando ? "Buscando no Instagram..." : "Atualizar agora");
-        const topo = h("div", { class: "ferramentas", style: "margin-bottom:12px" },
-          h("label", { class: "fraco", for: "seletorIg", text: "Período:" }), seletor, h("span", { class: "espaco" }),
-          posts.length ? h("span", { class: "fraco", text: "Atualizado em " + dataHora(ultima()) }) : null, botao);
+        const usuarioNome = (dias[0] && dias[0].usuario) || "";
+        const botao = h("button", { type: "button", class: "ig-atualizar", disabled: atualizando, onclick: () => atualizar(false) }, atualizando ? "Buscando..." : "\u21bb Atualizar");
+        const chipsPeriodo = h("div", { class: "ig-chips", role: "group", "aria-label": "Período" }, PERIODOS.map(([v, rotulo]) =>
+          h("button", { type: "button", class: "ig-chip", "aria-pressed": v === periodo ? "true" : "false", onclick: () => {
+            periodo = v;
+            try { localStorage.setItem("instagram_periodo", String(periodo)); } catch (e) { /* sem armazenamento */ }
+            desenhar();
+          }, text: rotulo })));
+        const topo = h("header", { class: "ig-topo" },
+          h("div", { class: "ig-topo-linha" },
+            h("div", { class: "ig-logo" }, P.ic("instagram")),
+            h("div", { class: "ig-titulos" },
+              h("h2", { text: "Instagram" }),
+              h("p", { text: (usuarioNome ? "@" + usuarioNome + " \u00b7 " : "") + "o que está no ar e o que rendeu" })),
+            h("div", { class: "ig-pilulas" },
+              posts.length ? h("span", { class: "ig-pilula" }, h("i", { class: "ig-ponto" }), "Atualizado " + haQuanto(ultima())) : null,
+              posts.length ? h("span", { class: "ig-pilula" }, P.numero(posts.length) + " posts lidos") : null)),
+          h("div", { class: "ig-topo-abas" }, h("span", { class: "ig-aba-ativa", text: "Análises" }),
+            ultimoAviso ? h("span", { class: "ig-aba-info", title: ultimoAviso.valor, text: "Comentários em tempo real: último aviso " + haQuanto(ultimoAviso.atualizado_em) }) : h("span", { class: "ig-aba-info", text: "Comentários em tempo real: ainda sem avisos" })));
 
         const caixaAviso = aviso ? h("div", { class: "aviso-pagina" + (aviso.tipo === "erro" ? " erro" : ""), role: aviso.tipo === "erro" ? "alert" : "status" },
           h("b", { text: aviso.tipo === "erro" ? "Não consegui buscar os dados do Instagram" : aviso.texto }),
@@ -123,15 +139,13 @@
           (aviso.extras || []).map((e) => h("p", { text: e }))) : null;
 
         P.limpar(raiz);
-        raiz.append(h("p", { class: "dica", style: "margin-bottom:12px", text: "Dados do seu Instagram pela API oficial. O Instagram informa quantas curtidas, envios e salvamentos cada post teve, mas não quem curtiu, enviou ou salvou. Por isso o ranking de pessoas usa os comentários." }), topo);
-        if (caixaAviso) raiz.append(caixaAviso);
-        raiz.append(h("p", { class: "fraco", style: "margin:0 0 12px;font-size:.85rem", text: ultimoAviso
-          ? "Último aviso de comentário vindo do Instagram: " + dataHora(ultimoAviso.atualizado_em) + ". " + ultimoAviso.valor
-          : "Ainda nenhum aviso de comentário novo chegou do Instagram." }));
-
+        const tela = h("div", { class: "ig-tela" });
+        raiz.append(tela);
+        tela.append(topo, h("div", { class: "ig-barra" }, chipsPeriodo, botao));
+        if (caixaAviso) tela.append(caixaAviso);
         if (!tabelasOk) return;
         if (!posts.length) {
-          raiz.append(h("div", { class: "vazio" },
+          tela.append(h("div", { class: "vazio" },
             h("b", { text: atualizando ? "Buscando os seus posts..." : "Ainda não busquei nada do seu Instagram" }),
             h("p", { text: "Clique em \"Atualizar agora\" para trazer os seus posts, as curtidas, os comentários e os números do perfil. A primeira busca leva alguns segundos." })));
           return;
@@ -160,7 +174,7 @@
         const ranking = Object.entries(porPessoa).sort((a, b) => b[1].n - a[1].n || b[1].posts.size - a[1].posts.size);
         const campea = ranking[0];
 
-        raiz.append(h("div", { class: "faixa-metricas" },
+        tela.append(h("div", { class: "ig-kpis" },
           metrica("Seguidores", diaAtual && diaAtual.seguidores != null ? P.numero(diaAtual.seguidores) : "-", crescimento == null ? "" : (crescimento >= 0 ? "+" : "") + P.numero(crescimento) + " no período"),
           metrica("Posts no período", P.numero(doPeriodo.length)),
           metrica("Engajamento médio por post", doPeriodo.length ? P.numero(arredonda(media(doPeriodo, interacoesDe))) : "-", "curtidas, comentários, salvos e envios"),
@@ -168,27 +182,58 @@
           metrica("Quem mais engaja", campea ? "@" + campea[0] : "-", campea ? campea[1].n + (campea[1].n === 1 ? " comentário" : " comentários") : (semNome ? "o Instagram não informou o nome de quem comentou" : "ninguém comentou no período"))));
 
         if (!doPeriodo.length) {
-          raiz.append(h("div", { class: "vazio", text: "Você não publicou nada nesse período. Escolha um período maior para ver os posts e os números." }));
+          tela.append(h("div", { class: "vazio", text: "Você não publicou nada nesse período. Escolha um período maior para ver os posts e os números." }));
         } else {
-          /* --- melhores posts --- */
-          const seletorOrdem = h("select", { "aria-label": "Ordenar os melhores posts por", style: "max-width:320px" }, P.opcoes(ORDENS, ordem));
-          seletorOrdem.addEventListener("change", () => { ordem = seletorOrdem.value; try { localStorage.setItem("instagram_ordem", ordem); } catch (e) { /* sem armazenamento */ } desenhar(); });
-          const valorOrdem = (p) => (ordem === "interacoes" ? interacoesDe(p) : (p[ordem] == null ? -1 : p[ordem]));
-          const melhores = doPeriodo.slice().sort((a, b) => valorOrdem(b) - valorOrdem(a)).slice(0, 5);
-          const num = (v) => (v == null ? "-" : P.numero(v));
-          const listaMelhores = h("div", null, melhores.map((p, i) => {
-            const img = p.miniatura ? h("img", { src: p.miniatura, alt: "", loading: "lazy", class: "ig-miniatura" }) : h("div", { class: "ig-miniatura" });
-            if (p.miniatura) img.addEventListener("error", () => { img.style.visibility = "hidden"; });
-            return h("div", { class: "ig-post" }, h("span", { class: "ig-pos", text: String(i + 1) }), img,
-              h("div", { class: "ig-corpo" },
-                h("div", { class: "ig-linha1" }, h("b", { text: formatoDe(p) }), h("span", { class: "fraco", text: " · " + soData(p.publicado_em) })),
-                h("p", { class: "ig-legenda", text: (p.legenda || "(sem legenda)").replace(/\s+/g, " ").slice(0, 110) }),
-                h("p", { class: "ig-nums", text: "Curtidas " + num(p.curtidas) + "  ·  Comentários " + num(p.comentarios) + "  ·  Salvos " + num(p.salvos) + "  ·  Envios " + num(p.compartilhamentos) + "  ·  Alcance " + num(p.alcance) + (p.visualizacoes != null ? "  ·  Visualizações " + num(p.visualizacoes) : "") }),
-                p.permalink ? h("a", { href: p.permalink, target: "_blank", rel: "noopener noreferrer", text: "Abrir no Instagram" }) : null));
+          /* --- gráfico: engajamento de cada post, do mais antigo ao mais novo --- */
+          const cronologia = doPeriodo.slice().sort((a, b) => new Date(a.publicado_em) - new Date(b.publicado_em));
+          const maiorBarra = Math.max(1, ...cronologia.map(interacoesDe));
+          const barras = h("div", { class: "ig-grafico" }, cronologia.map((p) => {
+            const v = interacoesDe(p);
+            const col = h("a", { class: "ig-col", href: p.permalink || "#", target: "_blank", rel: "noopener noreferrer", title: soData(p.publicado_em) + " \u00b7 " + formatoDe(p) + " \u00b7 " + P.numero(v) + " interações" },
+              h("i", { style: "height:" + Math.max(3, Math.round((v / maiorBarra) * 100)) + "%" }));
+            if (!p.permalink) col.removeAttribute("href");
+            return col;
           }));
-          raiz.append(h("div", { class: "secao" },
-            h("section", { class: "cartao-bloco" }, h("div", { class: "bloco-cab" }, h("h2", { text: "Melhores posts" }), seletorOrdem), h("div", { class: "corpo" }, listaMelhores))));
+          tela.append(h("div", { class: "secao" }, h("section", { class: "ig-cartao" },
+            h("h3", { class: "ig-cartao-titulo" }, "Engajamento por post ", h("span", { class: "ig-dica-peq", text: "(passe o mouse para ver os números, clique para abrir)" })),
+            barras,
+            h("div", { class: "ig-eixo" }, h("span", { text: soData(cronologia[0].publicado_em) }), h("span", { text: soData(cronologia[cronologia.length - 1].publicado_em) })))));
 
+          /* --- melhores posts: carrossel de cartões --- */
+          const chipsOrdem = h("div", { class: "ig-chips", role: "group", "aria-label": "Ordenar os posts por" }, ORDENS.map(([v, rotulo]) =>
+            h("button", { type: "button", class: "ig-chip", "aria-pressed": v === ordem ? "true" : "false", onclick: () => {
+              ordem = v;
+              try { localStorage.setItem("instagram_ordem", ordem); } catch (e) { /* sem armazenamento */ }
+              desenhar();
+            }, text: rotulo })));
+          const valorOrdem = (p) => (ordem === "interacoes" ? interacoesDe(p) : (p[ordem] == null ? -1 : p[ordem]));
+          const melhores = doPeriodo.slice().sort((a, b) => valorOrdem(b) - valorOrdem(a)).slice(0, 10);
+          const mediaGeral = media(doPeriodo, interacoesDe);
+          const num = (v) => (v == null ? "-" : P.numero(v));
+          const cartoes = melhores.map((p, i) => {
+            const img = p.miniatura ? h("img", { src: p.miniatura, alt: "", loading: "lazy" }) : null;
+            if (img) img.addEventListener("error", () => { img.style.visibility = "hidden"; });
+            const diff = mediaGeral > 0 ? Math.round((interacoesDe(p) / mediaGeral - 1) * 100) : null;
+            const etiqueta = diff == null ? "" : (diff >= 0 ? "+" : "") + diff + "% vs sua média";
+            const corpoCartao = [
+              h("div", { class: "ig-capa" }, img, h("span", { class: "ig-pos", text: String(i + 1) }), h("span", { class: "ig-formato", text: formatoDe(p) })),
+              h("div", { class: "ig-info" },
+                h("div", { class: "ig-vs" + (diff != null && diff < 0 ? " abaixo" : ""), text: etiqueta || soData(p.publicado_em) }),
+                h("div", { class: "ig-mini", title: (p.legenda || "").replace(/\s+/g, " ").slice(0, 200), text: soData(p.publicado_em) + " \u00b7 " + (p.legenda || "(sem legenda)").replace(/\s+/g, " ").slice(0, 38) }),
+                h("div", { class: "ig-nums2" },
+                  h("span", { title: "Curtidas", text: "\u2665 " + num(p.curtidas) }),
+                  h("span", { title: "Comentários", text: "\ud83d\udcac " + num(p.comentarios) }),
+                  h("span", { title: "Salvos", text: "\ud83d\udd16 " + num(p.salvos) }),
+                  h("span", { title: "Visualizações", text: "\ud83d\udc40 " + num(p.visualizacoes) })))
+            ];
+            return p.permalink
+              ? h("a", { class: "ig-cartao-post", href: p.permalink, target: "_blank", rel: "noopener noreferrer" }, corpoCartao)
+              : h("div", { class: "ig-cartao-post" }, corpoCartao);
+          });
+          tela.append(h("div", { class: "secao" },
+            h("div", { class: "ig-secao-cab" }, h("h3", { class: "ig-cartao-titulo", text: "Melhores posts" }), chipsOrdem),
+            h("p", { class: "ig-dica-peq", text: "Média de engajamento no período: " + P.numero(arredonda(mediaGeral)) + " por post (curtidas, comentários, salvos e envios). Deslize para o lado para ver mais." }),
+            h("div", { class: "ig-carrossel" }, cartoes)));
           /* --- tipos de conteúdo e quando postar --- */
           const grupos = {};
           doPeriodo.forEach((p) => { const f = formatoDe(p); (grupos[f] || (grupos[f] = [])).push(p); });
@@ -202,7 +247,7 @@
               h("p", { class: "sub-rotulo", text: "Engajamento médio por dia da semana" }), linhasComBarra(DIAS.map((d, i) => [d, mediaDe(semana[i]), semana[i].length]), (n, q) => P.numero(n) + " (" + q + (q === 1 ? " post)" : " posts)")),
               h("p", { class: "sub-rotulo", text: "Engajamento médio por horário" }), linhasComBarra(FAIXAS.map((f, i) => [f, mediaDe(horario[i]), horario[i].length]), (n, q) => P.numero(n) + " (" + q + (q === 1 ? " post)" : " posts)")),
               h("p", { class: "dica", text: "Considera todos os posts guardados (até 60 mais recentes por busca)." }));
-          raiz.append(h("div", { class: "secao duas-colunas" },
+          tela.append(h("div", { class: "secao duas-colunas" },
             cartao("Que tipo de conteúdo funciona melhor", tipos.length ? h("div", null, linhasComBarra(tipos, (n) => P.numero(n) + " por post"), h("p", { class: "dica", text: "Engajamento médio de cada formato nos posts do período." })) : vazio("Sem posts no período.")),
             cartao("Melhores dias e horários para postar", quando)));
         }
@@ -246,13 +291,15 @@
               h("a", { class: "ig-nome", href: "https://www.instagram.com/" + encodeURIComponent(nome) + "/", target: "_blank", rel: "noopener noreferrer", text: "@" + nome }),
               h("div", { class: "ig-det", text: x.n + (x.n === 1 ? " comentário" : " comentários") + " em " + x.posts.size + (x.posts.size === 1 ? " post" : " posts") }));
           };
-          raiz.append(h("div", { class: "secao" }, cartao("Pódio: quem mais comenta no período", h("div", { class: "ig-podio" }, ranking.slice(0, 3).map(lugar)))));
+          tela.append(h("div", { class: "secao" }, cartao("Pódio: quem mais comenta no período", h("div", { class: "ig-podio" }, ranking.slice(0, 3).map(lugar)))));
         }
 
-        raiz.append(h("div", { class: "secao tres-colunas" },
+        tela.append(h("div", { class: "secao tres-colunas" },
           cartao("Quem mais comenta", quemComenta),
           cartao("Como o público está aderindo", h("div", null, contaNums, h("p", { class: "sub-rotulo", text: "Seguidores, dia a dia" }), evolucao)),
           cartao("Quem é o seu público", publico)));
+
+        tela.append(h("p", { class: "ig-rodape", text: "Dados pela API oficial do Instagram. Ela informa quantas curtidas, envios e salvamentos cada post teve, mas não quem curtiu, enviou ou salvou, por isso o ranking de pessoas usa os comentários. Só aparecem posts publicados por você." }));
       }
       desenhar();
 

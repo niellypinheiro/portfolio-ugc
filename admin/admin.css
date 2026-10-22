@@ -519,3 +519,68 @@ section.prosp-bloco{margin-top:18px}
   .ig-lugar.l2{order:2}
   .ig-lugar.l3{order:3}
 }
+/* ===== Aba Instagram: visual de painel (cabeçalho marrom, chips, cartões arredondados) ===== */
+.ig-tela{--ig-marrom:#7a4a2e;--ig-marrom-esc:#4a2a18;--ig-creme:#fbf4ea;max-width:1180px}
+.ig-topo{border-radius:20px;padding:18px 20px 14px;color:#fff;background:linear-gradient(135deg,#5a331f 0%,#8a5535 100%);box-shadow:0 10px 26px rgba(74,42,24,.28)}
+.ig-topo-linha{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ig-logo{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.16)}
+.ig-logo svg{width:24px;height:24px}
+.ig-titulos{flex:1;min-width:180px}
+.ig-titulos h2{margin:0;font-size:21px;font-weight:700;color:#fff;letter-spacing:.01em}
+.ig-titulos p{margin:2px 0 0;font-size:13px;color:rgba(255,255,255,.78)}
+.ig-pilulas{display:flex;flex-wrap:wrap;gap:8px}
+.ig-pilula{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;background:#fff;color:#4a2a18;font-size:12.5px;font-weight:600}
+.ig-ponto{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2fb457}
+.ig-topo-abas{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px}
+.ig-aba-ativa{padding:7px 18px;border-radius:999px;background:#fff;color:#4a2a18;font-size:13px;font-weight:700}
+.ig-aba-info{font-size:12px;color:rgba(255,255,255,.72)}
+.ig-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 4px}
+.ig-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ig-chip{padding:7px 16px;border:1px solid var(--linha);border-radius:999px;background:#fff;color:var(--tinta-2);font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.ig-chip:hover{border-color:var(--ig-marrom)}
+.ig-chip[aria-pressed="true"]{background:var(--ig-marrom);border-color:var(--ig-marrom);color:#fff;font-weight:600}
+.ig-atualizar{padding:8px 16px;border:1px solid var(--linha);border-radius:12px;background:#fff;color:var(--tinta);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.ig-atualizar:hover{border-color:var(--ig-marrom)}
+.ig-atualizar:disabled{opacity:.6;cursor:default}
+
+.ig-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:14px}
+.ig-kpis .metrica{margin:0;padding:14px 16px;border:1px solid rgba(138,90,51,.14);border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(74,42,24,.06)}
+.ig-kpis .metrica .rot{font-size:11px;letter-spacing:.06em}
+.ig-kpis .metrica .num{margin-top:4px;font-size:26px;font-weight:700;color:var(--ig-marrom)}
+.ig-kpis .metrica .sub{margin-top:2px;font-size:11.5px;color:var(--tinta-3)}
+
+.ig-cartao{padding:16px 18px;border-radius:16px;background:#fff;border:1px solid rgba(138,90,51,.14);box-shadow:0 2px 10px rgba(74,42,24,.06)}
+.ig-cartao-titulo{margin:0 0 6px;font-size:16px;font-weight:700;color:var(--tinta)}
+.ig-dica-peq{margin:0 0 10px;font-size:12px;font-weight:400;color:var(--tinta-3)}
+.ig-grafico{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:6px}
+.ig-col{flex:1;min-width:4px;max-width:36px;height:100%;display:flex;align-items:flex-end;border-radius:5px 5px 0 0}
+.ig-col i{display:block;width:100%;border-radius:5px 5px 0 0;background:var(--ig-marrom);opacity:.88}
+.ig-col:hover i{opacity:1;background:var(--ig-marrom-esc)}
+.ig-eixo{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--tinta-3)}
+
+.ig-secao-cab{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px}
+.ig-secao-cab .ig-cartao-titulo{margin:0}
+.ig-carrossel{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x proximity}
+.ig-cartao-post{flex:none;width:158px;display:block;scroll-snap-align:start;border-radius:14px;background:#fff;border:1px solid rgba(138,90,51,.14);box-shadow:0 2px 10px rgba(74,42,24,.07);overflow:hidden;color:inherit;text-decoration:none}
+a.ig-cartao-post:hover{box-shadow:0 6px 18px rgba(74,42,24,.18);transform:translateY(-1px)}
+.ig-capa{position:relative;width:100%;aspect-ratio:3/4;background:#e9e3d6;overflow:hidden}
+.ig-capa img{width:100%;height:100%;object-fit:cover;display:block}
+.ig-capa .ig-pos{position:absolute;left:8px;top:8px;margin:0;width:24px;height:24px;background:var(--ouro,#c9a227);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.ig-formato{position:absolute;right:8px;top:8px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-weight:600}
+.ig-info{padding:9px 10px 11px}
+.ig-vs{font-size:12px;font-weight:700;color:#1f8a4c}
+.ig-vs.abaixo{color:#b3502f}
+.ig-mini{margin:3px 0 6px;font-size:11px;color:var(--tinta-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ig-nums2{display:flex;flex-wrap:wrap;gap:3px 9px;font-size:11.5px;color:var(--tinta-2)}
+
+.ig-tela .secao .cartao-bloco{border-radius:16px;background:#fff;border:1px solid rgba(138,90,51,.14);box-shadow:0 2px 10px rgba(74,42,24,.06);overflow:hidden}
+.ig-tela .secao .bloco-cab{border-bottom:0;padding-bottom:4px}
+.ig-tela .secao .bloco-cab h2{font-size:16px;font-weight:700}
+.ig-tela .origens .fio i{background:var(--ig-marrom)}
+.ig-rodape{margin:18px 2px 6px;font-size:11.5px;color:var(--tinta-3)}
+@media (max-width:560px){
+  .ig-topo{padding:14px}
+  .ig-kpis .metrica .num{font-size:22px}
+  .ig-cartao-post{width:140px}
+}
+.ig-kpis .metrica .num.nome{font-size:19px;line-height:1.4;overflow-wrap:normal;word-break:break-all}
