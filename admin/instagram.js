@@ -149,8 +149,11 @@
         const crescimento = diaAtual && antigo && antigo.dia !== diaAtual.dia && antigo.seguidores != null && diaAtual.seguidores != null ? diaAtual.seguidores - antigo.seguidores : null;
         const dentro = (c) => c.publicado_em && new Date(c.publicado_em) >= inicio && (!meuUsuario || String(c.usuario || "").toLowerCase() !== meuUsuario);
         const porPessoa = {};
+        let semNome = 0;
         comentarios.filter(dentro).forEach((c) => {
-          const u = c.usuario || "(sem nome)";
+          /* o Instagram nem sempre informa o nome de quem comentou: esses não entram no ranking de pessoas */
+          if (!c.usuario) { semNome++; return; }
+          const u = c.usuario;
           const x = porPessoa[u] || (porPessoa[u] = { n: 0, curtidas: 0, posts: new Set() });
           x.n++; x.curtidas += c.curtidas || 0; x.posts.add(c.post_id);
         });
@@ -162,7 +165,7 @@
           metrica("Posts no período", P.numero(doPeriodo.length)),
           metrica("Engajamento médio por post", doPeriodo.length ? P.numero(arredonda(media(doPeriodo, interacoesDe))) : "-", "curtidas, comentários, salvos e envios"),
           metrica("Taxa de engajamento", taxa == null ? "-" : arredonda(taxa) + "%", taxa == null ? "precisa do alcance dos posts" : "engajamento sobre o alcance"),
-          metrica("Quem mais engaja", campea ? "@" + campea[0] : "-", campea ? campea[1].n + (campea[1].n === 1 ? " comentário" : " comentários") : "ninguém comentou no período")));
+          metrica("Quem mais engaja", campea ? "@" + campea[0] : "-", campea ? campea[1].n + (campea[1].n === 1 ? " comentário" : " comentários") : (semNome ? "o Instagram não informou o nome de quem comentou" : "ninguém comentou no período"))));
 
         if (!doPeriodo.length) {
           raiz.append(h("div", { class: "vazio", text: "Você não publicou nada nesse período. Escolha um período maior para ver os posts e os números." }));
@@ -206,9 +209,11 @@
 
         /* --- pessoas e público --- */
         const rankingTela = ranking.slice(0, 10).map(([u, x]) => ["@" + u, x.n, x.posts.size]);
+        const notaSemNome = semNome ? " " + P.numero(semNome) + (semNome === 1 ? " comentário veio" : " comentários vieram") + " sem o nome de quem comentou (o Instagram não informa para todas as contas) e " + (semNome === 1 ? "não entra" : "não entram") + " no ranking." : "";
         const quemComenta = rankingTela.length
           ? h("div", null, linhasComBarra(rankingTela, (n, q) => n + (n === 1 ? " comentário" : " comentários") + " em " + q + (q === 1 ? " post" : " posts")),
-              h("p", { class: "dica", text: "Só aparecem comentários dos posts mais recentes buscados. Respostas suas não entram na conta." }))
+              h("p", { class: "dica", text: "Só aparecem comentários dos posts mais recentes buscados. Respostas suas não entram na conta." + notaSemNome }))
+          : semNome ? vazio("Os comentários chegaram, mas sem o nome de quem comentou (o Instagram não informa para todas as contas).")
           : vazio(comentarios.length ? "Ninguém comentou nos posts desse período." : "Ainda não há comentários guardados. Se já tem comentários no Instagram, clique em Atualizar agora e confira se o aviso fala de permissão de comentários.");
 
         const demo = diaAtual && diaAtual.demografia ? diaAtual.demografia : null;
