@@ -20,27 +20,61 @@
   }
   const casarDepto = (nome, todos) => acharDepto(nome, todos) || String(nome || "").trim();
 
-  /* ---------- foto: reduz antes de subir (fica leve e rápida no catálogo) ---------- */
-  function reduzirImagem(arquivo, max) {
+  /* ---------- foto: padroniza antes de subir ----------
+     Toda foto vira um quadrado branco do mesmo tamanho, com o produto no centro. Quando o fundo é branco, as bordas vazias são aparadas
+     primeiro, para o produto ocupar o mesmo espaço em todas as fotos. Fotos com fundo colorido são só centralizadas, inteiras. */
+  const LADO_FOTO = 1000;
+  function padronizarParaBlob(origem, sw, sh) {
+    return new Promise((ok, erro) => {
+      try {
+        const esc = Math.min(1, 700 / Math.max(sw, sh));
+        const w = Math.max(1, Math.round(sw * esc)), hh = Math.max(1, Math.round(sh * esc));
+        const t = document.createElement("canvas"); t.width = w; t.height = hh;
+        const tx = t.getContext("2d", { willReadFrequently: true });
+        tx.fillStyle = "#ffffff"; tx.fillRect(0, 0, w, hh); tx.drawImage(origem, 0, 0, w, hh);
+        let caixa = { x: 0, y: 0, w: sw, h: sh }, aparou = false;
+        try {
+          const d = tx.getImageData(0, 0, w, hh).data;
+          const naoBranco = (x, y) => { const i = (y * w + x) * 4; return 255 - Math.min(d[i], d[i + 1], d[i + 2]) > 18; };
+          if (!naoBranco(0, 0) && !naoBranco(w - 1, 0) && !naoBranco(0, hh - 1) && !naoBranco(w - 1, hh - 1)) {
+            const col = new Array(w).fill(0), lin = new Array(hh).fill(0);
+            for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (naoBranco(x, y)) { col[x]++; lin[y]++; }
+            const prim = (a) => a.findIndex((n) => n >= 3), ult = (a) => { for (let i = a.length - 1; i >= 0; i--) if (a[i] >= 3) return i; return -1; };
+            const x0 = prim(col), x1 = ult(col), y0 = prim(lin), y1 = ult(lin);
+            if (x0 >= 0 && y0 >= 0 && x1 > x0 && y1 > y0 && (x1 - x0) * (y1 - y0) > w * hh * 0.02) {
+              const folga = Math.round(Math.max(w, hh) * 0.01);
+              const ax = Math.max(0, x0 - folga), ay = Math.max(0, y0 - folga), bx = Math.min(w, x1 + 1 + folga), by = Math.min(hh, y1 + 1 + folga);
+              caixa = { x: ax / esc, y: ay / esc, w: (bx - ax) / esc, h: (by - ay) / esc }; aparou = true;
+            }
+          }
+        } catch (e) { /* usa a imagem inteira */ }
+        const util = LADO_FOTO * (1 - 2 * (aparou ? 0.07 : 0.03));
+        const escala = Math.min(util / caixa.w, util / caixa.h, 2.5);
+        const dw = caixa.w * escala, dh = caixa.h * escala;
+        const c = document.createElement("canvas"); c.width = LADO_FOTO; c.height = LADO_FOTO;
+        const x = c.getContext("2d");
+        x.fillStyle = "#ffffff"; x.fillRect(0, 0, LADO_FOTO, LADO_FOTO);
+        x.imageSmoothingQuality = "high";
+        x.drawImage(origem, caixa.x, caixa.y, caixa.w, caixa.h, (LADO_FOTO - dw) / 2, (LADO_FOTO - dh) / 2, dw, dh);
+        c.toBlob((b) => (b ? ok(b) : erro(new Error("sem imagem"))), "image/jpeg", 0.9);
+      } catch (e) { erro(e); }
+    });
+  }
+  async function padronizarBlob(blob) {
+    const bmp = await createImageBitmap(blob);
+    try { return await padronizarParaBlob(bmp, bmp.width, bmp.height); }
+    finally { if (bmp.close) bmp.close(); }
+  }
+  function reduzirImagem(arquivo) {
     return new Promise((ok, erro) => {
       const url = URL.createObjectURL(arquivo);
       const img = new Image();
-      img.onload = () => {
-        const escala = Math.min(1, max / Math.max(img.width, img.height));
-        const c = document.createElement("canvas");
-        c.width = Math.max(1, Math.round(img.width * escala)); c.height = Math.max(1, Math.round(img.height * escala));
-        const x = c.getContext("2d");
-        x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
-        x.drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(url);
-        c.toBlob((b) => (b ? ok(b) : erro(new Error("sem imagem"))), "image/jpeg", 0.85);
-      };
+      img.onload = () => { URL.revokeObjectURL(url); padronizarParaBlob(img, img.width, img.height).then(ok, erro); };
       img.onerror = () => { URL.revokeObjectURL(url); erro(new Error("não abriu a imagem")); };
       img.src = url;
     });
-  }
-  async function subirFoto(arquivo) {
-    const blob = await reduzirImagem(arquivo, 1100);
+  }  async function subirFoto(arquivo) {
+    const blob = await reduzirImagem(arquivo);
     const caminho = "produtos/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".jpg";
     const r = await window.sb.storage.from(BUCKET).upload(caminho, blob, { contentType: "image/jpeg", upsert: false });
     if (r.error) throw r.error;
@@ -399,7 +433,8 @@
     ctx.drawImage(canvas, sx, sy, w, hh, 0, 0, o.width, o.height);
     return new Promise((ok) => o.toBlob((b) => ok(b), "image/jpeg", 0.85));
   }
-  async function enviarBlob(blob) {
+  async function enviarBlob(blob, jaPadronizada) {
+    if (!jaPadronizada) { try { blob = await padronizarBlob(blob); } catch (e) { /* sobe a foto como está */ } }
     const caminho = "produtos/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".jpg";
     const r = await window.sb.storage.from(BUCKET).upload(caminho, blob, { contentType: "image/jpeg", upsert: false });
     if (r.error) throw r.error;
@@ -612,6 +647,41 @@
     input.click();
   }
 
+  /* ---------- padronizar as fotos que já estão no catálogo ---------- */
+  function padronizarTodasAsFotos(todos, aoSalvar) {
+    const comFoto = todos.filter((x) => x.imagem && caminhoDaFoto(x.imagem));
+    if (!comFoto.length) { P.toast("Não há fotos guardadas no catálogo para padronizar.", true); return; }
+    let rodando = false, cancelar = false;
+    const status = h("p", { class: "dica", role: "status" });
+    const corpo = h("div", null,
+      h("p", null, "Vou deixar as ", h("b", { text: String(comFoto.length) }), " fotos do catálogo todas iguais: quadradas, do mesmo tamanho, com fundo branco e o produto no centro, ocupando o mesmo espaço."),
+      h("p", null, "A foto nova substitui a antiga. Leva cerca de 1 a 2 segundos por foto, então deixe esta janela aberta até terminar. Pode rodar de novo quando quiser."),
+      status);
+    P.modal({ titulo: "Padronizar as fotos", corpo, aoFechar: () => { cancelar = true; }, botoes: [{ texto: "Fechar" }, { texto: "Padronizar agora", classe: "p", aoClicar: async () => {
+      if (rodando) return false;
+      rodando = true; cancelar = false;
+      let feitas = 0, falhas = 0;
+      for (let i = 0; i < comFoto.length && !cancelar; i++) {
+        const x = comFoto[i];
+        status.textContent = "Padronizando a foto " + (i + 1) + " de " + comFoto.length + " (" + x.nome + ")...";
+        try {
+          const resp = await fetch(x.imagem, { cache: "no-store" });
+          if (!resp.ok) throw new Error("não baixou");
+          const novo = await padronizarBlob(await resp.blob());
+          const url = await enviarBlob(novo, true);
+          const up = await P.gravar(() => window.sb.from("catalogo_produtos").update({ imagem: url }).eq("id", x.id));
+          if (!up.ok) { await apagarFoto(url); falhas++; continue; }
+          await apagarFoto(x.imagem);
+          x.imagem = url; feitas++;
+        } catch (e) { falhas++; }
+      }
+      rodando = false;
+      status.textContent = cancelar ? "Parei no meio. " + feitas + " fotos já ficaram padronizadas." : "Pronto: " + feitas + " fotos padronizadas" + (falhas ? " e " + falhas + " que não consegui (rode de novo para tentar outra vez)" : "") + ".";
+      P.toast(feitas + " fotos padronizadas");
+      aoSalvar();
+      return false;
+    } }] });
+  }
   /* ---------- aba CATÁLOGO ---------- */
   P.abas.catalogo = {
     async renderizar(raiz) {
@@ -675,6 +745,7 @@
           h("p", { class: "dica", style: "margin-bottom:12px", text: "Os itens marcados como \"Visível\" aparecem no catálogo público, sem preço. O cliente escolhe o que quer e envia um pré-pedido de orçamento (veja na aba Pré-pedidos)." }),
           h("div", { class: "ferramentas" },
             h("div", { class: "busca" }, P.ic("busca"), busca), filtros, h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", title: "Deixa todas as fotos do mesmo tamanho, com o produto no centro", onclick: () => padronizarTodasAsFotos(lista, recarregar) }, P.ic("subir"), "Padronizar fotos"),
             h("button", { type: "button", class: "btn", onclick: () => subirFotosEmLote(lista, recarregar) }, P.ic("subir"), "Subir várias fotos"),
             h("button", { type: "button", class: "btn", onclick: () => importarCatalogoPdf(lista, recarregar) }, P.ic("subir"), "Importar catálogo (PDF)"),
             h("button", { type: "button", class: "btn", onclick: () => importarPlanilha(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
