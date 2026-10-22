@@ -63,13 +63,15 @@
         const o = localStorage.getItem("instagram_ordem"); if (ORDENS.some((x) => x[0] === o)) ordem = o;
       } catch (e) { /* sem armazenamento: usa o padrão */ }
 
-      let posts = [], comentarios = [], dias = [], tabelasOk = true;
+      let posts = [], comentarios = [], dias = [], tabelasOk = true, ultimoAviso = null;
       async function carregar() {
-        const [rp, rc, rd] = await Promise.all([
+        const [rp, rc, rd, ra] = await Promise.all([
           lerTudo("instagram_posts", (t) => t.select("*").order("publicado_em", { ascending: false })),
           lerTudo("instagram_comentarios", (t) => t.select("*").order("publicado_em", { ascending: false })),
-          P.carregar("instagram_dias", (t) => t.select("*").order("dia", { ascending: false }).limit(400))
+          P.carregar("instagram_dias", (t) => t.select("*").order("dia", { ascending: false }).limit(400)),
+          P.carregar("configuracoes", (t) => t.select("valor,atualizado_em").eq("chave", "instagram_webhook_ultimo"))
         ]);
+        ultimoAviso = ra.ok && ra.dados.length ? ra.dados[0] : null;
         tabelasOk = rp.ok && rc.ok && rd.ok;
         posts = rp.dados; comentarios = rc.dados; dias = rd.dados;
       }
@@ -123,6 +125,9 @@
         P.limpar(raiz);
         raiz.append(h("p", { class: "dica", style: "margin-bottom:12px", text: "Dados do seu Instagram pela API oficial. O Instagram informa quantas curtidas, envios e salvamentos cada post teve, mas não quem curtiu, enviou ou salvou. Por isso o ranking de pessoas usa os comentários." }), topo);
         if (caixaAviso) raiz.append(caixaAviso);
+        raiz.append(h("p", { class: "fraco", style: "margin:0 0 12px;font-size:.85rem", text: ultimoAviso
+          ? "Último aviso de comentário vindo do Instagram: " + dataHora(ultimoAviso.atualizado_em) + ". " + ultimoAviso.valor
+          : "Ainda nenhum aviso de comentário novo chegou do Instagram." }));
 
         if (!tabelasOk) return;
         if (!posts.length) {
