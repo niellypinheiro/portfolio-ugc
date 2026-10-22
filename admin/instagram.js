@@ -237,6 +237,18 @@
           ? h("div", null, linhasComBarra([["Contas alcançadas (30 dias)", diaAtual.alcance_30d || 0], ["Visitas ao perfil (30 dias)", diaAtual.visitas_perfil_30d || 0], ["Contas que interagiram (30 dias)", diaAtual.contas_engajadas_30d || 0]], (n) => P.numero(n)))
           : null;
 
+        /* --- pódio: as 3 pessoas que mais comentam --- */
+        if (ranking.length) {
+          const lugar = (par, i) => {
+            const nome = par[0], x = par[1];
+            return h("div", { class: "ig-lugar l" + (i + 1) },
+              h("span", { class: "ig-medalha", text: (i + 1) + "º" }),
+              h("a", { class: "ig-nome", href: "https://www.instagram.com/" + encodeURIComponent(nome) + "/", target: "_blank", rel: "noopener noreferrer", text: "@" + nome }),
+              h("div", { class: "ig-det", text: x.n + (x.n === 1 ? " comentário" : " comentários") + " em " + x.posts.size + (x.posts.size === 1 ? " post" : " posts") }));
+          };
+          raiz.append(h("div", { class: "secao" }, cartao("Pódio: quem mais comenta no período", h("div", { class: "ig-podio" }, ranking.slice(0, 3).map(lugar)))));
+        }
+
         raiz.append(h("div", { class: "secao tres-colunas" },
           cartao("Quem mais comenta", quemComenta),
           cartao("Como o público está aderindo", h("div", null, contaNums, h("p", { class: "sub-rotulo", text: "Seguidores, dia a dia" }), evolucao)),
