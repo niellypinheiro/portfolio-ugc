@@ -682,6 +682,134 @@
       return false;
     } }] });
   }
+  /* ---------- criar itens direto das fotos (sem catálogo em PDF) ----------
+     O nome do arquivo costuma trazer a descrição (exemplo: "Monitor Samsung Odyssey G3 24 144Hz.jpg"). A IA lê o nome e a foto e
+     separa a marca, o modelo, o departamento e a categoria. Você confere numa tabela e o item entra no catálogo com a foto padronizada. */
+  const MARCAS_CONHECIDAS = ["Samsung", "LG", "Xiaomi", "Motorola", "Logitech", "Elgin", "Amvox", "Unbox", "Eugin", "Philips", "Dell", "Lenovo", "Acer", "Asus", "HP", "AOC", "Positivo", "Multilaser", "JBL", "Intelbras", "TCL", "Hisense"];
+  const SISTEMA_FOTO = "Você cadastra produtos no catálogo digital de uma loja de tecnologia a partir da FOTO do produto e do NOME DO ARQUIVO. " +
+    "O nome do arquivo costuma trazer a descrição, a marca e o modelo: use-o como fonte principal e confira com o que aparece na foto (logotipo, caixa, etiqueta). " +
+    "Responda com: nome (o tipo do produto e o modelo, SEM repetir a marca, exemplo: Monitor Odyssey G3 24 polegadas 144Hz), marca (só o nome da marca, exemplo: Samsung, LG, Xiaomi), " +
+    "departamento, categoria (curta, no plural, exemplo: Monitores) e descricao (1 ou 2 frases curtas só com o que está no nome do arquivo ou visível na foto; se não houver nada, deixe vazia). " +
+    "Nunca invente especificações, medidas, preços ou modelos que não apareçam. Se não souber a marca, deixe vazia. " + REGRA_DEPTO +
+    "Escreva em português do Brasil, sem travessão e sem markdown. Responda SOMENTE com JSON válido neste formato: " +
+    "{\"nome\":\"\",\"marca\":\"\",\"departamento\":\"\",\"categoria\":\"\",\"descricao\":\"\"}.";
+  const nomeLimpoDoArquivo = (n) => String(n || "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  function marcaNoTexto(txt, marcasDoCatalogo) {
+    const s = " " + P.semAcento(txt) + " ";
+    const lista = unicos(MARCAS_CONHECIDAS.concat(marcasDoCatalogo));
+    return lista.find((m) => s.indexOf(" " + P.semAcento(m) + " ") !== -1) || "";
+  }
+  async function fotoParaIA(arquivo) {
+    const bmp = await createImageBitmap(arquivo);
+    try {
+      const esc = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(bmp.width * esc)); c.height = Math.max(1, Math.round(bmp.height * esc));
+      const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height);
+      return c.toDataURL("image/jpeg", 0.8).split(",")[1];
+    } finally { if (bmp.close) bmp.close(); }
+  }
+  async function lerFotoComIA(chave, arquivo, marcas, deptos) {
+    const dados = await fotoParaIA(arquivo);
+    const nomeArq = nomeLimpoDoArquivo(arquivo.name);
+    let motivo = "";
+    for (const pausa of [0, 6000, 15000]) {
+      if (pausa) await esperar(pausa);
+      for (const modelo of await modelosGoogle(chave)) {
+        try {
+          const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + modelo + ":generateContent", { method: "POST",
+            headers: { "x-goog-api-key": chave, "content-type": "application/json" },
+            body: JSON.stringify({ systemInstruction: { parts: [{ text: SISTEMA_FOTO }] },
+              contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: dados } }, { text: "Nome do arquivo: " + (nomeArq || "(sem nome útil)") + ". Marcas que já existem no catálogo: " + (marcas.length ? marcas.join(", ") : "nenhuma") + ". " + deptos }] }],
+              generationConfig: { responseMimeType: "application/json", maxOutputTokens: 4096 } }) });
+          const j = await r.json().catch(() => null);
+          if (r.ok && j) {
+            const partes = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+            const txt = partes.filter((p) => typeof p.text === "string" && !p.thought).map((p) => p.text).join("");
+            const a = txt.indexOf("{"), b = txt.lastIndexOf("}");
+            let o = null; try { o = JSON.parse(txt.slice(a, b + 1)); } catch (e) { /* tenta o próximo */ }
+            if (o && o.nome) return { nome: limpoTxt(o.nome, 200), marca: limpoTxt(o.marca, 100), departamento: limpoTxt(o.departamento, 100), categoria: limpoTxt(o.categoria, 100), descricao: limpoTxt(o.descricao, 1500) };
+          }
+          motivo = "Google " + r.status;
+          if (r.status === 401 || r.status === 403) throw new Error("chave");
+        } catch (e) { if (e.message === "chave") throw e; motivo = "sem conexão com o Google"; }
+      }
+    }
+    throw new Error(motivo || "sem resposta");
+  }
+  function criarItensDeFotos(todos, aoSalvar) {
+    const input = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
+    input.addEventListener("change", async () => {
+      const arquivos = Array.from(input.files || []);
+      input.remove();
+      if (!arquivos.length) return;
+      const chave = await lerChaveIA("gemini_api_key");
+      const marcas = unicos(todos.map((x) => x.marca));
+      const deptos = textoDeptos(todos);
+      let cancelar = false, criando = false;
+      const campo = (valor, lista, rotulo) => h("input", { type: "text", value: valor || "", list: lista, maxlength: "200", autocomplete: "off", "aria-label": rotulo, style: "min-width:130px;width:100%" });
+      const linhas = arquivos.map((arq) => {
+        const base = nomeLimpoDoArquivo(arq.name);
+        const marcaDoNome = marcaNoTexto(base, marcas);
+        return { arq, url: URL.createObjectURL(arq), usar: h("input", { type: "checkbox", checked: true, "aria-label": "Criar este item" }),
+          nome: campo(base, null, "Nome"), marca: campo(marcaDoNome, "lista-marcas-foto", "Marca"), depto: campo("", "lista-deptos-foto", "Departamento"), cat: campo("", "lista-cats-foto", "Categoria"),
+          desc: "", estado: h("span", { class: "fraco", text: chave ? "na fila..." : "sem IA" }) };
+      });
+      const status = h("p", { class: "dica", role: "status" }, chave ? "A IA está lendo as fotos e o nome de cada arquivo. Pode ir conferindo, mas espere terminar antes de criar." : "Para a IA ler as fotos, configure a chave do Google na aba Transcrições. Por enquanto uso só o nome do arquivo, e você completa a tabela na mão.");
+      const mostrar = h("input", { type: "checkbox", checked: true });
+      const corpo = h("div", null,
+        h("datalist", { id: "lista-marcas-foto" }, marcas.map((m) => h("option", { value: m }))),
+        h("datalist", { id: "lista-deptos-foto" }, unicos(todos.map((x) => x.departamento)).map((m) => h("option", { value: m }))),
+        h("datalist", { id: "lista-cats-foto" }, unicos(todos.map((x) => x.categoria)).map((m) => h("option", { value: m }))),
+        h("p", null, "Escolhi ", h("b", { text: String(arquivos.length) }), " foto" + (arquivos.length === 1 ? "" : "s") + ". Cada uma vira um item do catálogo, com a marca e o modelo tirados do nome do arquivo e da própria foto. Corrija o que precisar antes de criar."),
+        h("div", { class: "rolagem", style: "max-height:420px;overflow:auto" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, ["", "Foto", "Nome e modelo", "Marca", "Departamento", "Categoria", ""].map((x) => h("th", { text: x })))),
+          h("tbody", null, linhas.map((l) => h("tr", null, h("td", null, l.usar), h("td", null, h("img", { src: l.url, alt: "", class: "cat-mini" })), h("td", null, l.nome), h("td", null, l.marca), h("td", null, l.depto), h("td", null, l.cat), h("td", { class: "nw" }, l.estado)))))),
+        h("p", null, h("label", { class: "marcar" }, mostrar, "Mostrar no catálogo já (se desmarcar, os itens entram ocultos para você conferir)")),
+        status);
+      P.modal({ titulo: "Criar itens a partir das fotos", larga: true, corpo, aoFechar: () => { cancelar = true; }, botoes: [{ texto: "Cancelar" }, { texto: "Criar os itens", classe: "p", aoClicar: async () => {
+        if (criando) return false;
+        const escolhidas = linhas.filter((l) => l.usar.checked && l.nome.value.trim());
+        if (!escolhidas.length) { status.textContent = "Marque pelo menos uma foto com o nome preenchido."; return false; }
+        criando = true; cancelar = false;
+        const itens = []; let falhas = 0;
+        for (let i = 0; i < escolhidas.length && !cancelar; i++) {
+          const l = escolhidas[i];
+          status.textContent = "Guardando a foto " + (i + 1) + " de " + escolhidas.length + "...";
+          let imagem = "";
+          try { imagem = await subirFoto(l.arq); } catch (e) { falhas++; }
+          itens.push({ nome: l.nome.value.trim(), marca: l.marca.value.trim(), departamento: l.depto.value.trim(), categoria: l.cat.value.trim(), descricao: l.desc, imagem });
+        }
+        const r = await inserirItens(itens, todos, mostrar.checked);
+        criando = false;
+        P.toast(r.feitos + (r.feitos === 1 ? " item criado" : " itens criados") + (r.repetidos ? " (" + r.repetidos + " já existiam e foram pulados)" : "") + (falhas ? ", " + falhas + " sem foto" : ""));
+        aoSalvar();
+      } }] });
+      /* a IA lê uma foto de cada vez; enquanto isso a tabela já está na tela */
+      if (!chave) return;
+      let erros = 0;
+      for (let i = 0; i < linhas.length && !cancelar; i++) {
+        const l = linhas[i];
+        l.estado.textContent = "lendo...";
+        try {
+          const o = await lerFotoComIA(chave, l.arq, marcas, deptos);
+          l.nome.value = o.nome; l.marca.value = casarMarca(o.marca, marcas) || l.marca.value; l.depto.value = casarDepto(o.departamento, todos); l.cat.value = o.categoria; l.desc = o.descricao;
+          l.estado.textContent = "pronto";
+        } catch (e) {
+          erros++; l.estado.textContent = e.message === "chave" ? "chave recusada" : "só pelo nome";
+          if (e.message === "chave") { status.textContent = "O Google recusou a chave. Confira a chave na aba Transcrições."; return; }
+        }
+        if (i < linhas.length - 1) await esperar(1500);
+      }
+      if (!cancelar) status.textContent = "Pronto. Confira a tabela" + (erros ? " (" + erros + " foto(s) ficaram só com o nome do arquivo, preencha o que faltar)" : "") + " e clique em Criar os itens.";
+    });
+    document.body.append(input);
+    input.click();
+  }
+  /* usa a grafia de marca que já existe no catálogo (sem ligar para acento ou maiúscula) */
+  function casarMarca(nome, marcas) {
+    const n = P.semAcento(String(nome || "").trim());
+    return n ? (marcas.find((m) => P.semAcento(m) === n) || String(nome).trim()) : "";
+  }
   /* ---------- aba CATÁLOGO ---------- */
   P.abas.catalogo = {
     async renderizar(raiz) {
@@ -745,6 +873,7 @@
           h("p", { class: "dica", style: "margin-bottom:12px", text: "Os itens marcados como \"Visível\" aparecem no catálogo público, sem preço. O cliente escolhe o que quer e envia um pré-pedido de orçamento (veja na aba Pré-pedidos)." }),
           h("div", { class: "ferramentas" },
             h("div", { class: "busca" }, P.ic("busca"), busca), filtros, h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", title: "Cria itens novos só com fotos: a IA lê a marca e o modelo no nome do arquivo e na foto", onclick: () => criarItensDeFotos(lista, recarregar) }, P.ic("subir"), "Criar itens por fotos"),
             h("button", { type: "button", class: "btn", title: "Deixa todas as fotos do mesmo tamanho, com o produto no centro", onclick: () => padronizarTodasAsFotos(lista, recarregar) }, P.ic("subir"), "Padronizar fotos"),
             h("button", { type: "button", class: "btn", onclick: () => subirFotosEmLote(lista, recarregar) }, P.ic("subir"), "Subir várias fotos"),
             h("button", { type: "button", class: "btn", onclick: () => importarCatalogoPdf(lista, recarregar) }, P.ic("subir"), "Importar catálogo (PDF)"),
