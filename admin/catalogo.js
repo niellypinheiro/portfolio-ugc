@@ -267,9 +267,11 @@
   /* Os nomes dos modelos do Google mudam e alguns são desligados (o "gemini-2.5-flash" já dá erro 404 e o "gemini-flash-latest" vive sobrecarregado).
      Por isso pergunto ao Google quais "flash" existem agora, os mais novos primeiro, e uso a lista fixa só se essa pergunta falhar. */
   let modelosGuardados = null;
-  async function modelosGoogle(chave) {
-    if (modelosGuardados && modelosGuardados.chave === chave) return modelosGuardados.lista;
-    let lista = [];
+  /* rapido = tarefas simples (ler uma foto): os modelos "lite" vêm primeiro, porque respondem em poucos segundos */
+  async function modelosGoogle(chave, rapido) {
+    const guarda = chave + (rapido ? "|rapido" : "");
+    if (modelosGuardados && modelosGuardados.chave === guarda) return modelosGuardados.lista;
+    let lista = [], lite = [];
     try {
       const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": chave } });
       const j = await r.json().catch(() => null);
@@ -281,10 +283,20 @@
           .filter((n) => /^gemini-/.test(n) && /flash/.test(n) && !/lite|image|tts|live|audio|native|thinking|robotics|computer|embedding|exp-|transcribe|omni|nano|banana/i.test(n))
           .sort((a, b) => nota(b) - nota(a))
           .slice(0, 5);
+        if (rapido) {
+          const nl = (n) => { const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash-lite/); return m ? parseFloat(m[1]) : -1; };
+          lite = j.models
+            .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+            .map((m) => String(m.name || "").replace(/^models\//, ""))
+            .filter((n) => /^gemini-\d+(?:\.\d+)?-flash-lite$/.test(n))
+            .sort((a, b) => nl(b) - nl(a))
+            .slice(0, 2);
+        }
       }
     } catch (e) { /* usa a lista fixa */ }
     ["gemini-flash-latest", "gemini-2.5-flash"].forEach((n) => { if (lista.indexOf(n) < 0) lista.push(n); });
-    modelosGuardados = { chave, lista };
+    lista = lite.concat(lista);
+    modelosGuardados = { chave: guarda, lista };
     return lista;
   }
   async function perguntarIA(chaves, entrada) {
@@ -712,11 +724,12 @@
     const dados = await fotoParaIA(arquivo);
     const nomeArq = nomeLimpoDoArquivo(arquivo.name);
     let motivo = "";
-    for (const pausa of [0, 6000, 15000]) {
+    for (const pausa of [0, 6000]) {
       if (pausa) await esperar(pausa);
-      for (const modelo of await modelosGoogle(chave)) {
+      for (const modelo of await modelosGoogle(chave, true)) {
+        const ctrl = new AbortController(), relogio = setTimeout(() => ctrl.abort(), 30000);
         try {
-          const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + modelo + ":generateContent", { method: "POST",
+          const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + modelo + ":generateContent", { method: "POST", signal: ctrl.signal,
             headers: { "x-goog-api-key": chave, "content-type": "application/json" },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: SISTEMA_FOTO }] },
               contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: dados } }, { text: "Nome do arquivo: " + (nomeArq || "(sem nome útil)") + ". Marcas que já existem no catálogo: " + (marcas.length ? marcas.join(", ") : "nenhuma") + ". " + deptos }] }],
@@ -731,7 +744,8 @@
           }
           motivo = "Google " + r.status;
           if (r.status === 401 || r.status === 403) throw new Error("chave");
-        } catch (e) { if (e.message === "chave") throw e; motivo = "sem conexão com o Google"; }
+        } catch (e) { if (e.message === "chave") throw e; motivo = e.name === "AbortError" ? "o Google demorou demais" : "sem conexão com o Google"; }
+        finally { clearTimeout(relogio); }
       }
     }
     throw new Error(motivo || "sem resposta");
