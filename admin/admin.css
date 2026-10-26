@@ -584,3 +584,7 @@ a.ig-cartao-post:hover{box-shadow:0 6px 18px rgba(184,69,96,.22);transform:trans
   .ig-cartao-post{width:140px}
 }
 .ig-kpis .metrica .num.nome{font-size:19px;line-height:1.4;overflow-wrap:normal;word-break:break-all}
+
+body.arrastando-linha{user-select:none;-webkit-user-select:none;cursor:grabbing}
+body.arrastando-linha *{cursor:grabbing!important}
+.tabela tr.arrastando{box-shadow:0 8px 20px rgba(0,0,0,.18);position:relative;z-index:2}

@@ -147,30 +147,40 @@
     alca.addEventListener("pointerdown", (ev) => {
       if (ev.button > 0) return;
       ev.preventDefault();
-      alca.setPointerCapture(ev.pointerId);
+      /* Os ouvintes ficam no documento (e não na alça): ao trocar a linha de lugar, a alça sai e volta na página,
+         e o navegador soltaria o "dedo" preso nela, parando o arrasto na primeira troca. */
       tr.classList.add("arrastando");
+      document.body.classList.add("arrastando-linha");
+      let y = ev.clientY;
       const mover = (e) => {
+        y = e.clientY;
         for (const outro of irmaos()) {
           if (outro === tr) continue;
           const r = outro.getBoundingClientRect();
-          if (e.clientY > r.top && e.clientY < r.bottom) {
-            if (e.clientY < r.top + r.height / 2) outro.before(tr); else outro.after(tr);
+          if (y > r.top && y < r.bottom) {
+            if (y < r.top + r.height / 2) outro.before(tr); else outro.after(tr);
             break;
           }
         }
       };
+      /* perto da borda da tela, a página rola sozinha para dar para levar o vídeo mais longe */
+      const rolar = setInterval(() => {
+        if (y < 90) { window.scrollBy(0, -14); mover({ clientY: y }); }
+        else if (y > window.innerHeight - 90) { window.scrollBy(0, 14); mover({ clientY: y }); }
+      }, 16);
       const soltar = () => {
-        alca.removeEventListener("pointermove", mover);
-        alca.removeEventListener("pointerup", soltar);
-        alca.removeEventListener("pointercancel", soltar);
+        document.removeEventListener("pointermove", mover);
+        document.removeEventListener("pointerup", soltar);
+        document.removeEventListener("pointercancel", soltar);
+        clearInterval(rolar);
         tr.classList.remove("arrastando");
+        document.body.classList.remove("arrastando-linha");
         salvar(irmaos().map((x) => x.dataset.id), tr.dataset.nicho);
       };
-      alca.addEventListener("pointermove", mover);
-      alca.addEventListener("pointerup", soltar);
-      alca.addEventListener("pointercancel", soltar);
-    });
-    alca.addEventListener("keydown", (ev) => {
+      document.addEventListener("pointermove", mover);
+      document.addEventListener("pointerup", soltar);
+      document.addEventListener("pointercancel", soltar);
+    });    alca.addEventListener("keydown", (ev) => {
       if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
       ev.preventDefault();
       const lista = irmaos(), i = lista.indexOf(tr);
