@@ -8,9 +8,9 @@
 
   /* Os nichos do portfólio, na ordem em que aparecem no site */
   P.NICHOS = [
+    { id: "tech", nome: "Tech" },
     { id: "casa", nome: "Casa e decoração" },
     { id: "gastronomia", nome: "Gastronomia" },
-    { id: "tech", nome: "Tech" },
     { id: "cabelo", nome: "Haircare" },
     { id: "bodycare", nome: "Bodycare" },
     { id: "entretenimento", nome: "Entretenimento" }
