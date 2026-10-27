@@ -19,12 +19,13 @@
 
   function abrirFormulario(empresa, aoSalvar) {
     const novo = !empresa;
-    const e = empresa || { nome_empresa: "", cnpj: "", contato: "", email: "", telefone: "", situacao: "lead", interesse: "", obs: "", ultimo_contato: "" };
+    const e = empresa || { nome_empresa: "", cnpj: "", contato: "", email: "", telefone: "", endereco: "", situacao: "lead", interesse: "", obs: "", ultimo_contato: "" };
     const nome = h("input", { type: "text", value: e.nome_empresa, maxlength: "200", autocomplete: "off" });
     const cnpj = h("input", { type: "text", value: e.cnpj || "", maxlength: "20", placeholder: "00.000.000/0000-00" });
     const contato = h("input", { type: "text", value: e.contato || "", maxlength: "200", placeholder: "Nome de quem você fala na empresa" });
     const email = h("input", { type: "email", value: e.email || "", maxlength: "200", placeholder: "contato@empresa.com.br", autocomplete: "off" });
     const telefone = h("input", { type: "tel", value: e.telefone || "", maxlength: "40", placeholder: "(00) 00000-0000", autocomplete: "off" });
+    const endereco = h("input", { type: "text", value: e.endereco || "", maxlength: "300", placeholder: "Rua, número, bairro, cidade", autocomplete: "off" });
     const situacao = h("select", null, P.opcoes(SITUACOES, e.situacao));
     const interesse = h("input", { type: "text", value: e.interesse || "", maxlength: "200", placeholder: "Ex.: Ar-condicionado, manutenção de celulares" });
     const ultimoContato = h("input", { type: "date", value: e.ultimo_contato ? String(e.ultimo_contato).slice(0, 10) : "" });
@@ -35,6 +36,7 @@
       P.campo("Nome da empresa", nome),
       h("div", { class: "grade2" }, P.campo("CNPJ", cnpj), P.campo("Contato (pessoa)", contato)),
       h("div", { class: "grade2" }, P.campo("E-mail", email), P.campo("Telefone", telefone)),
+      P.campo("Endereço", endereco, "Para quando precisar ir pessoalmente até a empresa."),
       h("div", { class: "grade2" }, P.campo("Situação", situacao), P.campo("Último contato", ultimoContato)),
       P.campo("Interesse", interesse, "O que ela quer ou pode precisar: um produto, um serviço, ou os dois."),
       P.campo("Observação", obs));
@@ -48,7 +50,7 @@
         if (!emailOk(email.value.trim())) P.erroNoCampo(email, "Esse texto não está no formato comum de e-mail, mas isso não impede de salvar.");
         if (!ok) return false;
         const dados = { nome_empresa: nome.value.trim(), cnpj: cnpj.value.trim() || null, contato: contato.value.trim() || null,
-          email: email.value.trim() || null, telefone: telefone.value.trim() || null, situacao: situacao.value,
+          email: email.value.trim() || null, telefone: telefone.value.trim() || null, endereco: endereco.value.trim() || null, situacao: situacao.value,
           interesse: interesse.value.trim() || null, obs: obs.value.trim() || null, ultimo_contato: ultimoContato.value || null };
         const r = await P.gravar(() => novo ? window.sb.from("empresas_servicos").insert(dados) : window.sb.from("empresas_servicos").update(dados).eq("id", empresa.id));
         if (!r.ok) return false;
@@ -75,6 +77,7 @@
     cnpj: ["cnpj", "cpf/cnpj", "cnpj/cpf", "cpf"],
     email: ["email", "e-mail", "e mail", "mail"],
     telefone: ["telefone", "fone", "celular", "whatsapp", "tel", "numero", "numero de contato"],
+    endereco: ["endereco", "endereco completo", "logradouro", "rua", "localizacao", "local", "onde fica"],
     situacao: ["situacao", "status", "etapa", "fase"],
     interesse: ["interesse", "produto", "produtos", "servico", "servicos", "segmento", "ramo", "atividade", "categoria"],
     obs: ["obs", "observacao", "observacoes", "anotacao", "anotacoes", "nota", "notas", "comentario", "comentarios"],
@@ -132,7 +135,7 @@
 
       const cabecalhos = linhas[0];
       const usadas = new Set(), idx = {};
-      ["ultimo_contato", "nome_empresa", "cnpj", "email", "telefone", "situacao", "interesse", "obs", "contato"].forEach((k) => {
+      ["ultimo_contato", "nome_empresa", "cnpj", "email", "telefone", "endereco", "situacao", "interesse", "obs", "contato"].forEach((k) => {
         idx[k] = acharColuna(cabecalhos, k, usadas);
         if (idx[k] !== -1) usadas.add(idx[k]);
       });
@@ -140,7 +143,7 @@
 
       /* Mesmos limites do formulário "Adicionar empresa". Se algum texto passar do limite, guardo o texto
          inteiro em Observação (para não perder nada) e encurto só o campo que ia travar a importação. */
-      const LIMITES = { nome_empresa: 200, cnpj: 20, contato: 200, email: 200, telefone: 40, interesse: 200, obs: 3000 };
+      const LIMITES = { nome_empresa: 200, cnpj: 20, contato: 200, email: 200, telefone: 40, endereco: 300, interesse: 200, obs: 3000 };
       function limitar(valor, max) {
         if (!valor) return { curto: null, sobra: null };
         if (valor.length <= max) return { curto: valor, sobra: null };
@@ -159,14 +162,14 @@
         const nomeBruto = pega(linha, "nome_empresa");
         if (!nomeBruto) return;
         const campos = {};
-        ["nome_empresa", "cnpj", "contato", "email", "telefone", "interesse"].forEach((k) => { campos[k] = limitar(k === "nome_empresa" ? nomeBruto : (pega(linha, k) || null), LIMITES[k]); });
-        const rotulos = { nome_empresa: "Nome completo", cnpj: "CNPJ completo", contato: "Contato completo", email: "E-mail completo", telefone: "Telefone completo", interesse: "Interesse completo" };
+        ["nome_empresa", "cnpj", "contato", "email", "telefone", "endereco", "interesse"].forEach((k) => { campos[k] = limitar(k === "nome_empresa" ? nomeBruto : (pega(linha, k) || null), LIMITES[k]); });
+        const rotulos = { nome_empresa: "Nome completo", cnpj: "CNPJ completo", contato: "Contato completo", email: "E-mail completo", telefone: "Telefone completo", endereco: "Endereço completo", interesse: "Interesse completo" };
         const extras = Object.keys(rotulos).filter((k) => campos[k].sobra).map((k) => rotulos[k] + ": " + campos[k].sobra);
         if (extras.length) comSobra++;
         const obs = limitar([pega(linha, "obs")].concat(extras).filter(Boolean).join(" | ") || null, LIMITES.obs);
         registros.push({
           nome_empresa: campos.nome_empresa.curto, cnpj: campos.cnpj.curto, contato: campos.contato.curto,
-          email: campos.email.curto, telefone: campos.telefone.curto, interesse: campos.interesse.curto,
+          email: campos.email.curto, telefone: campos.telefone.curto, endereco: campos.endereco.curto, interesse: campos.interesse.curto,
           situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
           obs: obs.curto, ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
         });
@@ -188,14 +191,14 @@
       const tbody = h("tbody");
       tbody.append(...prontos.slice(0, 25).map((r) => h("tr", null,
         h("td", { text: r.nome_empresa }), h("td", { text: r.cnpj || "" }), h("td", { text: r.contato || "" }), h("td", { text: r.email || "" }),
-        h("td", { text: r.telefone || "" }), h("td", null, pilula(r.situacao)), h("td", { text: r.interesse || "" }))));
+        h("td", { text: r.telefone || "" }), h("td", { text: r.endereco || "" }), h("td", null, pilula(r.situacao)), h("td", { text: r.interesse || "" }))));
 
       const corpo = h("div", null,
         h("p", null, "Encontrei ", h("b", { text: String(registros.length) }), " empresa" + (registros.length === 1 ? "" : "s") + " nesse arquivo."),
         repetidos.length ? h("p", { class: "dica", text: repetidos.length + " já estão na sua base (mesmo nome ou CNPJ) e não serão duplicadas." }) : null,
         comSobra ? h("p", { class: "dica", text: "Em " + comSobra + " empresa" + (comSobra === 1 ? "" : "s") + ", um campo estava comprido demais; guardei o texto inteiro na Observação e encurtei só o campo." }) : null,
         prontos.length ? h("div", { class: "rolagem" }, h("table", { class: "tabela" },
-          h("thead", null, h("tr", null, ["Empresa", "CNPJ", "Contato", "E-mail", "Telefone", "Situação", "Interesse"].map((t) => h("th", { text: t })))),
+          h("thead", null, h("tr", null, ["Empresa", "CNPJ", "Contato", "E-mail", "Telefone", "Endereço", "Situação", "Interesse"].map((t) => h("th", { text: t })))),
           tbody)) : null,
         prontos.length > 25 ? h("p", { class: "dica", text: "Mostrando as 25 primeiras. As outras " + (prontos.length - 25) + " também entram na importação." }) : null,
         !prontos.length ? h("p", { class: "aviso-pagina", text: "Nenhuma empresa nova para importar: todas já estão na sua base ou o arquivo não tem nome de empresa." }) : null);
@@ -273,18 +276,18 @@
       function filtrada() {
         const q = P.semAcento(estado.busca);
         let itens = lista.filter((e) => estado.filtro === "todas" || e.situacao === estado.filtro);
-        if (q) itens = itens.filter((e) => P.semAcento([e.nome_empresa, e.contato, e.email, e.cnpj].join(" ")).includes(q));
+        if (q) itens = itens.filter((e) => P.semAcento([e.nome_empresa, e.contato, e.email, e.cnpj, e.endereco].join(" ")).includes(q));
         const valor = {
           nome_empresa: (e) => e.nome_empresa, cnpj: (e) => e.cnpj || null, contato: (e) => e.contato || null, email: (e) => e.email || null,
-          telefone: (e) => e.telefone || null, situacao: (e) => SITUACOES.findIndex((s) => s[0] === e.situacao),
+          telefone: (e) => e.telefone || null, endereco: (e) => e.endereco || null, situacao: (e) => SITUACOES.findIndex((s) => s[0] === e.situacao),
           interesse: (e) => e.interesse || null, ultimo_contato: (e) => e.ultimo_contato || null
         }[estado.chave];
         return P.ordenar(itens, valor, estado.dir);
       }
       function baixar() {
         const dados = lista.slice().sort((a, b) => P.comparar(a.nome_empresa, b.nome_empresa));
-        P.baixarCSV("empresas-servicos.csv", ["Empresa", "CNPJ", "Contato", "E-mail", "Telefone", "Situação", "Interesse", "Observação", "Último contato"],
-          dados.map((e) => [e.nome_empresa, e.cnpj, e.contato, e.email, e.telefone, nomeSituacao(e.situacao), e.interesse, e.obs, P.fmtData(e.ultimo_contato)]));
+        P.baixarCSV("empresas-servicos.csv", ["Empresa", "CNPJ", "Contato", "E-mail", "Telefone", "Endereço", "Situação", "Interesse", "Observação", "Último contato"],
+          dados.map((e) => [e.nome_empresa, e.cnpj, e.contato, e.email, e.telefone, e.endereco, nomeSituacao(e.situacao), e.interesse, e.obs, P.fmtData(e.ultimo_contato)]));
       }
 
       const tabelaBox = h("div");
@@ -294,7 +297,7 @@
         const cab = (r, c, cls) => P.cabecalho(r, c, estado, desenharTabela, cls);
         const thead = h("thead", null, h("tr", null,
           h("th", { class: "col-marcar", "aria-label": "Selecionar para disparo" }),
-          cab("Empresa", "nome_empresa"), cab("CNPJ", "cnpj"), cab("Contato", "contato"), cab("E-mail", "email"), cab("Telefone", "telefone"),
+          cab("Empresa", "nome_empresa"), cab("CNPJ", "cnpj"), cab("Contato", "contato"), cab("E-mail", "email"), cab("Telefone", "telefone"), cab("Endereço", "endereco"),
           cab("Situação", "situacao"), cab("Interesse", "interesse"), cab("Último contato", "ultimo_contato")));
         const tbody = h("tbody");
         if (!lista.length) {
@@ -302,11 +305,11 @@
           tbody.append(h("tr", { class: "exemplo" },
             h("td", { class: "col-marcar" }, h("input", { type: "checkbox", disabled: true, "aria-label": "Exemplo" })),
             h("td", null, "Nome da empresa", P.etiquetaExemplo()), h("td", { text: "00.000.000/0000-00" }), h("td", { text: "Fulano de Tal" }),
-            h("td", { text: "contato@exemplo.com" }), h("td", { text: "(00) 00000-0000" }), h("td", null, pilula("lead")),
+            h("td", { text: "contato@exemplo.com" }), h("td", { text: "(00) 00000-0000" }), h("td", { text: "Rua Exemplo, 100, Centro" }), h("td", null, pilula("lead")),
             h("td", { text: "Ar-condicionado" }), h("td", { text: P.fmtData(P.hoje()) })));
         } else {
           const itens = filtrada();
-          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "9", class: "fraco", text: "Nenhuma empresa encontrada com esse filtro ou busca." })));
+          if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "10", class: "fraco", text: "Nenhuma empresa encontrada com esse filtro ou busca." })));
           itens.forEach((e) => {
             const zap = P.linkWhats(e.telefone);
             const caixa = h("input", { type: "checkbox", checked: !!e.selecionada && temEmail(e), disabled: !temEmail(e),
@@ -322,6 +325,7 @@
               h("td", { class: "truncar", text: e.contato || "" }),
               h("td", { class: "truncar" }, e.email ? h("a", { href: "mailto:" + e.email, text: e.email, onclick: (ev) => ev.stopPropagation() }) : ""),
               h("td", { class: "nw" }, e.telefone || "", zap ? h("a", { class: "btn-i lig", href: zap, target: "_blank", rel: "noopener noreferrer", title: "Abrir conversa no WhatsApp", "aria-label": "Abrir WhatsApp de " + e.nome_empresa, onclick: (ev) => ev.stopPropagation() }, P.ic("whats")) : ""),
+              h("td", { class: "truncar", title: e.endereco || "", text: e.endereco || "" }),
               h("td", null, pilula(e.situacao)),
               h("td", { class: "truncar", title: e.interesse || "", text: e.interesse || "" }),
               h("td", { class: "nw", text: P.fmtData(e.ultimo_contato) }));
