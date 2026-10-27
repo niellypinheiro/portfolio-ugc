@@ -10,6 +10,7 @@
     ["marcas", "Marcas", "marcas"],
     ["prospeccao", "Prospecção", "prospeccao"],
     ["instagram", "Instagram", "instagram"],
+    ["instagram_automacao", "Automação Instagram", "instagram"],
     ["calendario", "Calendário", "calendario"],
     ["campanhas", "Campanhas", "campanhas"],
     ["checklist", "Checklist portfólio", "checklist"],
