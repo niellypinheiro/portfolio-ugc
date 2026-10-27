@@ -229,6 +229,8 @@
     async renderizar(raiz) {
       let lista = (await P.carregar("empresas_servicos", (t) => t.select("*").order("criado_em", { ascending: false }))).dados;
       const estado = { busca: "", filtro: "todas", chave: "ultimo_contato", dir: "desc" };
+      /* modo lixeira: marcar várias empresas e apagar de uma vez (a seleção daqui não tem relação com a do disparo de e-mail) */
+      const apagar = { ativo: false, ids: new Set() };
 
       async function recarregar() {
         const r = await P.carregar("empresas_servicos", (t) => t.select("*").order("criado_em", { ascending: false }));
@@ -239,7 +241,40 @@
       /* ---------- seleção de empresas para a Prospecção (fica salva no banco, coluna "selecionada") ---------- */
       const temEmail = (e) => !!(e.email && String(e.email).trim());
       const resumoBox = h("div");
+      function sairDaLixeira() { apagar.ativo = false; apagar.ids.clear(); desenhar(); }
+      async function apagarMarcadas() {
+        const ids = lista.filter((e) => apagar.ids.has(e.id)).map((e) => e.id);
+        if (!ids.length) return;
+        const texto = ids.length === 1 ? "Apagar 1 empresa da sua base? Isso não dá para desfazer."
+          : "Apagar " + ids.length + " empresas da sua base? Isso não dá para desfazer.";
+        if (!(await P.confirmar(texto, { botao: "Apagar", perigo: true, titulo: "Apagar empresas" }))) return;
+        let feito = 0;
+        for (let i = 0; i < ids.length; i += 100) {
+          const pedaco = ids.slice(i, i + 100);
+          const r = await P.gravar(() => window.sb.from("empresas_servicos").delete().in("id", pedaco));
+          if (!r.ok) break;
+          feito += pedaco.length;
+        }
+        if (feito) P.toast(feito + (feito === 1 ? " empresa apagada" : " empresas apagadas"));
+        apagar.ativo = false; apagar.ids.clear();
+        recarregar();
+      }
       function desenharResumo() {
+        if (apagar.ativo) {
+          const visiveis = filtrada();
+          const faltam = visiveis.filter((e) => !apagar.ids.has(e.id)).length;
+          const n = apagar.ids.size;
+          P.limpar(resumoBox).append(h("div", { class: "resumo-selecao" + (n ? " ativo" : ""), role: "status" },
+            h("b", { text: n === 0 ? "Nenhuma empresa marcada para apagar" : n + (n === 1 ? " empresa marcada para apagar" : " empresas marcadas para apagar") }),
+            h("span", { class: "fraco", text: "Marque as caixinhas ou use o botão ao lado" }),
+            h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", disabled: !faltam, text: "Selecionar todas (" + visiveis.length + ")",
+              onclick: () => { visiveis.forEach((e) => apagar.ids.add(e.id)); desenharTabela(); } }),
+            h("button", { type: "button", class: "btn", disabled: !n, text: "Limpar seleção", onclick: () => { apagar.ids.clear(); desenharTabela(); } }),
+            h("button", { type: "button", class: "btn perigo", disabled: !n, onclick: apagarMarcadas }, P.ic("lixeira"), n ? "Excluir " + n : "Excluir"),
+            h("button", { type: "button", class: "btn", text: "Cancelar", onclick: sairDaLixeira })));
+          return;
+        }
         const marcadas = lista.filter((e) => e.selecionada).length;
         const alvo = filtrada().filter(temEmail);
         const faltam = alvo.filter((e) => !e.selecionada).length;
@@ -296,7 +331,7 @@
         desenharResumo();
         const cab = (r, c, cls) => P.cabecalho(r, c, estado, desenharTabela, cls);
         const thead = h("thead", null, h("tr", null,
-          h("th", { class: "col-marcar", "aria-label": "Selecionar para disparo" }),
+          h("th", { class: "col-marcar", "aria-label": apagar.ativo ? "Marcar para apagar" : "Selecionar para disparo" }),
           cab("Empresa", "nome_empresa"), cab("CNPJ", "cnpj"), cab("Contato", "contato"), cab("E-mail", "email"), cab("Telefone", "telefone"), cab("Endereço", "endereco"),
           cab("Situação", "situacao"), cab("Interesse", "interesse"), cab("Último contato", "ultimo_contato")));
         const tbody = h("tbody");
@@ -312,13 +347,22 @@
           if (!itens.length) tbody.append(h("tr", null, h("td", { colspan: "10", class: "fraco", text: "Nenhuma empresa encontrada com esse filtro ou busca." })));
           itens.forEach((e) => {
             const zap = P.linkWhats(e.telefone);
-            const caixa = h("input", { type: "checkbox", checked: !!e.selecionada && temEmail(e), disabled: !temEmail(e),
-              title: temEmail(e) ? "Selecionar para o disparo de e-mail" : "Esta empresa não tem e-mail",
-              "aria-label": (temEmail(e) ? "Selecionar " : "Sem e-mail, não dá para selecionar ") + e.nome_empresa });
-            caixa.addEventListener("change", () => marcarUma(e, caixa));
-            const tr = h("tr", { class: "clicavel", tabindex: "0", "aria-label": "Editar " + e.nome_empresa,
-              onclick: () => abrirFormulario(e, recarregar),
-              onkeydown: (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target === tr) { ev.preventDefault(); abrirFormulario(e, recarregar); } } },
+            let caixa, aoAbrir;
+            if (apagar.ativo) {
+              caixa = h("input", { type: "checkbox", checked: apagar.ids.has(e.id), title: "Marcar para apagar", "aria-label": "Marcar para apagar " + e.nome_empresa });
+              const alternar = () => { if (apagar.ids.has(e.id)) apagar.ids.delete(e.id); else apagar.ids.add(e.id); desenharTabela(); };
+              caixa.addEventListener("change", alternar);
+              aoAbrir = alternar;
+            } else {
+              caixa = h("input", { type: "checkbox", checked: !!e.selecionada && temEmail(e), disabled: !temEmail(e),
+                title: temEmail(e) ? "Selecionar para o disparo de e-mail" : "Esta empresa não tem e-mail",
+                "aria-label": (temEmail(e) ? "Selecionar " : "Sem e-mail, não dá para selecionar ") + e.nome_empresa });
+              caixa.addEventListener("change", () => marcarUma(e, caixa));
+              aoAbrir = () => abrirFormulario(e, recarregar);
+            }
+            const tr = h("tr", { class: "clicavel", tabindex: "0", "aria-label": (apagar.ativo ? "Marcar para apagar " : "Editar ") + e.nome_empresa,
+              onclick: aoAbrir,
+              onkeydown: (ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target === tr) { ev.preventDefault(); aoAbrir(); } } },
               h("td", { class: "col-marcar", onclick: (ev) => ev.stopPropagation(), onkeydown: (ev) => ev.stopPropagation() }, caixa),
               h("td", { class: "nw" }, h("b", { text: e.nome_empresa, style: "font-weight:500" })),
               h("td", { class: "nw", text: e.cnpj || "" }),
@@ -349,6 +393,9 @@
             h("div", { class: "busca" }, P.ic("busca"), busca),
             filtros,
             h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn" + (apagar.ativo ? " perigo" : ""), disabled: !lista.length, title: "Lixeira: marcar várias empresas e apagar",
+              "aria-label": "Lixeira: marcar várias empresas e apagar", "aria-pressed": String(apagar.ativo),
+              onclick: () => { if (apagar.ativo) sairDaLixeira(); else { apagar.ativo = true; desenhar(); } } }, P.ic("lixeira")),
             h("button", { type: "button", class: "btn", onclick: () => abrirImportacao(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar) }, P.ic("mais"), "Adicionar empresa")),
