@@ -423,6 +423,8 @@ create table if not exists public.catalogo_pedidos (
 --   avisado_em: quando saiu o e-mail de aviso do pedido para a SmartBrand.
 alter table public.catalogo_produtos add column if not exists departamento text check (char_length(departamento) <= 100);
 alter table public.catalogo_pedidos add column if not exists avisado_em timestamptz;
+--   endereco: onde fica a empresa (para visitas presenciais), na aba Empresas de Serviços.
+alter table public.empresas_servicos add column if not exists endereco text check (char_length(endereco) <= 300);
 
 drop trigger if exists carimbo_catalogo_pedidos on public.catalogo_pedidos;
 create trigger carimbo_catalogo_pedidos before insert on public.catalogo_pedidos
