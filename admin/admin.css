@@ -3,18 +3,19 @@
    Uma fonte só (Jost), tamanhos pequenos.
    ========================================================================= */
 :root{
-  --couro:#8a5a33; --couro-esc:#3a2415;
-  --papel:#f6efe2; --papel-2:#efe4cf; --cartao:#fbf7ee;
-  --bordo:#6d2434; --bordo-esc:#4f1825; --bordo-suave:rgba(109,36,52,.10);
+  /* Tema rosa goiaba (o mesmo da aba Instagram). O tema marrom antigo ficou guardado fora do site. */
+  --couro:#cf5a70; --couro-esc:#5c2a36;
+  --papel:#fdf1f1; --papel-2:#f9e1e4; --cartao:#ffffff;
+  --bordo:#b8455f; --bordo-esc:#9a3248; --bordo-suave:rgba(207,90,112,.12);
   --ouro:#c9a227; --ouro-suave:rgba(201,162,39,.18);
-  --tinta:#2b1a10; --tinta-2:#5b4433; --tinta-3:#8a7666;
-  --linha:rgba(138,90,51,.24); --linha-forte:rgba(138,90,51,.45);
+  --tinta:#2e1d22; --tinta-2:#5e4a50; --tinta-3:#8d7a80;
+  --linha:rgba(207,90,112,.20); --linha-forte:rgba(207,90,112,.38);
   --verde:#4d5a3a; --verde-suave:rgba(77,90,58,.15);
   --laranja:#b8651e; --laranja-suave:rgba(217,144,63,.22);
   --vermelho:#9a1f2b; --vermelho-suave:rgba(154,31,43,.13);
   --amarelo:#7a5b00; --amarelo-suave:rgba(232,190,52,.32);
   --cinza-suave:rgba(120,100,84,.16);
-  --raio:8px; --raio-p:6px;
+  --raio:16px; --raio-p:12px;
   --fonte:"Jost","Helvetica Neue",Arial,sans-serif;
   --lateral-l:232px;
 }
@@ -46,7 +47,7 @@ body.carregando .verificando{display:grid}
 .lateral-nav{flex:1;overflow-y:auto;padding:4px 10px 10px}
 .lateral-grupo{padding:14px 8px 5px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--tinta-3)}
 .item{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:0 10px;margin-bottom:2px;border:0;border-radius:var(--raio-p);background:transparent;color:var(--tinta-2);font-size:14px;text-align:left}
-.item:hover{background:rgba(109,36,52,.06)}
+.item:hover{background:rgba(207,90,112,.06)}
 .item[aria-current="page"]{background:var(--bordo-suave);color:var(--bordo);font-weight:600}
 .lateral-pe{padding:12px 14px 14px;border-top:1px solid var(--linha);display:flex;flex-direction:column;gap:8px}
 .lateral-email{font-size:12px;color:var(--tinta-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -138,11 +139,11 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 /* ---------- tabelas ---------- */
 .rolagem{overflow-x:auto;background:var(--cartao);border:1px solid var(--linha);border-radius:var(--raio)}
 .tabela{width:100%;border-collapse:collapse;font-size:13.5px}
-.tabela th{padding:9px 12px;text-align:left;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-3);white-space:nowrap;border-bottom:1px solid var(--linha-forte);background:rgba(239,228,207,.55)}
+.tabela th{padding:9px 12px;text-align:left;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-3);white-space:nowrap;border-bottom:1px solid var(--linha-forte);background:rgba(253,232,235,.55)}
 .tabela td{padding:9px 12px;border-bottom:1px solid var(--linha);vertical-align:middle}
 .tabela tr:last-child td{border-bottom:0}
 .tabela tbody tr.clicavel{cursor:pointer}
-.tabela tbody tr.clicavel:hover td{background:rgba(239,228,207,.45)}
+.tabela tbody tr.clicavel:hover td{background:rgba(253,232,235,.45)}
 .tabela .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .tabela .nw{white-space:nowrap}
 .tabela .fraco{color:var(--tinta-3)}
@@ -203,7 +204,7 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .origens .fio i{display:block;height:100%;border-radius:2px;background:var(--ouro)}
 
 /* ---------- janela (modal) e aviso rápido ---------- */
-.camada{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(24,12,6,.5);overflow-y:auto}
+.camada{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(46,20,28,.45);overflow-y:auto}
 .janela{width:min(100%,520px);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--papel);border:1px solid var(--ouro);border-radius:var(--raio);box-shadow:0 20px 50px rgba(20,8,2,.4)}
 .janela.larga{width:min(100%,720px)}
 .janela-cab{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--linha)}
@@ -220,12 +221,12 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .cal-topo .mes{min-width:150px;font-size:15px;font-weight:600}
 .cal{background:var(--cartao);border:1px solid var(--linha);border-radius:var(--raio);overflow:hidden}
 .cal-semana,.cal-grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-.cal-semana div{padding:7px 8px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-3);background:rgba(239,228,207,.55);border-bottom:1px solid var(--linha-forte)}
+.cal-semana div{padding:7px 8px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-3);background:rgba(253,232,235,.55);border-bottom:1px solid var(--linha-forte)}
 .dia{position:relative;min-height:104px;padding:5px 6px 6px;border-right:1px solid var(--linha);border-bottom:1px solid var(--linha);cursor:pointer;min-width:0}
 .dia:nth-child(7n){border-right:0}
 .dia.fora{background:rgba(120,100,84,.07);color:var(--tinta-3)}
 .dia.fora .item-cal{opacity:.55}
-.dia:hover{background:rgba(239,228,207,.5)}
+.dia:hover{background:rgba(253,232,235,.5)}
 .dia .n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 4px;border-radius:999px;font-size:12.5px;font-weight:500}
 .dia.hoje .n{background:var(--bordo);color:var(--papel)}
 .dia.hoje{box-shadow:inset 0 0 0 1.5px var(--bordo)}
@@ -274,7 +275,7 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
 .busca-conteudos svg{position:absolute;left:11px;top:11px;color:var(--tinta-3)}
 .busca-conteudos input{padding-left:36px;min-height:40px}
 .cartao-conteudo{margin-bottom:12px;background:var(--cartao);border:1px solid var(--linha);border-radius:var(--raio);overflow:hidden}
-.cartao-conteudo.aberto{border-color:rgba(109,36,52,.4)}
+.cartao-conteudo.aberto{border-color:rgba(207,90,112,.4)}
 .cartao-conteudo.exemplo{border-style:dashed;background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(201,162,39,.08) 8px 16px)}
 .cartao-conteudo .cab{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:4px 10px;width:100%;padding:12px 14px;border:0;background:none;text-align:left}
 .cartao-conteudo .cab .data{font-size:12px;color:var(--tinta-3)}
@@ -384,7 +385,7 @@ input::placeholder,textarea::placeholder{color:var(--tinta-3)}
    Aba MARCAS: seleção para o disparo
    ========================================================================= */
 .resumo-selecao{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px;padding:10px 14px;background:var(--cartao);border:1px solid var(--linha);border-radius:var(--raio)}
-.resumo-selecao.ativo{background:var(--bordo-suave);border-color:rgba(109,36,52,.35)}
+.resumo-selecao.ativo{background:var(--bordo-suave);border-color:rgba(207,90,112,.35)}
 .resumo-selecao b{font-weight:600;color:var(--bordo)}
 .resumo-selecao .espaco{flex:1}
 .tabela .col-marcar{width:1%;padding-right:0}
@@ -588,3 +589,66 @@ a.ig-cartao-post:hover{box-shadow:0 6px 18px rgba(184,69,96,.22);transform:trans
 body.arrastando-linha{user-select:none;-webkit-user-select:none;cursor:grabbing}
 body.arrastando-linha *{cursor:grabbing!important}
 .tabela tr.arrastando{box-shadow:0 8px 20px rgba(0,0,0,.18);position:relative;z-index:2}
+
+/* =========================================================================
+   TEMA ROSA GOIABA EM TODO O PAINEL (o mesmo jeito da aba Instagram):
+   menu branco com item ativo em degradê, cartões brancos arredondados com
+   sombra rosada, botões e filtros em pílula. Para voltar ao visual antigo,
+   é só apagar daqui até o fim do bloco e restaurar as cores do :root.
+   ========================================================================= */
+body{background:linear-gradient(180deg,#fdf1f1 0%,#fff7f6 100%) fixed}
+.lateral{background:#fff;border-right:1px solid var(--linha);box-shadow:4px 0 24px rgba(184,69,96,.06)}
+.lateral-topo{padding:20px 18px 14px}
+.lateral-nome{font-size:16px;font-weight:700;color:var(--bordo-esc)}
+.lateral-sub{color:var(--couro)}
+.lateral-grupo{color:var(--tinta-3);letter-spacing:.12em}
+.item{min-height:40px;border-radius:12px;padding:0 12px;font-weight:500}
+.item:hover{background:var(--bordo-suave);color:var(--bordo-esc)}
+.item[aria-current="page"]{background:linear-gradient(135deg,#b84560 0%,#e57f8b 100%);color:#fff;font-weight:600;box-shadow:0 6px 16px rgba(184,69,96,.28)}
+.lateral-pe{border-top:1px solid var(--linha)}
+.topo{background:transparent;border-bottom:0;min-height:48px;justify-content:flex-end}
+.topo h1{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ver-site{padding:7px 14px;border:1px solid var(--linha-forte);border-radius:999px;background:#fff;color:var(--bordo-esc);font-weight:600;text-decoration:none}
+.ver-site:hover{text-decoration:none;border-color:var(--couro)}
+
+/* cabeçalho rosa de cada aba (o da aba Instagram já tem o dele) */
+.cab-pagina{margin-bottom:16px}
+.cab-pagina .ig-titulos h2{font-size:21px}
+
+.btn{border-radius:12px;background:#fff;border-color:var(--linha-forte);color:var(--tinta)}
+.btn:hover{background:var(--papel-2);border-color:var(--couro)}
+.btn.p{background:linear-gradient(135deg,#b84560 0%,#e57f8b 100%);border-color:transparent;color:#fff;box-shadow:0 4px 12px rgba(184,69,96,.25)}
+.btn.p:hover{background:linear-gradient(135deg,#a63d54 0%,#d86f7d 100%);border-color:transparent}
+.btn.perigo{background:#fff}
+.btn-i{border-radius:10px}
+.btn-i:hover{background:var(--bordo-suave);color:var(--bordo-esc)}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=number],input[type=date],input[type=search],input[type=password],select,textarea{border-radius:12px;background:#fff;border-color:var(--linha-forte)}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(207,90,112,.45);outline-offset:0;border-color:var(--couro)}
+a{color:var(--bordo)}
+:focus-visible{outline-color:var(--couro)}
+
+.cartao-bloco,.faixa-metricas,.resumo-selecao,.cal,.rolagem,.cartao-conteudo,.janela{background:#fff;border:1px solid rgba(224,112,124,.26);border-radius:16px;box-shadow:0 2px 10px rgba(184,69,96,.08)}
+.faixa-metricas{overflow:hidden}
+.bloco-cab h2,.titulo-secao{font-weight:700;font-size:15px}
+.metrica .num{color:var(--bordo)}
+.resumo-selecao.ativo{background:#fff5f6;border-color:rgba(207,90,112,.45)}
+.vazio{border-radius:14px;background:#fff9f9}
+.aviso-pagina{border-radius:14px}
+
+.tabela th{background:#fff5f6;color:var(--tinta-3)}
+.tabela tbody tr.clicavel:hover td{background:#fff5f6}
+.tabela tr.grupo td{background:#fdecee;color:var(--bordo-esc)}
+.rolagem{overflow-x:auto}
+
+.filtros{border-radius:999px;border-color:var(--linha-forte);background:#fff}
+.filtros button{color:var(--tinta-2)}
+.filtros button:hover{background:var(--bordo-suave)}
+.filtros button[aria-pressed="true"]{background:linear-gradient(135deg,#b84560 0%,#e57f8b 100%);color:#fff}
+.pilula,.tag{font-weight:600}
+.barra .col,.ig-col i{background:var(--couro)}
+.janela{border-color:rgba(224,112,124,.4);box-shadow:0 24px 60px rgba(92,42,54,.35);border-radius:20px;overflow:hidden}
+.janela-cab{background:#fff5f6}
+.toast{border-radius:999px;padding:10px 18px}
+@media (max-width:860px){.topo{justify-content:space-between}}
+.origens .fio i{background:var(--couro)}
+.origens .fio{background:var(--linha)}

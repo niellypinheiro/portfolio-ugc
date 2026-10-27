@@ -25,6 +25,29 @@
      e o banco.sql também recusa esses dados para o e-mail dele, então a
      trava de verdade não depende só desta lista. */
   const ABAS_RESTRITAS = ["empresas_servicos", "prospeccao_smartbrand", "catalogo", "pre_pedidos"];
+  /* Frase que aparece embaixo do título no cabeçalho rosa de cada aba (a aba Instagram tem o cabeçalho dela) */
+  const SUBTITULOS = {
+    portfolio: "Os números do seu site e os vídeos que aparecem nele",
+    marcas: "A sua base de marcas e contatos",
+    prospeccao: "Os e-mails que você manda para as marcas",
+    instagram_automacao: "Comentou a palavra-chave, recebe o link na DM",
+    calendario: "Seus conteúdos e prazos do mês",
+    campanhas: "As campanhas e os pagamentos",
+    checklist: "O que falta para o portfólio ficar completo",
+    transcricoes: "Suas transcrições e textos",
+    empresas_servicos: "As empresas para os produtos e serviços da SmartBrand",
+    prospeccao_smartbrand: "Os e-mails que você manda para as empresas",
+    catalogo: "Os produtos do catálogo da SmartBrand",
+    pre_pedidos: "Os pedidos que chegam pelo catálogo"
+  };
+  function cabecalhoDaPagina(def) {
+    return h("header", { class: "ig-topo cab-pagina" },
+      h("div", { class: "ig-topo-linha" },
+        h("div", { class: "ig-logo" }, P.ic(def[2])),
+        h("div", { class: "ig-titulos" },
+          h("h2", { text: def[1] }),
+          SUBTITULOS[def[0]] ? h("p", { text: SUBTITULOS[def[0]] }) : null)));
+  }
   const $ = (id) => document.getElementById(id);
   let abaAtual = "portfolio";
   let ficha = 0;
@@ -61,7 +84,7 @@
     try {
       await P.abas[nome].renderizar(raiz);
       if (minha !== ficha) return;
-      P.limpar(alvo).append(raiz);
+      P.limpar(alvo).append(...(nome === "instagram" ? [raiz] : [cabecalhoDaPagina(def), raiz]));
     } catch (e) {
       console.error(e);
       if (minha !== ficha) return;
