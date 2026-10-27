@@ -13,6 +13,7 @@
     { id: "gastronomia", nome: "Gastronomia" },
     { id: "cabelo", nome: "Haircare" },
     { id: "bodycare", nome: "Beleza" },
+    { id: "moda", nome: "Moda" },
     { id: "entretenimento", nome: "Entretenimento" }
   ];
   P.nomeNicho = (id) => (P.NICHOS.find((n) => n.id === id) || { nome: id || "" }).nome;

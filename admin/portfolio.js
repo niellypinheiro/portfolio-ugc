@@ -141,6 +141,88 @@
     });
   }
 
+  /* ---------- adicionar vários vídeos de uma vez, colando a lista ----------
+     O formato é o da sua lista: uma linha com o nome do nicho (ex.: MODA, BELEZA, HAIR CARE) e, embaixo,
+     uma linha por vídeo com o nome da marca e o link. Os números na frente e os dois-pontos são ignorados. */
+  const APELIDOS_NICHO = {
+    tech: "tech", tecnologia: "tech", casa: "casa", casaedecoracao: "casa", decoracao: "casa",
+    gastronomia: "gastronomia", comida: "gastronomia", haircare: "cabelo", cabelo: "cabelo", cabelos: "cabelo",
+    beleza: "bodycare", bodycare: "bodycare", moda: "moda", entretenimento: "entretenimento"
+  };
+  const soLetras = (s) => P.semAcento(s).replace(/[^a-z0-9]/g, "");
+  const idDoYoutube = (l) => { const m = String(l || "").match(/(?:shorts\/|youtu\.be\/|[?&]v=)([\w-]{6,})/); return m ? m[1] : ""; };
+
+  function lerListaDeVideos(texto, videos) {
+    const itens = [], avisos = [];
+    const jaTem = new Set(videos.map((v) => idDoYoutube(v.link)).filter(Boolean));
+    const contagem = {};   /* quantos vídeos cada marca já tem, para numerar "Vídeo 2", "Vídeo 3"... */
+    videos.forEach((v) => { const k = soLetras(v.marca); if (k) contagem[k] = (contagem[k] || 0) + 1; });
+    let nicho = null;
+    String(texto || "").split(/\r?\n/).forEach((linha) => {
+      const bruta = linha.trim();
+      if (!bruta) return;
+      const achou = bruta.match(/https?:\/\/\S+/);
+      if (!achou) {
+        const k = soLetras(bruta.replace(/[:\-\u2013\u2014]+$/, "")).replace(/^nicho/, "");
+        if (APELIDOS_NICHO[k]) nicho = APELIDOS_NICHO[k];
+        else { nicho = null; avisos.push('Não conheço o nicho "' + bruta + '". Os vídeos dele foram ignorados.'); }
+        return;
+      }
+      let link = achou[0].replace(/[?&]feature=share/i, "").replace(/[)\].,;]+$/, "");
+      const marca = bruta.slice(0, achou.index).replace(/^\s*\d+\s*[-.:)\u2013\u2014]*\s*/, "").replace(/[\s:\-\u2013\u2014]+$/, "").trim();
+      if (!nicho) { avisos.push("Pulei um link que estava sem nicho em cima: " + link); return; }
+      const id = idDoYoutube(link);
+      if (id && jaTem.has(id)) { avisos.push((marca || "Um vídeo") + ": esse link já está no seu portfólio, então não repeti."); return; }
+      if (id) jaTem.add(id);
+      const nome = (marca || "SEM NOME").toLocaleUpperCase("pt-BR");
+      const k = soLetras(nome);
+      contagem[k] = (contagem[k] || 0) + 1;
+      itens.push({ nicho, marca: nome, titulo: "Vídeo " + contagem[k], link, formato: "video", visivel: true });
+    });
+    return { itens, avisos };
+  }
+
+  function abrirAdicionarVarios(videos, aoSalvar) {
+    const area = h("textarea", { rows: "10", placeholder: "MODA\n1 NOME DA MARCA https://youtube.com/shorts/...\n2 OUTRA MARCA https://youtube.com/shorts/...\n\nBELEZA\n1 MARCA https://youtube.com/shorts/...", style: "width:100%;font-family:inherit" });
+    const previa = h("div", { style: "margin-top:12px" });
+    function desenharPrevia() {
+      P.limpar(previa);
+      const { itens, avisos } = lerListaDeVideos(area.value, videos);
+      if (!area.value.trim()) return;
+      previa.append(h("p", null, "Encontrei ", h("b", { text: String(itens.length) }), itens.length === 1 ? " vídeo novo." : " vídeos novos."));
+      avisos.forEach((a) => previa.append(h("p", { class: "dica", text: a })));
+      if (itens.length) {
+        previa.append(h("div", { class: "rolagem" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, ["Nicho", "Marca", "Título", "Link"].map((t) => h("th", { text: t })))),
+          h("tbody", null, itens.map((i) => h("tr", null, h("td", { text: P.nomeNicho(i.nicho) }), h("td", { text: i.marca }), h("td", { text: i.titulo }), h("td", { class: "truncar", text: i.link })))))));
+      }
+    }
+    area.addEventListener("input", P.debounce(desenharPrevia, 200));
+    const corpo = h("div", null,
+      h("p", { class: "dica", text: "Cole a sua lista: o nome do nicho numa linha (Moda, Beleza, Gastronomia, Hair care, Casa e decoração, Tech ou Entretenimento) e, embaixo, uma linha por vídeo com a marca e o link. Vídeos de uma marca que já existe viram \"Vídeo 2\", \"Vídeo 3\" e assim por diante." }),
+      area, previa);
+    P.modal({
+      titulo: "Adicionar vários vídeos", larga: true, corpo,
+      botoes: [
+        { texto: "Cancelar" },
+        { texto: "Adicionar vídeos", classe: "p", aoClicar: async () => {
+          const { itens } = lerListaDeVideos(area.value, videos);
+          if (!itens.length) { P.toast("Não encontrei nenhum vídeo novo na lista.", true); return false; }
+          const proxima = {};
+          const linhas = itens.map((i) => {
+            if (proxima[i.nicho] == null) proxima[i.nicho] = videos.filter((x) => x.nicho === i.nicho).reduce((m, x) => Math.max(m, x.ordem || 0), 0);
+            proxima[i.nicho] += 10;
+            return Object.assign({}, i, { ordem: proxima[i.nicho] });
+          });
+          const r = await P.gravar(() => window.sb.from("videos").insert(linhas));
+          if (!r.ok) return false;
+          P.toast(linhas.length + (linhas.length === 1 ? " vídeo adicionado" : " vídeos adicionados"));
+          aoSalvar();
+        } }
+      ]
+    });
+  }
+
   /* ---------- arrastar pela alça (mouse e dedo) e pelas setas do teclado ---------- */
   function ligarArrasto(alca, tr, tbody, salvar) {
     const irmaos = () => [...tbody.querySelectorAll('tr[data-id][data-nicho="' + tr.dataset.nicho + '"]')];
@@ -372,6 +454,7 @@
           h("div", { class: "secao" },
             h("div", { class: "ferramentas" },
               h("h2", { text: "Meus vídeos", style: "font-size:14px;font-weight:600;flex:1" }),
+              h("button", { type: "button", class: "btn", onclick: () => abrirAdicionarVarios(videos, recarregar) }, P.ic("subir"), "Adicionar vários"),
               h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar, videos) }, P.ic("mais"), "Adicionar vídeo")),
             tabelaDeVideos()));
       }

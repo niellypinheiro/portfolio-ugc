@@ -9,8 +9,8 @@
   const nomeSituacao = (s) => (SITUACOES.find((x) => x[0] === s) || [s, s])[1];
   const pilula = (s) => h("span", { class: "pilula p-" + s, text: nomeSituacao(s) });
 
-  /* Nichos para organizar os leads. São os mesmos nichos do portfólio, mais "Moda" (só para organizar as marcas). */
-  const NICHOS_MARCA = P.NICHOS.map((n) => [n.id, n.nome]).concat([["moda", "Moda"]]);
+  /* Nichos para organizar os leads. São os mesmos nichos do portfólio (Moda já está entre eles). */
+  const NICHOS_MARCA = P.NICHOS.map((n) => [n.id, n.nome]);
   const nomeNichoMarca = (n) => (NICHOS_MARCA.find((x) => x[0] === n) || [n, ""])[1];
 
   function emailOk(v) { return !v || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
