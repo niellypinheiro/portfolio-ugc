@@ -68,6 +68,160 @@
     P.modal({ titulo: novo ? "Adicionar empresa" : "Editar empresa", corpo, botoes });
   }
 
+  /* ---------- importar planilha (CSV ou Excel) de empresas, no mesmo jeito da aba Marcas ---------- */
+  const ALIASES = {
+    ultimo_contato: ["ultimo contato", "data do contato", "data de contato", "ultimo contato em", "contato em", "data"],
+    nome_empresa: ["nome da empresa", "empresa", "nome fantasia", "razao social", "nome", "cliente", "nome do cliente"],
+    cnpj: ["cnpj", "cpf/cnpj", "cnpj/cpf", "cpf"],
+    email: ["email", "e-mail", "e mail", "mail"],
+    telefone: ["telefone", "fone", "celular", "whatsapp", "tel", "numero", "numero de contato"],
+    situacao: ["situacao", "status", "etapa", "fase"],
+    interesse: ["interesse", "produto", "produtos", "servico", "servicos", "segmento", "ramo", "atividade", "categoria"],
+    obs: ["obs", "observacao", "observacoes", "anotacao", "anotacoes", "nota", "notas", "comentario", "comentarios"],
+    contato: ["contato", "pessoa de contato", "nome do contato", "responsavel", "pessoa", "falar com", "comprador"]
+  };
+  function acharColuna(cabecalhos, chave, usadas) {
+    const normalizados = cabecalhos.map((c) => P.semAcento(String(c)).trim());
+    for (const alias of ALIASES[chave]) { const i = normalizados.indexOf(alias); if (i !== -1 && !usadas.has(i)) return i; }
+    for (const alias of ALIASES[chave]) { const i = normalizados.findIndex((c, k) => !usadas.has(k) && c.includes(alias)); if (i !== -1) return i; }
+    return -1;
+  }
+  function converterData(s) {
+    s = String(s || "").trim();
+    if (!s) return null;
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[0].slice(0, 10);
+    m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+    return null;
+  }
+  function situacaoDoTexto(s) {
+    const n = P.semAcento(s || "").trim();
+    if (!n) return "lead";
+    const achada = SITUACOES.find(([cod, rot]) => cod === n || P.semAcento(rot) === n);
+    return achada ? achada[0] : "lead";
+  }
+  function carregarScript(src, pronto) {
+    if (pronto()) return Promise.resolve();
+    return new Promise((ok, erro) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = () => (pronto() ? ok() : erro(new Error("biblioteca não iniciou")));
+      s.onerror = () => erro(new Error("Não consegui carregar a ferramenta de leitura de Excel. Confira a internet."));
+      document.head.append(s);
+    });
+  }
+
+  function abrirImportacao(lista, recarregar) {
+    const input = h("input", { type: "file", accept: ".csv,.xlsx,.xls,text/csv", hidden: true });
+    input.addEventListener("change", async () => {
+      const arquivo = input.files[0];
+      input.remove();
+      if (!arquivo) return;
+      let linhas;
+      try {
+        if (/\.xlsx?$/i.test(arquivo.name)) {
+          await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", () => !!window.XLSX);
+          const livro = window.XLSX.read(await arquivo.arrayBuffer(), { type: "array" });
+          linhas = window.XLSX.utils.sheet_to_json(livro.Sheets[livro.SheetNames[0]], { header: 1, defval: "", raw: false });
+        } else {
+          linhas = P.lerCSV(await P.lerArquivoTexto(arquivo));
+        }
+        linhas = linhas.map((l) => l.map((v) => String(v == null ? "" : v).trim())).filter((l) => l.some((v) => v !== ""));
+      } catch (e) { P.toast(e.message && /carregar/.test(e.message) ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
+      if (linhas.length < 2) { P.toast("Não encontrei linhas com empresas nesse arquivo.", true); return; }
+
+      const cabecalhos = linhas[0];
+      const usadas = new Set(), idx = {};
+      ["ultimo_contato", "nome_empresa", "cnpj", "email", "telefone", "situacao", "interesse", "obs", "contato"].forEach((k) => {
+        idx[k] = acharColuna(cabecalhos, k, usadas);
+        if (idx[k] !== -1) usadas.add(idx[k]);
+      });
+      if (idx.nome_empresa === -1) idx.nome_empresa = 0;   /* sem coluna de nome identificada: usa a primeira coluna */
+
+      /* Mesmos limites do formulário "Adicionar empresa". Se algum texto passar do limite, guardo o texto
+         inteiro em Observação (para não perder nada) e encurto só o campo que ia travar a importação. */
+      const LIMITES = { nome_empresa: 200, cnpj: 20, contato: 200, email: 200, telefone: 40, interesse: 200, obs: 3000 };
+      function limitar(valor, max) {
+        if (!valor) return { curto: null, sobra: null };
+        if (valor.length <= max) return { curto: valor, sobra: null };
+        return { curto: valor.slice(0, max).trim(), sobra: valor };
+      }
+      const SEM_VALOR = ["nao encontrado", "n/a", "na", "-", "--", "sem contato", "sem informacao", "desconhecido", "nao informado", "nao tem"];
+      function valorOuVazio(v) {
+        const t = String(v || "").trim();
+        return t && !SEM_VALOR.includes(P.semAcento(t)) ? t : "";
+      }
+      const pega = (linha, k) => (idx[k] !== -1 ? valorOuVazio(linha[idx[k]]) : "");
+
+      const registros = [];
+      let comSobra = 0;
+      linhas.slice(1).forEach((linha) => {
+        const nomeBruto = pega(linha, "nome_empresa");
+        if (!nomeBruto) return;
+        const campos = {};
+        ["nome_empresa", "cnpj", "contato", "email", "telefone", "interesse"].forEach((k) => { campos[k] = limitar(k === "nome_empresa" ? nomeBruto : (pega(linha, k) || null), LIMITES[k]); });
+        const rotulos = { nome_empresa: "Nome completo", cnpj: "CNPJ completo", contato: "Contato completo", email: "E-mail completo", telefone: "Telefone completo", interesse: "Interesse completo" };
+        const extras = Object.keys(rotulos).filter((k) => campos[k].sobra).map((k) => rotulos[k] + ": " + campos[k].sobra);
+        if (extras.length) comSobra++;
+        const obs = limitar([pega(linha, "obs")].concat(extras).filter(Boolean).join(" | ") || null, LIMITES.obs);
+        registros.push({
+          nome_empresa: campos.nome_empresa.curto, cnpj: campos.cnpj.curto, contato: campos.contato.curto,
+          email: campos.email.curto, telefone: campos.telefone.curto, interesse: campos.interesse.curto,
+          situacao: idx.situacao !== -1 ? situacaoDoTexto(linha[idx.situacao]) : "lead",
+          obs: obs.curto, ultimo_contato: idx.ultimo_contato !== -1 ? converterData(linha[idx.ultimo_contato]) : null
+        });
+      });
+
+      /* repetida = mesmo CNPJ (só números) ou mesmo nome que já está na base ou aparece duas vezes na planilha */
+      const soNumeros = (v) => String(v || "").replace(/\D/g, "");
+      const chaveNome = (e) => P.semAcento(e.nome_empresa).trim();
+      const nomesJa = new Set(lista.map(chaveNome));
+      const cnpjsJa = new Set(lista.map((e) => soNumeros(e.cnpj)).filter((c) => c.length >= 11));
+      const vistosNome = new Set(), vistosCnpj = new Set();
+      const prontos = [], repetidos = [];
+      registros.forEach((r) => {
+        const k = chaveNome(r), c = soNumeros(r.cnpj).length >= 11 ? soNumeros(r.cnpj) : "";
+        if (!k || nomesJa.has(k) || vistosNome.has(k) || (c && (cnpjsJa.has(c) || vistosCnpj.has(c)))) repetidos.push(r);
+        else { vistosNome.add(k); if (c) vistosCnpj.add(c); prontos.push(r); }
+      });
+
+      const tbody = h("tbody");
+      tbody.append(...prontos.slice(0, 25).map((r) => h("tr", null,
+        h("td", { text: r.nome_empresa }), h("td", { text: r.cnpj || "" }), h("td", { text: r.contato || "" }), h("td", { text: r.email || "" }),
+        h("td", { text: r.telefone || "" }), h("td", null, pilula(r.situacao)), h("td", { text: r.interesse || "" }))));
+
+      const corpo = h("div", null,
+        h("p", null, "Encontrei ", h("b", { text: String(registros.length) }), " empresa" + (registros.length === 1 ? "" : "s") + " nesse arquivo."),
+        repetidos.length ? h("p", { class: "dica", text: repetidos.length + " já estão na sua base (mesmo nome ou CNPJ) e não serão duplicadas." }) : null,
+        comSobra ? h("p", { class: "dica", text: "Em " + comSobra + " empresa" + (comSobra === 1 ? "" : "s") + ", um campo estava comprido demais; guardei o texto inteiro na Observação e encurtei só o campo." }) : null,
+        prontos.length ? h("div", { class: "rolagem" }, h("table", { class: "tabela" },
+          h("thead", null, h("tr", null, ["Empresa", "CNPJ", "Contato", "E-mail", "Telefone", "Situação", "Interesse"].map((t) => h("th", { text: t })))),
+          tbody)) : null,
+        prontos.length > 25 ? h("p", { class: "dica", text: "Mostrando as 25 primeiras. As outras " + (prontos.length - 25) + " também entram na importação." }) : null,
+        !prontos.length ? h("p", { class: "aviso-pagina", text: "Nenhuma empresa nova para importar: todas já estão na sua base ou o arquivo não tem nome de empresa." }) : null);
+
+      P.modal({
+        titulo: "Importar planilha de empresas", larga: true, corpo,
+        botoes: prontos.length ? [
+          { texto: "Cancelar" },
+          { texto: "Importar " + prontos.length + (prontos.length === 1 ? " empresa" : " empresas"), classe: "p", aoClicar: async () => {
+            const LOTE = 80;
+            let importados = 0, falhou = false;
+            for (let i = 0; i < prontos.length && !falhou; i += LOTE) {
+              const pedaco = prontos.slice(i, i + LOTE);
+              const r = await P.gravar(() => window.sb.from("empresas_servicos").insert(pedaco));
+              if (r.ok) importados += pedaco.length; else falhou = true;
+            }
+            if (importados) P.toast(importados + " empresa" + (importados === 1 ? "" : "s") + " importada" + (importados === 1 ? "" : "s") + "!");
+            recarregar();
+          } }
+        ] : [{ texto: "Fechar" }]
+      });
+    });
+    document.body.append(input);
+    input.click();
+  }
+
   P.abas.empresas_servicos = {
     async renderizar(raiz) {
       let lista = (await P.carregar("empresas_servicos", (t) => t.select("*").order("criado_em", { ascending: false }))).dados;
@@ -191,6 +345,7 @@
             h("div", { class: "busca" }, P.ic("busca"), busca),
             filtros,
             h("span", { class: "espaco" }),
+            h("button", { type: "button", class: "btn", onclick: () => abrirImportacao(lista, recarregar) }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn", onclick: baixar, disabled: !lista.length }, P.ic("baixar"), "Baixar CSV"),
             h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(null, recarregar) }, P.ic("mais"), "Adicionar empresa")),
           resumoBox, tabelaBox);
