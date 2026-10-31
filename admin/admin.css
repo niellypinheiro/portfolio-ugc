@@ -652,3 +652,8 @@ a{color:var(--bordo)}
 @media (max-width:860px){.topo{justify-content:space-between}}
 .origens .fio i{background:var(--couro)}
 .origens .fio{background:var(--linha)}
+
+/* Transcrições: os botões Transcrever e Analisar lado a lado, logo no começo */
+.acoes-topo{margin:2px 0 12px;padding:10px 12px;border:1px solid var(--linha);border-radius:14px;background:#fff9f9}
+.acoes-topo .status-transc{display:block;margin-top:6px}
+.acoes-topo .status-transc:empty{display:none}

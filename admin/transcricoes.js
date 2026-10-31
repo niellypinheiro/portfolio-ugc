@@ -375,10 +375,11 @@
     return { roteiros: lista, tema: limpo(tema, 120), quando: new Date().toISOString(), modelo: modelo };
   }
   async function modelar(chave, ficha) {
+    /* a análise é opcional: sem ela, a IA modela só pelo texto da transcrição */
     const entrada = "Plataforma: " + nomePlataforma(ficha.plataforma) + "\nTítulo: " + (ficha.titulo || "sem título") +
       "\n\nDETALHES DO PRODUTO DA CRIADORA (use no lugar dos detalhes do vídeo original):\n<<<\n" +
       (linhasLimpas(ficha.produto, 2500) || "nenhum informado (use o mesmo tipo de produto ou assunto do vídeo original)") + "\n>>>" +
-      "\n\nAnálise do vídeo original:\n" + textoDaAnalise(ficha.analise) +
+      (ficha.analise ? "\n\nAnálise do vídeo original:\n" + textoDaAnalise(ficha.analise) : "") +
       "\n\nTranscrição do vídeo original:\n<<<\n" + String(ficha.roteiro).slice(0, 12000) + "\n>>>";
     const g = await gerarComGemini(chave, PROMPT_MODELAR, entrada);
     return lerModelagem(g.texto, g.modelo, String(ficha.produto || "").split("\n")[0]);
@@ -659,12 +660,19 @@
           botaoSalvar.addEventListener("click", () => salvar(false));
 
           /* ----- análise do vídeo ----- */
+          /* "analise" no banco guarda a análise, os roteiros modelados e o texto do produto. Pode ter só os dois últimos (modelar sem analisar). */
           let analiseAtual = null;
           try { analiseAtual = dados.analise ? JSON.parse(dados.analise) : null; } catch (e) { /* análise ilegível: some e dá para refazer */ }
+          const temAnalise = () => !!(analiseAtual && analiseAtual.gancho);
           const botaoAnalisar = h("button", { type: "button", class: "btn p" }, P.ic("transcricao"), "Analisar o vídeo");
           const statusA = h("span", { class: "status-transc", role: "status" });
           const areaAnalise = h("div");
-          const botaoCopiarA = h("button", { type: "button", class: "btn", hidden: true, onclick: () => analiseAtual && copiar(textoDaAnalise(analiseAtual), "Análise copiada") }, P.ic("copiar"), "Copiar a análise");
+          const botaoCopiarA = h("button", { type: "button", class: "btn", hidden: true, onclick: () => temAnalise() && copiar(textoDaAnalise(analiseAtual), "Análise copiada") }, P.ic("copiar"), "Copiar a análise");
+          const secaoAnalise = h("section", { class: "analise", hidden: true },
+            h("div", { class: "linha-botoes", style: "justify-content:space-between;margin-bottom:6px" },
+              h("label", { style: "font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Análise do vídeo" }),
+              h("span", { class: "linha-botoes" }, botaoCopiarA)),
+            areaAnalise);
           /* ----- modelar: 5 roteiros novos (só aparece depois da análise) ----- */
           const campoProduto = h("textarea", { class: "medio campo-produto", maxlength: "2500", "aria-label": "Detalhes do meu produto",
             placeholder: "Escreva aqui os detalhes do SEU produto. A IA usa isso no lugar do produto do vídeo original.\n\nExemplo:\nProduto: Sérum facial Luz da Manhã\nPara quem: mulheres de 25 a 45 anos com pele opaca\nBenefícios: hidrata, deixa a pele com brilho saudável\nComo uso: 3 gotas de manhã, antes do protetor\nDiferenciais: sem perfume, vidro de 30 ml\nCondição: 15% de desconto com o cupom ANA15\nNão dizer: que cura acne" });
@@ -684,7 +692,7 @@
             statusM, areaModelagem);
           campoProduto.id = "campoProdutoModelar";
           /* guarda o que você escreveu, para não perder ao recarregar */
-          campoProduto.addEventListener("input", P.debounce(() => { if (analiseAtual) { analiseAtual.produto = campoProduto.value; salvarAnalise(analiseAtual); } }, 900));
+          campoProduto.addEventListener("input", P.debounce(() => { analiseAtual = analiseAtual || {}; analiseAtual.produto = campoProduto.value; salvarAnalise(analiseAtual); }, 900));
           function pintarModelagem() {
             P.limpar(areaModelagem);
             const m = analiseAtual && analiseAtual.modelagem;
@@ -694,12 +702,16 @@
           }
           function pintarAnalise() {
             P.limpar(areaAnalise);
-            if (analiseAtual) areaAnalise.append(desenharAnalise(analiseAtual));
-            botaoCopiarA.hidden = !analiseAtual;
-            P.limpar(botaoAnalisar).append(P.ic("transcricao"), analiseAtual ? "Analisar de novo" : "Analisar o vídeo");
-            blocoModelar.hidden = !analiseAtual;
+            if (temAnalise()) areaAnalise.append(desenharAnalise(analiseAtual));
+            botaoCopiarA.hidden = !temAnalise();
+            secaoAnalise.hidden = !temAnalise();
+            P.limpar(botaoAnalisar).append(P.ic("transcricao"), temAnalise() ? "Analisar de novo" : "Analisar o vídeo");
+            atualizarModelar();
             pintarModelagem();
           }
+          /* o Modelar aparece assim que existe um roteiro (transcrito ou escrito por você), sem precisar da análise */
+          function atualizarModelar() { blocoModelar.hidden = !roteiro.value.trim(); }
+          roteiro.addEventListener("input", atualizarModelar);
           pintarAnalise();
           async function salvarAnalise(a) {
             const json = JSON.stringify(a);
@@ -707,13 +719,46 @@
             if (r.ok) { dados.analise = json; cartoes.get(dados.id).dados = dados; }
             return r.ok;
           }
+          /* Os dois botões do começo (Transcrever e Analisar) trabalham separados: um não depende do outro.
+             Só o Analisar, se ainda não existir roteiro, transcreve sozinho antes (a análise usa o texto falado). */
+          const botoesDeTopo = () => [botaoTranscrever, botaoAnalisar];
+          async function fazerTranscricao() {
+            status.className = "status-transc"; status.textContent = "";
+            try {
+              try { localStorage.setItem("transcricao_idioma", idioma.value); } catch (e) { /* sem memória do navegador, segue normal */ }
+              const r = await transcrever(chaveServico, dados.link, idioma.value, (m) => { status.textContent = m; });
+              roteiro.value = r.texto; contar(); atualizarModelar();
+              const trocou = idioma.value !== "auto" && r.lang && r.lang.slice(0, 2).toLowerCase() !== idioma.value;
+              status.textContent = "Pronto. Transcrição guardada" + (trocou ? ", mas veio em " + nomeIdioma(r.lang) + " (não achei em " + nomeIdioma(idioma.value) + ")." : ".");
+              await salvar(true);
+              return true;
+            } catch (e) {
+              status.className = "status-transc erro";
+              status.textContent = e instanceof ErroTranscricao ? e.message : "Não consegui transcrever agora. Tente de novo.";
+              if (e instanceof ErroTranscricao && e.status === 401) abrirConfiguracao("O Supadata recusou a chave que está guardada. Cole a chave certa aqui embaixo.");
+              return false;
+            }
+          }
+
+          botaoTranscrever.addEventListener("click", async () => {
+            if (!chaveServico) { abrirConfiguracao("Ainda falta a chave do serviço de transcrição. É um passo só, e depois tudo acontece aqui dentro."); return; }
+            if (roteiro.value.trim() && !(await P.confirmar("Já existe um roteiro escrito. Substituir pela nova transcrição?", { botao: "Substituir", titulo: "Substituir o roteiro" }))) return;
+            botoesDeTopo().forEach((b) => { b.disabled = true; });
+            try { await fazerTranscricao(); } finally { botoesDeTopo().forEach((b) => { b.disabled = false; }); }
+          });
+
           botaoAnalisar.addEventListener("click", async () => {
             if (!chaveIA) { abrirConfiguracaoIA("Ainda falta a chave da análise. É um passo só, e depois tudo acontece aqui dentro."); return; }
-            const texto = roteiro.value.trim();
-            if (!texto) { P.toast("Transcreva o vídeo primeiro. A análise usa o roteiro.", true); return; }
-            if (analiseAtual && !(await P.confirmar("Já existe uma análise deste vídeo. Fazer uma nova e substituir a atual?", { botao: "Analisar de novo", titulo: "Nova análise" }))) return;
-            botaoAnalisar.disabled = true; statusA.className = "status-transc"; statusA.textContent = "Analisando o roteiro... leva uns 15 a 30 segundos.";
+            const semRoteiro = !roteiro.value.trim();
+            if (semRoteiro && !chaveServico) { abrirConfiguracao("Para analisar, o painel primeiro transcreve o vídeo, e ainda falta a chave da transcrição. É um passo só."); return; }
+            if (temAnalise() && !(await P.confirmar("Já existe uma análise deste vídeo. Fazer uma nova e substituir a atual?", { botao: "Analisar de novo", titulo: "Nova análise" }))) return;
+            botoesDeTopo().forEach((b) => { b.disabled = true; });
+            statusA.className = "status-transc"; statusA.textContent = "";
             try {
+              if (semRoteiro && !(await fazerTranscricao())) return;
+              const texto = roteiro.value.trim();
+              if (!texto) { statusA.className = "status-transc erro"; statusA.textContent = "Não achei texto para analisar."; return; }
+              statusA.textContent = "Analisando o roteiro... leva uns 15 a 30 segundos.";
               const a = await analisar(chaveIA, { titulo: titulo.value.trim(), plataforma: dados.plataforma, roteiro: texto });
               if (analiseAtual && analiseAtual.modelagem) a.modelagem = analiseAtual.modelagem;
               if (analiseAtual && analiseAtual.produto) a.produto = analiseAtual.produto;
@@ -723,36 +768,18 @@
               statusA.className = "status-transc erro";
               statusA.textContent = e instanceof ErroIA ? e.message : "Não consegui analisar agora. Tente de novo.";
               if (e instanceof ErroIA && e.status === 401) abrirConfiguracaoIA("O Google recusou a chave que está guardada. Cole a chave certa aqui embaixo.");
-            } finally { botaoAnalisar.disabled = false; }
-          });
-
-          botaoTranscrever.addEventListener("click", async () => {
-            if (!chaveServico) { abrirConfiguracao("Ainda falta a chave do serviço de transcrição. É um passo só, e depois tudo acontece aqui dentro."); return; }
-            if (roteiro.value.trim() && !(await P.confirmar("Já existe um roteiro escrito. Substituir pela nova transcrição?", { botao: "Substituir", titulo: "Substituir o roteiro" }))) return;
-            botaoTranscrever.disabled = true; status.className = "status-transc"; status.textContent = "";
-            try {
-              try { localStorage.setItem("transcricao_idioma", idioma.value); } catch (e) { /* sem memória do navegador, segue normal */ }
-              const r = await transcrever(chaveServico, dados.link, idioma.value, (m) => { status.textContent = m; });
-              roteiro.value = r.texto; contar();
-              const trocou = idioma.value !== "auto" && r.lang && r.lang.slice(0, 2).toLowerCase() !== idioma.value;
-              status.textContent = "Pronto. Transcrição guardada" + (trocou ? ", mas veio em " + nomeIdioma(r.lang) + " (não achei em " + nomeIdioma(idioma.value) + ")." : ".");
-              await salvar(true);
-            } catch (e) {
-              status.className = "status-transc erro";
-              status.textContent = e instanceof ErroTranscricao ? e.message : "Não consegui transcrever agora. Tente de novo.";
-              if (e instanceof ErroTranscricao && e.status === 401) abrirConfiguracao("O Supadata recusou a chave que está guardada. Cole a chave certa aqui embaixo.");
-            } finally { botaoTranscrever.disabled = false; }
+            } finally { botoesDeTopo().forEach((b) => { b.disabled = false; }); }
           });
 
           botaoModelar.addEventListener("click", async () => {
             if (!chaveIA) { abrirConfiguracaoIA("Ainda falta a chave da análise. É um passo só, e depois tudo acontece aqui dentro."); return; }
-            if (!analiseAtual) return;
             const texto = roteiro.value.trim();
-            if (!texto) { P.toast("O roteiro do vídeo está vazio. Transcreva de novo antes de modelar.", true); return; }
-            if (analiseAtual.modelagem && !(await P.confirmar("Já existem roteiros modelados deste vídeo. Gerar 5 novos e substituir os atuais?", { botao: "Modelar de novo", titulo: "Novos roteiros" }))) return;
+            if (!texto) { P.toast("O roteiro do vídeo está vazio. Transcreva antes de modelar.", true); return; }
+            if (analiseAtual && analiseAtual.modelagem && !(await P.confirmar("Já existem roteiros modelados deste vídeo. Gerar 5 novos e substituir os atuais?", { botao: "Modelar de novo", titulo: "Novos roteiros" }))) return;
             botaoModelar.disabled = true; statusM.className = "status-transc"; statusM.textContent = "Criando os 5 roteiros... leva uns 20 a 40 segundos.";
             try {
-              const m = await modelar(chaveIA, { titulo: titulo.value.trim(), plataforma: dados.plataforma, roteiro: texto, produto: campoProduto.value, analise: analiseAtual });
+              const m = await modelar(chaveIA, { titulo: titulo.value.trim(), plataforma: dados.plataforma, roteiro: texto, produto: campoProduto.value, analise: temAnalise() ? analiseAtual : null });
+              analiseAtual = analiseAtual || {};
               analiseAtual.modelagem = m; analiseAtual.produto = campoProduto.value; pintarModelagem();
               statusM.textContent = (await salvarAnalise(analiseAtual)) ? "Pronto. Os roteiros ficam guardados aqui." : "Pronto, mas não consegui guardar os roteiros. Rode o banco.sql de novo.";
             } catch (e) {
@@ -770,18 +797,16 @@
                 h("button", { type: "button", class: "btn", onclick: () => copiar(dados.link, "Link copiado") }, P.ic("copiar"), "Copiar o link"))),
             h("div", { class: "coluna-texto" },
               P.campo("Título", titulo),
-              h("div", { class: "linha-botoes", style: "justify-content:space-between;margin-bottom:6px" },
-                h("label", { style: "font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Roteiro (transcrição)" }),
-                h("span", { class: "linha-botoes" }, idioma, botaoTranscrever)),
-              status, roteiro,
+              h("div", { class: "acoes-topo" },
+                h("div", { class: "linha-botoes" }, idioma, botaoTranscrever, botaoAnalisar),
+                h("p", { class: "fraco", style: "font-size:12.5px;margin:6px 0 0", text: "Escolha um: só transcrever (rápido) ou analisar o vídeo. Se analisar sem ter transcrito, eu transcrevo antes sozinho." }),
+                status, statusA),
+              h("label", { style: "display:block;margin-bottom:6px;font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Roteiro (transcrição)" }),
+              roteiro,
               h("div", { class: "linha-botoes", style: "justify-content:space-between;margin:2px 0 12px" }, contagem,
                 h("button", { type: "button", class: "btn", onclick: () => (roteiro.value.trim() ? copiar(roteiro.value, "Roteiro copiado") : P.toast("Ainda não tem roteiro para copiar.", true)) }, P.ic("copiar"), "Copiar o roteiro")),
-              h("section", { class: "analise" },
-                h("div", { class: "linha-botoes", style: "justify-content:space-between;margin-bottom:6px" },
-                  h("label", { style: "font-size:12.5px;font-weight:500;color:var(--tinta-2)", text: "Análise do vídeo" }),
-                  h("span", { class: "linha-botoes" }, botaoCopiarA, botaoAnalisar)),
-                statusA, areaAnalise),
               blocoModelar,
+              secaoAnalise,
               P.campo("Minhas observações", obs),
               h("div", { class: "linha-botoes" }, botaoSalvar, sujo,
                 h("span", { style: "flex:1" }),
@@ -824,8 +849,8 @@
           erroLink,
           h("ol", { class: "passos-transc" },
             h("li", null, h("span", { class: "n", text: "1" }), h("span", { text: "Cole o link aqui em cima e clique em Guardar. O vídeo já aparece para você assistir." })),
-            h("li", null, h("span", { class: "n", text: "2" }), h("span", { text: "Dentro do conteúdo, clique em \"Transcrever o roteiro\". A transcrição aparece ali mesmo, sem sair do painel." })),
-            h("li", null, h("span", { class: "n", text: "3" }), h("span", { text: "Confira o roteiro, peça a análise do vídeo (gancho, desenvolvimento e CTA), escreva as suas observações e salve." })))),
+            h("li", null, h("span", { class: "n", text: "2" }), h("span", { text: "Dentro do conteúdo, escolha: \"Transcrever o roteiro\" (só o texto) ou \"Analisar o vídeo\" (gancho, desenvolvimento e CTA). Os dois ficam lado a lado e um não depende do outro." })),
+            h("li", null, h("span", { class: "n", text: "3" }), h("span", { text: "Com o roteiro pronto, já dá para clicar em \"Modelar\" e criar 5 roteiros novos, sem precisar da análise. Escreva as suas observações e salve." })))),
         h("div", { class: "busca-conteudos" }, P.ic("busca"), busca),
         areaVazio, semResultado, areaLista);
       desenharVazio();
