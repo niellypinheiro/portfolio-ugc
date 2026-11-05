@@ -17,6 +17,7 @@
     ["transcricoes", "Transcrições", "transcricao"],
     ["empresas_servicos", "Empresas de Serviços", "empresas_servicos"],
     ["prospeccao_smartbrand", "Prospecção", "prospeccao"],
+    ["financeiro", "Financeiro", "financeiro"],
     ["catalogo", "Catálogo", "catalogo"],
     ["pre_pedidos", "Pré-pedidos", "pedidos"]
   ];
@@ -24,7 +25,7 @@
      O resto do painel (Portfólio, Marcas etc.) fica escondido para ele aqui,
      e o banco.sql também recusa esses dados para o e-mail dele, então a
      trava de verdade não depende só desta lista. */
-  const ABAS_RESTRITAS = ["empresas_servicos", "prospeccao_smartbrand", "catalogo", "pre_pedidos"];
+  const ABAS_RESTRITAS = ["empresas_servicos", "prospeccao_smartbrand", "financeiro", "catalogo", "pre_pedidos"];
   /* Frase que aparece embaixo do título no cabeçalho rosa de cada aba (a aba Instagram tem o cabeçalho dela) */
   const SUBTITULOS = {
     portfolio: "Os números do seu site e os vídeos que aparecem nele",
@@ -37,6 +38,7 @@
     transcricoes: "Suas transcrições e textos",
     empresas_servicos: "As empresas para os produtos e serviços da SmartBrand",
     prospeccao_smartbrand: "Os e-mails que você manda para as empresas",
+    financeiro: "Notas fiscais, contas, impostos, estoque, resultado e caixa da SmartBrand",
     catalogo: "Os produtos do catálogo da SmartBrand",
     pre_pedidos: "Os pedidos que chegam pelo catálogo"
   };
