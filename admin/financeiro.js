@@ -611,6 +611,7 @@
           h("button", { type: "button", class: "ig-chip", "aria-pressed": String(v === ctx.tela), text: t, onclick: () => ctx.ir(v) })));
         P.limpar(raiz).append(h("div", { class: "fin-topo" }, menu,
           h("div", { class: "fin-topo-dir" }, h("label", { class: "fraco", for: "finPeriodoSel", text: "Período:" }), seletor,
+            h("button", { type: "button", class: "btn", onclick: () => F.abrirImportacaoPlanilha(ctx, ctx.tela === "receber" ? "receber" : "pagar") }, P.ic("subir"), "Importar planilha"),
             h("button", { type: "button", class: "btn p", onclick: () => F.abrirImportacao(ctx) }, P.ic("subir"), "Importar notas"))), area);
         seletor.id = "finPeriodoSel";
         desenharTela();

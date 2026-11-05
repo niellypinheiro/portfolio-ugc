@@ -125,6 +125,7 @@
       h("div", { class: "busca" }, P.ic("busca"), busca),
       h("div", { class: "filtros", role: "group", "aria-label": "Filtrar" }, chip("aberto", "Em aberto"), chip("atrasadas", "Atrasadas"), chip("pagas", pagar ? "Pagas no período" : "Recebidas no período"), chip("periodo", "Vencem no período"), chip("todas", "Todas")),
       h("span", { class: "espaco" }),
+      h("button", { type: "button", class: "btn", onclick: () => F.abrirImportacaoPlanilha(ctx, tipo) }, P.ic("subir"), "Importar planilha"),
       h("button", { type: "button", class: "btn p", onclick: () => abrirFormulario(ctx, tipo, null) }, P.ic("mais"), "Nova conta")), tabelaBox);
     desenharTabela();
     raiz.append(F.aviso(pagar ? "Lance aqui tudo o que a empresa precisa pagar: fornecedores, aluguel, energia, salários, impostos, taxas e o que mais tiver. As despesas entram na DRE pelo mês do vencimento."
