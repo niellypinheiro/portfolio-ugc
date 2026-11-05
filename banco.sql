@@ -614,3 +614,171 @@ create policy "so_eu_instagram_dias" on public.instagram_dias
 --  enxerga zero. Se aparecer número maior que zero, a tranca falhou,
 --  me chame antes de usar o painel.)
 -- =====================================================================
+
+
+-- =====================================================================
+-- BLOCO 10: FINANCEIRO DA SMARTBRAND (notas fiscais, contas, estoque, DRE, caixa)
+-- =====================================================================
+-- =====================================================================
+-- FINANCEIRO DA SMARTBRAND: notas fiscais (XML), contas a pagar e a receber,
+-- estoque estimado, DRE, fluxo de caixa, metas.
+-- Cole este bloco inteiro no SQL Editor do projeto "niellypinheiro portfólio"
+-- e clique em Run. Pode rodar de novo sem problema (não duplica nada).
+-- Só você e o e-mail da SmartBrand enxergam estas tabelas
+-- (a mesma trava das abas Empresas de Serviços e Catálogo).
+-- =====================================================================
+
+-- Notas fiscais importadas dos XML (uma linha por nota)
+create table if not exists public.fin_notas (
+  id                 uuid primary key default gen_random_uuid(),
+  chave              text not null unique check (char_length(chave) between 10 and 60),
+  tipo               text not null check (tipo in ('entrada', 'saida')),
+  modelo             text,
+  numero             text,
+  serie              text,
+  data_emissao       date not null,
+  natureza           text,
+  devolucao          boolean not null default false,
+  emitente_nome      text,
+  emitente_doc       text,
+  destinatario_nome  text,
+  destinatario_doc   text,
+  valor_produtos     numeric(14,2) not null default 0,
+  valor_frete        numeric(14,2) not null default 0,
+  valor_desconto     numeric(14,2) not null default 0,
+  valor_outros       numeric(14,2) not null default 0,
+  valor_total        numeric(14,2) not null default 0,
+  valor_icms         numeric(14,2) not null default 0,
+  valor_pis          numeric(14,2) not null default 0,
+  valor_cofins       numeric(14,2) not null default 0,
+  valor_ipi          numeric(14,2) not null default 0,
+  valor_tributos     numeric(14,2) not null default 0,
+  forma_pagamento    text,
+  status             text not null default 'autorizada' check (status in ('autorizada', 'cancelada', 'denegada', 'rejeitada')),
+  conferida          boolean not null default false,
+  obs                text check (char_length(obs) <= 1000),
+  criado_em          timestamptz not null default now()
+);
+-- De qual das suas empresas é a nota (a loja ou a outra empresa que emite as vendas)
+alter table public.fin_notas add column if not exists empresa_doc text;
+create index if not exists fin_notas_data_idx on public.fin_notas (data_emissao desc);
+
+-- Itens de cada nota (produtos), usados no estoque e nas margens
+create table if not exists public.fin_nota_itens (
+  id              uuid primary key default gen_random_uuid(),
+  nota_id         uuid not null references public.fin_notas(id) on delete cascade,
+  tipo            text not null check (tipo in ('entrada', 'saida')),
+  devolucao       boolean not null default false,
+  data_emissao    date not null,
+  codigo          text,
+  ean             text,
+  descricao       text not null,
+  ncm             text,
+  cfop            text,
+  unidade         text,
+  quantidade      numeric(14,4) not null default 0,
+  valor_unitario  numeric(14,4) not null default 0,
+  valor_total     numeric(14,2) not null default 0,
+  desconto        numeric(14,2) not null default 0
+);
+create index if not exists fin_nota_itens_nota_idx on public.fin_nota_itens (nota_id);
+
+-- Contas a pagar e a receber (e despesas lançadas à mão)
+create table if not exists public.fin_lancamentos (
+  id          uuid primary key default gen_random_uuid(),
+  tipo        text not null check (tipo in ('pagar', 'receber')),
+  descricao   text not null check (char_length(descricao) between 1 and 200),
+  pessoa      text check (char_length(pessoa) <= 200),
+  categoria   text check (char_length(categoria) <= 80),
+  valor       numeric(14,2) not null check (valor >= 0),
+  vencimento  date not null,
+  pagamento   date,
+  forma       text check (char_length(forma) <= 40),
+  conta       text check (char_length(conta) <= 80),
+  obs         text check (char_length(obs) <= 1000),
+  criado_em   timestamptz not null default now()
+);
+create index if not exists fin_lancamentos_venc_idx on public.fin_lancamentos (vencimento);
+
+-- Configurações do financeiro (CNPJ da empresa, saldo inicial, regime, metas)
+create table if not exists public.fin_config (
+  chave  text primary key check (char_length(chave) <= 60),
+  valor  text check (char_length(valor) <= 4000)
+);
+
+alter table public.fin_notas       enable row level security;
+alter table public.fin_nota_itens  enable row level security;
+alter table public.fin_lancamentos enable row level security;
+alter table public.fin_config      enable row level security;
+grant select, insert, update, delete on public.fin_notas, public.fin_nota_itens, public.fin_lancamentos, public.fin_config to authenticated;
+
+drop policy if exists "so_smartbrand_fin_notas" on public.fin_notas;
+create policy "so_smartbrand_fin_notas" on public.fin_notas
+  for all to authenticated using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+drop policy if exists "so_smartbrand_fin_nota_itens" on public.fin_nota_itens;
+create policy "so_smartbrand_fin_nota_itens" on public.fin_nota_itens
+  for all to authenticated using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+drop policy if exists "so_smartbrand_fin_lancamentos" on public.fin_lancamentos;
+create policy "so_smartbrand_fin_lancamentos" on public.fin_lancamentos
+  for all to authenticated using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+drop policy if exists "so_smartbrand_fin_config" on public.fin_config;
+create policy "so_smartbrand_fin_config" on public.fin_config
+  for all to authenticated using (public.eh_da_smartbrand()) with check (public.eh_da_smartbrand());
+
+
+-- =====================================================================
+-- BLOCO 11: AUTOMACAO DO INSTAGRAM (palavra-chave no comentario, link na DM)
+-- =====================================================================
+-- =====================================================================
+-- AUTOMAÇÃO DO INSTAGRAM: comentou a palavra-chave, recebe o link na DM
+-- Cole este bloco inteiro no SQL Editor do projeto "niellypinheiro portfólio"
+-- e clique em Run. Pode rodar de novo sem problema (não duplica nada).
+-- =====================================================================
+
+-- As automações que você cadastra no painel (uma por palavra-chave)
+create table if not exists public.instagram_automacoes (
+  id                        uuid primary key default gen_random_uuid(),
+  palavra                   text not null check (char_length(palavra) between 1 and 60),
+  link                      text not null check (char_length(link) between 1 and 600),
+  mensagem                  text check (char_length(mensagem) <= 800),
+  resposta_comentario       text check (char_length(resposta_comentario) <= 300),
+  responder_no_comentario   boolean not null default true,
+  link_no_comentario_se_dm_falhar boolean not null default false,
+  ativo                     boolean not null default true,
+  criado_em                 timestamptz not null default now()
+);
+
+-- O registro de cada resposta automática (quem comentou, o que foi enviado, se deu erro)
+create table if not exists public.instagram_automacoes_log (
+  id             uuid primary key default gen_random_uuid(),
+  comentario_id  text not null,
+  post_id        text,
+  autor_id       text,
+  usuario        text,
+  automacao_id   uuid references public.instagram_automacoes(id) on delete set null,
+  palavra        text,
+  dm_status      text,
+  comentario_status text,
+  erro           text,
+  criado_em      timestamptz not null default now()
+);
+
+-- Trava: o mesmo comentário nunca é respondido duas vezes (a Meta às vezes avisa de novo),
+-- e a mesma pessoa não recebe a mesma automação duas vezes no mesmo post.
+create unique index if not exists instagram_automacoes_log_comentario_idx on public.instagram_automacoes_log (comentario_id);
+create unique index if not exists instagram_automacoes_log_pessoa_idx
+  on public.instagram_automacoes_log (post_id, autor_id, automacao_id) where autor_id is not null and automacao_id is not null;
+create index if not exists instagram_automacoes_log_data_idx on public.instagram_automacoes_log (criado_em desc);
+
+alter table public.instagram_automacoes     enable row level security;
+alter table public.instagram_automacoes_log enable row level security;
+grant select, insert, update, delete on public.instagram_automacoes to authenticated;
+grant select, delete on public.instagram_automacoes_log to authenticated;
+
+drop policy if exists "so_eu_instagram_automacoes" on public.instagram_automacoes;
+create policy "so_eu_instagram_automacoes" on public.instagram_automacoes
+  for all to authenticated using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+drop policy if exists "so_eu_instagram_automacoes_log" on public.instagram_automacoes_log;
+create policy "so_eu_instagram_automacoes_log" on public.instagram_automacoes_log
+  for all to authenticated using (public.eh_a_nielly()) with check (public.eh_a_nielly());
+
