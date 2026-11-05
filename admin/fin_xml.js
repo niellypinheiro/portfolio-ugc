@@ -139,22 +139,32 @@
     return r;
   }
 
-  /* Dá o CNPJ que mais aparece nas notas (quase certamente é o da empresa, que está em todas) */
-  function sugerirCnpj(notas) {
+  /* Os CNPJs que mais aparecem nas notas (os das suas empresas estão em quase todas), com a quantidade de notas de cada um */
+  function sugerirCnpjs(notas) {
     const cont = {};
     notas.forEach((n) => [n.nota.emitente_doc, n.nota.destinatario_doc].forEach((d) => { if (d && d.length === 14) cont[d] = (cont[d] || 0) + 1; }));
-    const ordem = Object.entries(cont).sort((a, b) => b[1] - a[1]);
-    return ordem.length ? ordem[0][0] : "";
+    return Object.entries(cont).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([doc, qtd]) => ({ doc, qtd }));
+  }
+  /* Tira os CNPJs de um texto (com ou sem pontos e traço, separados por vírgula, espaço ou linha) */
+  function lerCnpjs(textoLivre) {
+    const achados = String(textoLivre || "").match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g) || [];
+    return Array.from(new Set(achados.map(soDigitos)));
   }
 
-  /* Entrada (compra) ou saída (venda), de acordo com quem emitiu a nota em relação ao CNPJ da empresa */
-  function classificar(res, cnpjEmpresa) {
-    const n = res.nota, minha = soDigitos(cnpjEmpresa);
-    let tipo;
-    if (n.emitente_doc === minha) tipo = n.tpNF === "0" ? "entrada" : "saida";
-    else tipo = "entrada";
-    return tipo;
+  /* Entrada (compra), saída (venda) ou interna (a nota é entre as suas próprias empresas), olhando quem emitiu e quem recebeu.
+     "meus" é a lista de CNPJs das suas empresas (a loja e a outra empresa que emite as vendas). */
+  function classificar(res, meus) {
+    const n = res.nota, lista = Array.isArray(meus) ? meus : lerCnpjs(meus);
+    const emitiuEu = lista.includes(n.emitente_doc), recebeuEu = lista.includes(n.destinatario_doc);
+    if (emitiuEu && recebeuEu) return "interna";
+    if (emitiuEu) return n.tpNF === "0" ? "entrada" : "saida";
+    return "entrada";
+  }
+  /* De qual das suas empresas é a nota */
+  function empresaDaNota(res, meus) {
+    const n = res.nota;
+    return meus.includes(n.emitente_doc) ? n.emitente_doc : meus.includes(n.destinatario_doc) ? n.destinatario_doc : "";
   }
 
-  P.finXml = { lerArquivos, lerXml, sugerirCnpj, classificar, soDigitos };
+  P.finXml = { lerArquivos, lerXml, sugerirCnpjs, lerCnpjs, classificar, empresaDaNota, soDigitos };
 })();

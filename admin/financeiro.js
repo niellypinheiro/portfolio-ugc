@@ -62,6 +62,8 @@
     if (s.length === 11) return s.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
     return d || "";
   };
+  /* CNPJs das suas empresas (a loja e a outra empresa que emite as vendas), guardados em fin_config */
+  F.meusCnpjs = (ctx) => String((ctx.cfg && (ctx.cfg.cnpjs_empresa || ctx.cfg.cnpj_empresa)) || "").split(/[,;\s]+/).map((d) => d.replace(/\D/g, "")).filter((d) => d.length === 14);
   F.anexar = (el, ...filhos) => { filhos.forEach((x) => { if (x != null && x !== false) el.append(x); }); return el; };   /* append que ignora os vazios (o append do navegador escreveria "null") */
   F.variacao = (atual, anterior) => (anterior ? ((atual - anterior) / Math.abs(anterior)) * 100 : null);
 
@@ -91,7 +93,7 @@
     }
     return { ok: true, dados: tudo };
   }
-  const COLUNAS_NOTA = "id,chave,tipo,modelo,numero,serie,data_emissao,natureza,devolucao,emitente_nome,emitente_doc,destinatario_nome,destinatario_doc,valor_produtos,valor_frete,valor_desconto,valor_outros,valor_total,valor_icms,valor_pis,valor_cofins,valor_ipi,valor_tributos,forma_pagamento,status,conferida,obs";
+  const COLUNAS_NOTA = "id,chave,tipo,modelo,numero,serie,data_emissao,natureza,devolucao,emitente_nome,emitente_doc,destinatario_nome,destinatario_doc,valor_produtos,valor_frete,valor_desconto,valor_outros,valor_total,valor_icms,valor_pis,valor_cofins,valor_ipi,valor_tributos,forma_pagamento,status,conferida,obs,empresa_doc";
   function numerar(l, campos) { campos.forEach((c) => { l[c] = Number(l[c]) || 0; }); return l; }
 
   /* ---------- gráficos (SVG feito à mão, sem biblioteca) ---------- */
@@ -365,8 +367,12 @@
 
   F.telas.notas = function (ctx) {
     const fx = ctx.faixa, raiz = h("div");
-    const e = ctx.estadoNotas || (ctx.estadoNotas = { busca: "", tipo: "todas", status: "todas" });
-    const doPeriodo = ctx.notas.filter((n) => n.data_emissao >= fx.ini && n.data_emissao <= fx.fim);
+    const e = ctx.estadoNotas || (ctx.estadoNotas = { busca: "", tipo: "todas", status: "todas", empresa: "todas" });
+    /* quando há notas de mais de uma empresa (a loja e a outra que emite as vendas), dá para filtrar por empresa */
+    const empresas = new Map();
+    ctx.notas.forEach((n) => { if (n.empresa_doc && !empresas.has(n.empresa_doc)) empresas.set(n.empresa_doc, (n.emitente_doc === n.empresa_doc ? n.emitente_nome : n.destinatario_nome) || F.fmtDoc(n.empresa_doc)); });
+    const nomeEmpresa = (n) => (n.empresa_doc && empresas.get(n.empresa_doc)) || "";
+    const doPeriodo = ctx.notas.filter((n) => n.data_emissao >= fx.ini && n.data_emissao <= fx.fim && (e.empresa === "todas" || n.empresa_doc === e.empresa));
     const resumo = (tipo) => {
       const l = doPeriodo.filter((n) => n.tipo === tipo), aut = l.filter((n) => n.status === "autorizada"), canc = l.filter((n) => n.status !== "autorizada");
       return h("div", { class: "fin-nfcartao" },
@@ -388,13 +394,14 @@
       let l = doPeriodo.filter((n) => (e.tipo === "todas" || n.tipo === e.tipo) && (e.status === "todas" || (e.status === "pend" ? n.status === "autorizada" && !n.conferida : n.status === e.status)));
       if (q) l = l.filter((n) => P.semAcento([n.numero, n.emitente_nome, n.destinatario_nome, n.emitente_doc, n.destinatario_doc, n.chave].join(" ")).includes(q));
       l = l.slice().sort((a, b) => (a.data_emissao < b.data_emissao ? 1 : -1));
-      F.anexar(tabelaBox, F.tabela(["Data", "Tipo", "Número", "Cliente / fornecedor", { t: "Valor", num: true }, "Pagamento", "Situação", "Conferida"],
+      F.anexar(tabelaBox, F.tabela(["Data", "Tipo", "Número", "Cliente / fornecedor", { t: "Valor", num: true }, "Pagamento", "Situação", "Conferida"].concat(empresas.size > 1 ? ["Empresa"] : []),
         l.slice(0, 300).map((n) => h("tr", { class: "clicavel", onclick: () => abrirNota(ctx, n) },
           h("td", { class: "nw", text: P.fmtData(n.data_emissao) }), h("td", { class: "nw", text: rotuloTipo(n) }), h("td", { class: "nw", text: n.numero || "" }),
           h("td", { class: "truncar", title: nomeParte(n), text: nomeParte(n) }), h("td", { class: "num", text: F.dinheiro(n.valor_total) }),
           h("td", { class: "nw", text: n.forma_pagamento || "" }),
           h("td", null, F.pilulaStatus(n.status === "autorizada" ? "Autorizada" : n.status === "cancelada" ? "Cancelada" : n.status === "denegada" ? "Denegada" : "Recusada", n.status === "autorizada" ? "ok" : "ruim")),
-          h("td", null, n.conferida ? F.pilulaStatus("Conferida", "ok") : F.pilulaStatus("Pendente", "aviso")))),
+          h("td", null, n.conferida ? F.pilulaStatus("Conferida", "ok") : F.pilulaStatus("Pendente", "aviso")),
+          empresas.size > 1 ? h("td", { class: "truncar", style: "max-width:160px", title: nomeEmpresa(n), text: nomeEmpresa(n) }) : null)),
         doPeriodo.length ? "Nenhuma nota com esse filtro." : "Nenhuma nota neste período. Use o botão Importar notas para trazer os XML."),
         l.length > 300 ? h("p", { class: "fraco", text: "Mostrando as 300 notas mais recentes de " + l.length + ". Use a busca ou mude o período." }) : null);
     }
@@ -403,6 +410,9 @@
       h("div", { class: "busca" }, P.ic("busca"), busca),
       filtro("Tipo", "tipo", e.tipo, [["todas", "Todas"], ["entrada", "Compras"], ["saida", "Vendas"]]),
       filtro("Situação", "status", e.status, [["todas", "Todas"], ["pend", "Pendentes de conferência"], ["cancelada", "Canceladas"]]),
+      empresas.size > 1 ? h("select", { "aria-label": "Empresa", onchange: (ev) => { e.empresa = ev.target.value; ctx.desenhar(); } },
+        h("option", { value: "todas", text: "As duas empresas juntas", selected: e.empresa === "todas" }),
+        Array.from(empresas.entries()).map(([doc, nome]) => h("option", { value: doc, text: nome + " (" + F.fmtDoc(doc) + ")", selected: e.empresa === doc }))) : null,
       h("span", { class: "espaco" }),
       h("button", { type: "button", class: "btn p", onclick: () => F.abrirImportacao(ctx) }, P.ic("subir"), "Importar notas")),
       tabelaBox);
@@ -419,27 +429,35 @@
       h("div", { class: "fin-zona-ic" }, P.ic("subir")),
       h("b", { text: "Escolha os arquivos ou arraste até aqui" }),
       h("span", { class: "fraco", text: "XML das notas fiscais e pastas compactadas (.zip), de uma vez só. Pode ser a pasta inteira que você manda para a contabilidade." }));
-    const campoCnpj = h("input", { type: "text", inputmode: "numeric", maxlength: "18", placeholder: "00.000.000/0000-00", value: F.fmtDoc(ctx.cfg.cnpj_empresa || ""), "aria-label": "CNPJ da empresa" });
+    const campoCnpj = h("textarea", { rows: "2", placeholder: "00.000.000/0000-00", "aria-label": "CNPJs das suas empresas", style: "min-height:0" });
+    campoCnpj.value = F.meusCnpjs(ctx).map(F.fmtDoc).join("\n");
+    const chipsCnpj = h("div", { class: "fin-chips-cnpj" });
     const resumoBox = h("div"), cnpjBox = h("div"), progresso = h("p", { class: "fraco", role: "status" });
     const corpo = h("div", null,
       h("p", { class: "dica", text: "Tudo é lido aqui no seu navegador. Só o resultado (dados das notas e dos produtos) é guardado no painel." }),
       input, zona, progresso, cnpjBox, resumoBox);
 
-    const cnpjDigitos = () => X.soDigitos(campoCnpj.value);
+    const meusCnpjs = () => X.lerCnpjs(campoCnpj.value);
     function plano() {
-      /* o que vai ser importado, com a classificação atual do CNPJ */
-      const cnpj = cnpjDigitos();
+      /* o que vai ser importado, com a classificação atual dos CNPJs */
+      const meus = meusCnpjs();
       const jaTem = new Set(ctx.notas.map((n) => n.chave));
-      const vistos = new Set(), novas = [], repetidas = [];
+      const vistos = new Set(), candidatas = [], repetidas = [];
       lido.notas.forEach((r) => {
         if (vistos.has(r.nota.chave)) { repetidas.push(r); return; }
         vistos.add(r.nota.chave);
-        if (jaTem.has(r.nota.chave)) repetidas.push(r); else novas.push(r);
+        if (jaTem.has(r.nota.chave)) repetidas.push(r); else candidatas.push(r);
       });
       const cancel = new Set(lido.eventos.map((e) => e.chave));
-      novas.forEach((r) => { r.tipoFinal = cnpj.length === 14 ? X.classificar(r, cnpj) : "entrada"; if (cancel.has(r.nota.chave)) r.nota.status = "cancelada"; });
+      const novas = [], internas = [];
+      candidatas.forEach((r) => {
+        r.tipoFinal = meus.length ? X.classificar(r, meus) : "entrada";
+        r.empresa = X.empresaDaNota(r, meus);
+        if (cancel.has(r.nota.chave)) r.nota.status = "cancelada";
+        if (r.tipoFinal === "interna") internas.push(r); else novas.push(r);
+      });
       const cancelarExistentes = ctx.notas.filter((n) => cancel.has(n.chave) && n.status !== "cancelada");
-      return { novas, repetidas, cancelarExistentes, cnpj };
+      return { novas, repetidas, internas, cancelarExistentes, meus };
     }
     function desenharResumo() {
       P.limpar(resumoBox);
@@ -455,6 +473,8 @@
           h("div", null, h("b", { text: String(entr.length) }), h("span", { text: "compras (entrada)" })),
           h("div", null, h("b", { text: String(sai.length) }), h("span", { text: "vendas (saída)" })),
           h("div", null, h("b", { text: String(p.repetidas.length) }), h("span", { text: "já estavam aqui" }))),
+        p.internas.length ? h("p", { class: "dica", text: p.internas.length + (p.internas.length === 1 ? " nota é" : " notas são") + " entre as suas próprias empresas (transferência). Elas não entram no faturamento nem nas compras, então não serão importadas." }) : null,
+        !p.meus.length ? h("p", { class: "aviso-pagina erro", text: "Informe acima o CNPJ das suas empresas para eu separar o que é compra e o que é venda." }) : null,
         p.cancelarExistentes.length || lido.eventos.length ? h("p", { class: "dica", text: lido.eventos.length + " aviso(s) de cancelamento encontrados" + (p.cancelarExistentes.length ? ". " + p.cancelarExistentes.length + " nota(s) que já estão no painel serão marcadas como canceladas." : ".") }) : null,
         Object.keys(agrup).length ? h("div", { class: "aviso-pagina" }, Object.keys(agrup).map((m) => h("p", { text: agrup[m] + " arquivo(s) não importado(s): " + m }))) : null,
         lido.outros.length ? h("p", { class: "dica", text: lido.outros.length + " arquivo(s) que não são XML (como PDF) foram ignorados: o painel guarda só os dados das notas." }) : null,
@@ -472,9 +492,17 @@
         lido = await X.lerArquivos(arquivos, (n) => { progresso.textContent = "Lendo os arquivos... " + n + " já lidos"; });
       } catch (err) { progresso.textContent = ""; P.toast(err && err.message ? err.message : "Não consegui abrir esses arquivos.", true); return; }
       progresso.textContent = lido.lidos + " arquivo(s) XML lidos.";
-      if (!cnpjDigitos()) campoCnpj.value = F.fmtDoc(X.sugerirCnpj(lido.notas));
-      if (!cnpjBox.firstChild) cnpjBox.append(h("div", { class: "campo", style: "margin-top:12px" }, h("label", { text: "CNPJ da sua empresa" }), campoCnpj,
-        h("p", { class: "dica", text: "É assim que eu sei se a nota é uma venda (você emitiu) ou uma compra (você recebeu). Já sugeri o CNPJ que mais aparece nas notas. Confira." })));
+      const sugeridos = X.sugerirCnpjs(lido.notas);
+      if (!meusCnpjs().length && sugeridos.length) campoCnpj.value = F.fmtDoc(sugeridos[0].doc);
+      P.limpar(chipsCnpj);
+      if (sugeridos.length) {
+        chipsCnpj.append(h("span", { class: "fraco", text: "CNPJs que aparecem nas notas (clique para incluir):" }));
+        sugeridos.forEach((s) => chipsCnpj.append(h("button", { type: "button", class: "fin-chip-cnpj", title: "Incluir na lista das suas empresas",
+          onclick: () => { if (!meusCnpjs().includes(s.doc)) { campoCnpj.value = (campoCnpj.value.trim() ? campoCnpj.value.trim() + "\n" : "") + F.fmtDoc(s.doc); desenharResumo(); } } },
+          F.fmtDoc(s.doc) + " (" + s.qtd + ")")));
+      }
+      if (!cnpjBox.firstChild) cnpjBox.append(h("div", { class: "campo", style: "margin-top:12px" }, h("label", { text: "CNPJ das suas empresas" }), campoCnpj, chipsCnpj,
+        h("p", { class: "dica", text: "Coloque só os CNPJs das suas empresas, a SmartBrand e a outra que emite as vendas (um por linha). Não inclua fornecedores nem clientes. Tudo o que essas empresas emitem ou recebem entra aqui como da SmartBrand. É assim que eu separo venda (você emitiu) de compra (você recebeu). Notas entre as duas empresas são ignoradas, para não contar duas vezes." })));
       desenharResumo();
     }
     input.addEventListener("change", () => ler(input.files));
@@ -487,16 +515,15 @@
       { texto: "Importar", classe: "p", aoClicar: async () => {
         if (!lido) { P.toast("Escolha os arquivos primeiro.", true); return false; }
         const p = plano();
-        if (p.cnpj.length !== 14) { P.toast("Confira o CNPJ da empresa: precisa ter 14 números.", true); return false; }
+        if (!p.meus.length) { P.toast("Informe o CNPJ das suas empresas (14 números cada).", true); return false; }
         if (!p.novas.length && !p.cancelarExistentes.length) { P.toast("Não há nada novo para importar.", true); return false; }
-        if (p.cnpj !== X.soDigitos(ctx.cfg.cnpj_empresa || "")) {
-          const rc = await P.gravar(() => window.sb.from("fin_config").upsert({ chave: "cnpj_empresa", valor: p.cnpj }, { onConflict: "chave" }));
-          if (!rc.ok) return false;
+        if (p.meus.join(",") !== F.meusCnpjs(ctx).join(",")) {
+          if (!(await ctx.salvarCfg("cnpjs_empresa", p.meus.join(",")))) return false;
         }
         let feitas = 0;
         for (let i = 0; i < p.novas.length; i += 100) {
           const pedaco = p.novas.slice(i, i + 100);
-          const linhas = pedaco.map((r) => { const n = Object.assign({}, r.nota, { tipo: r.tipoFinal }); delete n.tpNF; return n; });
+          const linhas = pedaco.map((r) => { const n = Object.assign({}, r.nota, { tipo: r.tipoFinal, empresa_doc: r.empresa || null }); delete n.tpNF; return n; });
           const rn = await P.gravar(() => window.sb.from("fin_notas").insert(linhas).select("id,chave"));
           if (!rn.ok) { P.toast("Parei no meio: " + feitas + " notas já foram guardadas. Rode a importação de novo para continuar.", true); ctx.recarregar(); return false; }
           const idPorChave = new Map((rn.data || []).map((x) => [x.chave, x.id]));
