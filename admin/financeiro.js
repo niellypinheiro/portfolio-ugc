@@ -94,6 +94,7 @@
     return { ok: true, dados: tudo };
   }
   const COLUNAS_NOTA = "id,chave,tipo,modelo,numero,serie,data_emissao,natureza,devolucao,emitente_nome,emitente_doc,destinatario_nome,destinatario_doc,valor_produtos,valor_frete,valor_desconto,valor_outros,valor_total,valor_icms,valor_pis,valor_cofins,valor_ipi,valor_tributos,forma_pagamento,status,conferida,obs,empresa_doc";
+  const COLUNAS_ML = "id,chave,numero_venda,data_venda,status,status_desc,unidades,receita_produtos,receita_envio,tarifa_venda,tarifa_envio,cancelamentos,total,sku,anuncio,titulo,preco_unitario,tipo_anuncio,comprador,cidade,uf,forma_entrega";
   function numerar(l, campos) { campos.forEach((c) => { l[c] = Number(l[c]) || 0; }); return l; }
 
   /* ---------- gráficos (SVG feito à mão, sem biblioteca) ---------- */
@@ -550,7 +551,7 @@
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["ml", "Mercado Livre"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };
@@ -564,12 +565,15 @@
       const area = h("div", { class: "fin-area" });
 
       async function carregar() {
-        const [rn, rl, rc] = await Promise.all([
+        const [rn, rl, rc, rm] = await Promise.all([
           lerTudo("fin_notas", COLUNAS_NOTA, "data_emissao", false),
           lerTudo("fin_lancamentos", "*", "vencimento", true),
-          P.carregar("fin_config", (t) => t.select("chave,valor"))
+          P.carregar("fin_config", (t) => t.select("chave,valor")),
+          lerTudo("fin_vendas_ml", COLUNAS_ML, "data_venda", false)
         ]);
         ctx.tabelasOk = rn.ok && rl.ok && rc.ok;
+        ctx.mlOk = rm.ok;   /* a tabela do Mercado Livre é separada: se faltar, só a tela dela avisa */
+        ctx.vendasML = rm.dados.map((v) => numerar(v, ["receita_produtos", "receita_envio", "tarifa_venda", "tarifa_envio", "cancelamentos", "total", "unidades"]));
         ctx.notas = rn.dados.map((n) => numerar(n, ["valor_produtos", "valor_frete", "valor_desconto", "valor_outros", "valor_total", "valor_icms", "valor_pis", "valor_cofins", "valor_ipi", "valor_tributos"]));
         ctx.lancs = rl.dados.map((l) => numerar(l, ["valor"]));
         ctx.cfg = {}; (rc.ok ? rc.dados : []).forEach((c) => { ctx.cfg[c.chave] = c.valor; });
@@ -611,7 +615,7 @@
           h("button", { type: "button", class: "ig-chip", "aria-pressed": String(v === ctx.tela), text: t, onclick: () => ctx.ir(v) })));
         P.limpar(raiz).append(h("div", { class: "fin-topo" }, menu,
           h("div", { class: "fin-topo-dir" }, h("label", { class: "fraco", for: "finPeriodoSel", text: "Período:" }), seletor,
-            h("button", { type: "button", class: "btn", onclick: () => F.abrirImportacaoPlanilha(ctx, ctx.tela === "receber" ? "receber" : "pagar") }, P.ic("subir"), "Importar planilha"),
+            h("button", { type: "button", class: "btn", onclick: () => (ctx.tela === "ml" ? F.abrirImportacaoML(ctx) : F.abrirImportacaoPlanilha(ctx, ctx.tela === "receber" ? "receber" : "pagar")) }, P.ic("subir"), ctx.tela === "ml" ? "Importar vendas do Mercado Livre" : "Importar planilha"),
             h("button", { type: "button", class: "btn p", onclick: () => F.abrirImportacao(ctx) }, P.ic("subir"), "Importar notas"))), area);
         seletor.id = "finPeriodoSel";
         desenharTela();

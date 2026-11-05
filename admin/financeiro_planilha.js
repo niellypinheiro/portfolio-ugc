@@ -194,6 +194,11 @@
       catch (e) { progresso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
       if (lido.linhas.length < 2) { progresso.textContent = ""; lido = null; P.toast("Não encontrei linhas com contas nessa planilha.", true); return; }
       progresso.textContent = (lido.linhas.length - 1) + " linha(s) lidas de " + arquivo.name + ".";
+      if (F.pareceMercadoLivre && F.pareceMercadoLivre(lido.linhas)) {
+        lido = null; P.limpar(previa);
+        progresso.textContent = "Essa planilha parece ser de vendas do Mercado Livre. Feche esta janela, abra a tela \"Mercado Livre\" aqui no Financeiro e use o botão de importar vendas.";
+        return;
+      }
       montar();
     }
     input.addEventListener("change", () => ler(input.files[0]));
