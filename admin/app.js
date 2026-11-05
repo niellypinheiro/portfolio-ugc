@@ -69,6 +69,10 @@
   async function ir(nome) {
     if (!P.abas[nome] || (restrito && !ABAS_RESTRITAS.includes(nome))) nome = restrito ? "empresas_servicos" : "portfolio";
     abaAtual = nome;
+    /* a área da SmartBrand tem o mesmo desenho do painel, só que em azul */
+    document.documentElement.classList.toggle("tema-azul", ABAS_RESTRITAS.includes(nome));
+    const corDoNavegador = document.querySelector('meta[name="theme-color"]');
+    if (corDoNavegador) corDoNavegador.setAttribute("content", ABAS_RESTRITAS.includes(nome) ? "#dfeaff" : "#f9e1e4");
     if (location.hash !== "#" + nome) history.replaceState(null, "", "#" + nome);
     const def = ABAS.find((a) => a[0] === nome);
     $("tituloAba").textContent = def[1];

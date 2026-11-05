@@ -25,7 +25,7 @@
   F.CAT_FORNECEDORES = "Fornecedores e mercadorias";
   F.CAT_IMPOSTOS = "Impostos";
   F.FINANCEIRAS = ["Taxas bancárias e de cartão", "Empréstimos e financiamentos"];
-  F.CORES = ["#cf5a70", "#e8a04c", "#6f9bd1", "#7aa874", "#9b7fc4", "#b84560", "#d9c04c", "#5fb7b0", "#c98aa6", "#8d7a80"];
+  F.CORES = ["#2e6bd6", "#e8a04c", "#5fb7b0", "#7aa874", "#9b7fc4", "#143d96", "#d9c04c", "#6fa8dc", "#c98aa6", "#7a889e"];
 
   /* ---------- ferramentas ---------- */
   const dois = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -136,9 +136,9 @@
       g.append(svg("line", { x1: ml, x2: L - 14, y1: yy, y2: yy, class: "fin-grade" }), svg("text", { x: ml - 6, y: yy + 4, "text-anchor": "end", class: "fin-eixo" }, F.curto(minV + (faixa * i) / 4)));
     }
     if (minV < 0) g.append(svg("line", { x1: ml, x2: L - 14, y1: y(0), y2: y(0), class: "fin-zero" }));
-    g.append(svg("polyline", { points: valores.map((v, i) => x(i) + "," + y(v)).join(" "), fill: "none", stroke: cor || "#cf5a70", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    g.append(svg("polyline", { points: valores.map((v, i) => x(i) + "," + y(v)).join(" "), fill: "none", stroke: cor || "#2e6bd6", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
     valores.forEach((v, i) => {
-      const p = svg("circle", { cx: x(i), cy: y(v), r: 4, fill: "#fff", stroke: cor || "#cf5a70", "stroke-width": 2.5 });
+      const p = svg("circle", { cx: x(i), cy: y(v), r: 4, fill: "#fff", stroke: cor || "#2e6bd6", "stroke-width": 2.5 });
       p.append(svg("title", null, labels[i] + ": " + F.dinheiro(v)));
       g.append(p, svg("text", { x: x(i), y: A - 6, "text-anchor": "middle", class: "fin-eixo" }, labels[i]));
     });
@@ -147,7 +147,7 @@
   F.rosca = function (fatias, centro, sub) {
     const total = soma(fatias, (f) => f.valor) || 1, R = 70, C = 2 * Math.PI * R;
     const g = svg("svg", { viewBox: "0 0 200 200", class: "fin-rosca", role: "img", "aria-label": "Gráfico de rosca" });
-    g.append(svg("circle", { cx: 100, cy: 100, r: R, fill: "none", stroke: "#f6e2e5", "stroke-width": 28 }));
+    g.append(svg("circle", { cx: 100, cy: 100, r: R, fill: "none", stroke: "#dfeaff", "stroke-width": 28 }));
     let acum = 0;
     fatias.forEach((f) => {
       const frac = f.valor / total, seg = svg("circle", { cx: 100, cy: 100, r: R, fill: "none", stroke: f.cor, "stroke-width": 28,
@@ -287,8 +287,8 @@
     const meses = F.mesesAtras(6);
     const fat = [], gas = [];
     meses.forEach((ym) => { const l = F.limitesDoMes(ym), mm = F.metricas(ctx, l.ini, l.fim); fat.push(mm.receitaBruta - mm.devolucoes); gas.push(mm.cmv + mm.despesas); });
-    const graf = F.cartao("Faturamento e custos nos últimos 6 meses", h("div", null, F.barras(meses.map(F.mesNome), [{ nome: "Faturamento", cor: "#cf5a70", valores: fat }, { nome: "Custos e despesas", cor: "#e8a04c", valores: gas }], { rotulo: "Faturamento e custos" }),
-      h("div", { class: "fin-legenda" }, h("span", null, h("i", { style: "background:#cf5a70" }), "Faturamento"), h("span", null, h("i", { style: "background:#e8a04c" }), "Custos e despesas"))));
+    const graf = F.cartao("Faturamento e custos nos últimos 6 meses", h("div", null, F.barras(meses.map(F.mesNome), [{ nome: "Faturamento", cor: "#2e6bd6", valores: fat }, { nome: "Custos e despesas", cor: "#e8a04c", valores: gas }], { rotulo: "Faturamento e custos" }),
+      h("div", { class: "fin-legenda" }, h("span", null, h("i", { style: "background:#2e6bd6" }), "Faturamento"), h("span", null, h("i", { style: "background:#e8a04c" }), "Custos e despesas"))));
 
     /* despesas por categoria */
     const cats = Object.entries(m.porCat).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);

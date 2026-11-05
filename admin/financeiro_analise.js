@@ -133,9 +133,9 @@
     raiz.append(h("div", { class: "ferramentas" }, h("div", { class: "filtros", role: "group", "aria-label": "Quantidade de meses" }, chip(6), chip(12))));
     raiz.append(F.cartao("DRE mês a mês", F.tabela(cab, corpo, ""), "fin-cartao-tab"));
     raiz.append(h("div", { class: "fin-duas igual" },
-      F.cartao("Resultado final por mês", F.linha(meses.map(F.mesNome), cols.map((c) => c.resultado), "#cf5a70")),
-      F.cartao("Receita líquida e lucro bruto", h("div", null, F.barras(meses.map(F.mesNome), [{ nome: "Receita líquida", cor: "#cf5a70", valores: cols.map((c) => c.receitaLiquida) }, { nome: "Lucro bruto", cor: "#7aa874", valores: cols.map((c) => c.lucroBruto) }]),
-        h("div", { class: "fin-legenda" }, h("span", null, h("i", { style: "background:#cf5a70" }), "Receita líquida"), h("span", null, h("i", { style: "background:#7aa874" }), "Lucro bruto"))))));
+      F.cartao("Resultado final por mês", F.linha(meses.map(F.mesNome), cols.map((c) => c.resultado), "#2e6bd6")),
+      F.cartao("Receita líquida e lucro bruto", h("div", null, F.barras(meses.map(F.mesNome), [{ nome: "Receita líquida", cor: "#2e6bd6", valores: cols.map((c) => c.receitaLiquida) }, { nome: "Lucro bruto", cor: "#7aa874", valores: cols.map((c) => c.lucroBruto) }]),
+        h("div", { class: "fin-legenda" }, h("span", null, h("i", { style: "background:#2e6bd6" }), "Receita líquida"), h("span", null, h("i", { style: "background:#7aa874" }), "Lucro bruto"))))));
     const fx = ctx.faixa, m = F.metricas(ctx, fx.ini, fx.fim);
     const cats = Object.entries(m.porCat).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
     raiz.append(F.cartao("Despesas do período (" + fx.rotulo.toLowerCase() + ")", F.tabela(["Categoria", { t: "Valor", num: true }, { t: "% do faturamento", num: true }],
