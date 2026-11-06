@@ -304,9 +304,21 @@
     }
     return texto.replace(/^﻿/, "");
   };
-  P.lerCSV = function (texto) {
+  /* escolhe o separador (, ; ou tabulação) olhando várias linhas: arquivos com explicações no topo enganam quem olha só a primeira */
+  function escolherSeparador(texto) {
     const primeiraLinha = texto.split(/\r\n|\n/, 1)[0] || "";
-    const delim = primeiraLinha.split(";").length > primeiraLinha.split(",").length ? ";" : ",";
+    const padrao = primeiraLinha.split(";").length > primeiraLinha.split(",").length ? ";" : ",";
+    const amostra = texto.slice(0, 20000);
+    let melhor = padrao, melhorPontos = 0;
+    [padrao, padrao === ";" ? "," : ";", "\t"].forEach((d) => {
+      const contagem = new Map();
+      analisarCSV(amostra, d).forEach((l) => { if (l.length > 1) contagem.set(l.length, (contagem.get(l.length) || 0) + 1); });
+      contagem.forEach((freq, colunas) => { const pontos = freq * (colunas - 1); if (pontos > melhorPontos) { melhorPontos = pontos; melhor = d; } });
+    });
+    return melhor;
+  }
+  P.lerCSV = function (texto, separador) { return analisarCSV(texto, separador || escolherSeparador(texto)); };
+  function analisarCSV(texto, delim) {
     const linhas = [];
     let campo = "", linha = [], dentroAspas = false, comConteudo = false;
     for (let i = 0; i < texto.length; i++) {
@@ -325,7 +337,7 @@
     }
     if (campo !== "" || linha.length) { linha.push(campo.trim()); linhas.push(linha); }
     return linhas;
-  };
+  }
 
   /* ---------- cabeçalho de tabela que ordena ao clicar ---------- */
   P.cabecalho = function (rotulo, chave, estado, aoMudar, classe) {

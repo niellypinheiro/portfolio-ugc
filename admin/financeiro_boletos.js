@@ -137,6 +137,15 @@
     grupos.sort((a, b) => b.y - a.y);
     return grupos.map((g) => g.p.sort((a, b) => a.x - b.x).map((i) => i.s).join(" "));
   }
+  /* texto de um PDF, linha por linha, página por página (serve também para o extrato bancário em PDF) */
+  F.linhasDoPdf = async function (arquivo) {
+    await carregarScript(PDFJS, () => !!window.pdfjsLib);
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    const doc = await window.pdfjsLib.getDocument({ data: await arquivo.arrayBuffer() }).promise;
+    const paginas = [];
+    for (let n = 1; n <= doc.numPages; n++) paginas.push(await linhasDaPagina(await doc.getPage(n)));
+    return paginas;
+  };
   /* lê um PDF e devolve { boletos: [...], semTexto: bool } (cada boleto distinto, pela linha digitável) */
   F.lerPdfBoletos = async function (arquivo) {
     await carregarScript(PDFJS, () => !!window.pdfjsLib);

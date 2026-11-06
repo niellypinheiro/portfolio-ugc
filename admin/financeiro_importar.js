@@ -37,6 +37,7 @@
     return c.some((x) => /^(data de |data )?(vencimento|vcto|venc)$/.test(x)) && c.some((x) => /valor|total|parcela/.test(x));
   });
   const DESTINOS = {
+    extrato: { nome: "Extrato bancário", onde: "tela Extrato do banco", abrir: (ctx, a) => { ctx.ir("extrato"); F.abrirImportacaoExtrato(ctx, a); } },
     amazon: { nome: "Transações da Amazon", onde: "tela Amazon", abrir: (ctx, a) => { ctx.ir("amazon"); F.abrirImportacaoAmazon(ctx, a[0]); } },
     ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a[0]); } },
     loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a[0]); } },
@@ -54,19 +55,20 @@
     if (todas.some((l) => F.pareceMercadoLivre && F.pareceMercadoLivre(l))) return "ml";
     if (todas.some((l) => F.pareceVendasLoja && F.pareceVendasLoja(l))) return "loja";
     if (todas.some(pareceContas)) return "contas";
+    if (todas.some((l) => F.pareceExtrato && F.pareceExtrato(l))) return "extrato";
     if (todas.some((l) => F.pareceRelatorioCanal && F.pareceRelatorioCanal(l))) return "canal";
     return null;
   }
 
   F.importarPlanilha = function (ctx) {
-    const input = h("input", { type: "file", multiple: true, accept: ".xlsx,.xls,.csv,.xml,.zip,.pdf,text/csv,text/xml,application/zip,application/pdf", id: "finPlanilhaAuto", style: "display:none" });
+    const input = h("input", { type: "file", multiple: true, accept: ".xlsx,.xls,.csv,.xml,.zip,.pdf,.ofx,.qfx,text/csv,text/xml,application/zip,application/pdf", id: "finPlanilhaAuto", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilhaAuto", tabindex: "0" },
       h("div", { class: "fin-zona-ic" }, P.ic("subir")),
       h("b", { text: "Escolha os arquivos ou arraste até aqui" }),
-      h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML, pasta .zip ou boleto em PDF. Eu descubro sozinha de que tipo é." }));
+      h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML, pasta .zip, boleto em PDF ou extrato do banco (OFX, Excel, CSV, PDF). Eu descubro sozinha de que tipo é." }));
     const aviso = h("p", { class: "fraco", role: "status" }), escolhas = h("div", { class: "fin-chips-cnpj" });
     const corpo = h("div", null,
-      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, transações da Amazon, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML, boletos em PDF e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
+      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, transações da Amazon, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML, boletos em PDF, extratos do banco e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
       input, zona, aviso, escolhas);
     let janela = null;
 
@@ -86,10 +88,21 @@
       const planilhas = arquivos.filter((a) => /\.(xlsx?|csv)$/i.test(a.name)), xmls = arquivos.filter((a) => /\.(xml|zip)$/i.test(a.name));
       const pdfs = arquivos.filter((a) => /\.pdf$/i.test(a.name) || a.type === "application/pdf");
 
-      /* PDF: boletos (aceita vários de uma vez) */
+      /* OFX: extrato bancário */
+      const ofxs = arquivos.filter((a) => /\.(ofx|qfx)$/i.test(a.name));
+      if (ofxs.length) {
+        if (ofxs.length !== arquivos.length) { aviso.textContent = "Escolha só extratos (OFX) ou só os outros tipos de arquivo, de cada vez."; return; }
+        aviso.textContent = "Identifiquei: extrato bancário. Abrindo..."; irPara("extrato", ofxs); return;
+      }
+      /* PDF: boleto (tem código de barras) ou extrato bancário (só texto de lançamentos) */
       if (pdfs.length) {
-        if (pdfs.length !== arquivos.length) { aviso.textContent = "Escolha só PDFs de boletos, ou só os outros tipos de arquivo, de cada vez."; return; }
-        aviso.textContent = "Identifiquei: boletos em PDF. Abrindo..."; irPara("boletos", pdfs); return;
+        if (pdfs.length !== arquivos.length) { aviso.textContent = "Escolha só PDFs, ou só os outros tipos de arquivo, de cada vez."; return; }
+        aviso.textContent = "Lendo o PDF...";
+        let r;
+        try { r = await F.lerPdfBoletos(pdfs[0]); }
+        catch (e) { aviso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui abrir esse PDF. Se ele tiver senha, salve uma cópia sem senha.", true); return; }
+        if (r.boletos.length || r.semTexto) { aviso.textContent = "Identifiquei: boletos em PDF. Abrindo..."; irPara("boletos", pdfs); return; }
+        aviso.textContent = "Identifiquei: extrato bancário em PDF. Abrindo..."; irPara("extrato", pdfs); return;
       }
 
       /* XML e pastas .zip: notas fiscais e/ou CT-e */
@@ -108,10 +121,11 @@
         catch (e) { aviso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
         const tipo = detectarPlanilha(abas);
         if (tipo === "cte") { aviso.textContent = "Identifiquei: fretes (CT-e). Abrindo..."; irPara("cte", arquivos); return; }
+        if (tipo === "extrato" && !xmls.length) { aviso.textContent = "Identifiquei: extrato bancário. Abrindo..."; irPara("extrato", planilhas); return; }
         if (planilhas.length + xmls.length > 1) { aviso.textContent = "Escolha um tipo de arquivo por vez (ou só CT-e, que aceita planilha e XML juntos)."; return; }
         if (tipo === "contas") { aviso.textContent = "Identifiquei: contas a pagar ou a receber. Abrindo..."; irPara(ctx.tela === "receber" ? "receber" : "pagar", [planilhas[0]]); return; }
         if (tipo) { aviso.textContent = "Identifiquei: " + DESTINOS[tipo].nome + ". Abrindo a " + DESTINOS[tipo].onde + "..."; irPara(tipo, [planilhas[0]]); return; }
-        opcoes([planilhas[0]], ["ml", "amazon", "loja", "cte", "canal", "pagar", "receber"]);
+        opcoes([planilhas[0]], ["ml", "amazon", "extrato", "loja", "cte", "canal", "pagar", "receber"]);
       }
     }
     input.addEventListener("change", () => ler(input.files));
