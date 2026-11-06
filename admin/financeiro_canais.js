@@ -199,7 +199,10 @@
       if (custoPorNota) { const cu = custoPorNota.get(n.id); if (cu == null || cu === 0) g.semCusto++; g.custo += cu || 0; }
       const emp = n.empresa_doc || "?"; g.empresas.set(emp, (g.empresas.get(emp) || 0) + n.valor_total);
     });
+    /* tarifa da Amazon: relatório de transações dela (tarifas de venda, FBA e outras taxas dos pedidos do período) */
+    const tarifaAmazon = ctx.amazonOk && ctx.vendasAmazon && F.amazonTarifas ? F.amazonTarifas(ctx.vendasAmazon.filter((v) => v.data && v.data >= fx.ini && v.data <= fx.fim)) : 0;
     if (grupos.has("Mercado Livre") && tarifaML > 0 && !e.empresa) grupos.get("Mercado Livre").tarifa = tarifaML;
+    if (grupos.has("Amazon") && tarifaAmazon > 0 && !e.empresa) grupos.get("Amazon").tarifa = tarifaAmazon;
     const lista = Array.from(grupos.values()).map((g) => Object.assign(g, { lucro: custoPorNota ? g.receita - g.custo - g.frete - g.tarifa : null }))
       .sort((a, b) => b.receita - a.receita);
 
@@ -235,7 +238,7 @@
     const notasCanal = [];
     if (lista.some((g) => g.semCusto)) notasCanal.push("* Algumas notas têm produtos sem custo conhecido (sem nota de compra importada), então o custo delas ficou subestimado e a margem parece maior do que é.");
     if (devolucoes.length) notasCanal.push("Devoluções no período: " + devolucoes.length + " nota(s), " + F.dinheiro(soma(devolucoes, (n) => n.valor_total)) + ". Elas não têm canal e não foram descontadas das linhas acima.");
-    notasCanal.push("Lucro estimado = faturamento das notas menos o custo dos produtos (último custo de compra), menos o frete dos CT-e ligados à nota, menos a tarifa do canal. É antes dos impostos." + (grupos.has("Mercado Livre") ? " A tarifa do Mercado Livre vem do relatório de vendas dele (tela Mercado Livre). Shopee, Amazon e Magalu ainda não têm tarifa, então a margem desses canais está maior do que a real." : ""));
+    notasCanal.push("Lucro estimado = faturamento das notas menos o custo dos produtos (último custo de compra), menos o frete dos CT-e ligados à nota, menos a tarifa do canal. É antes dos impostos." + (grupos.has("Mercado Livre") ? " A tarifa do Mercado Livre vem do relatório de vendas dele (tela Mercado Livre)." : "") + (grupos.has("Amazon") ? " A tarifa da Amazon vem do relatório de transações dela (tela Amazon)." : "") + " Os canais sem tarifa na lista (Shopee e Magalu) estão com margem maior do que a real, porque ainda não importo o relatório deles.");
     notasCanal.forEach((t) => raiz.append(F.aviso(t)));
 
     /* notas sem canal: escolher à mão */

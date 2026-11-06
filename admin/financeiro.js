@@ -574,7 +574,7 @@
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["boletos", "Boletos (PDF)"],["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["amazon", "Amazon"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["boletos", "Boletos (PDF)"],["receber", "Contas a receber"], ["impostos", "Impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };
@@ -588,15 +588,18 @@
       const area = h("div", { class: "fin-area" });
 
       async function carregar() {
-        const [rn, rl, rc, rm, rv, rt, rk] = await Promise.all([
+        const [rn, rl, rc, rm, rv, rt, rk, ra] = await Promise.all([
           lerTudo("fin_notas", COLUNAS_NOTA, "data_emissao", false),
           lerTudo("fin_lancamentos", "*", "vencimento", true),
           P.carregar("fin_config", (t) => t.select("chave,valor")),
           lerTudo("fin_vendas_ml", COLUNAS_ML, "data_venda", false),
           lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total,arquivo,criado_em", "periodo_ini", false),
           lerTudo("fin_cte", "id,chave,numero,serie,data_emissao,status,emitente_nome,emitente_doc,tomador_nome,tomador_doc,remetente_nome,remetente_doc,destino,valor,valor_icms,nfe_chave,nfe_numero,tipo_operacao,origem,empresa_doc", "data_emissao", false),
-          lerTudo("fin_notas", "id,canal,canal_origem", "id", true)
+          lerTudo("fin_notas", "id,canal,canal_origem", "id", true),
+          lerTudo("fin_vendas_amazon", "id,chave,data,liberacao,liquidacao,tipo,categoria,pedido,sku,descricao,quantidade,atendimento,cidade,uf,vendas_produto,creditos_remessa,creditos_presente,descontos,imposto_coletado,tarifas_venda,tarifas_fba,outras_taxas,outro,total,status", "data", false)
         ]);
+        ctx.amazonOk = ra.ok;   /* tabela separada: se faltar, só a tela da Amazon avisa */
+        ctx.vendasAmazon = ra.dados.map((v) => numerar(v, ["vendas_produto", "creditos_remessa", "creditos_presente", "descontos", "imposto_coletado", "tarifas_venda", "tarifas_fba", "outras_taxas", "outro", "total", "quantidade"]));
         ctx.canaisOk = rk.ok;   /* o canal de venda é um campo à parte: se faltar no banco, só a tela de canais avisa */
         const canalPorId = new Map(rk.dados.map((x) => [x.id, x]));
         rn.dados.forEach((n) => { const c = canalPorId.get(n.id); n.canal = c ? c.canal : null; n.canal_origem = c ? c.canal_origem : null; });

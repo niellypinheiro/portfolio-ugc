@@ -89,7 +89,7 @@
     if (m) { const a = m[3].length === 2 ? "20" + m[3] : m[3]; return a + "-" + String(+m[2]).padStart(2, "0") + "-" + String(+m[1]).padStart(2, "0"); }
     m = norm(s).match(/^(\d{1,2}) de ([a-z]+) de (\d{4})/);
     if (m && MESES[m[2]]) return m[3] + "-" + String(MESES[m[2]]).padStart(2, "0") + "-" + String(+m[1]).padStart(2, "0");
-    return null;
+    return F.dataPtExtenso ? F.dataPtExtenso(s) : null;   /* meses abreviados ("set.") e fuso GMT */
   }
   const texto = (v, max) => { const s = (typeof v === "number" ? String(v) : String(v == null ? "" : v)).trim(); return s ? s.slice(0, max) : null; };
   const textoId = (v) => (typeof v === "number" ? v.toFixed(0) : String(v == null ? "" : v).trim());

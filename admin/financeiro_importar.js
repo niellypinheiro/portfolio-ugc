@@ -37,6 +37,7 @@
     return c.some((x) => /^(data de |data )?(vencimento|vcto|venc)$/.test(x)) && c.some((x) => /valor|total|parcela/.test(x));
   });
   const DESTINOS = {
+    amazon: { nome: "Transações da Amazon", onde: "tela Amazon", abrir: (ctx, a) => { ctx.ir("amazon"); F.abrirImportacaoAmazon(ctx, a[0]); } },
     ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a[0]); } },
     loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a[0]); } },
     cte: { nome: "Fretes (CT-e)", onde: "tela Fretes (CT-e)", abrir: (ctx, a) => { ctx.ir("cte"); F.abrirImportacaoCte(ctx, a); } },
@@ -49,6 +50,7 @@
   function detectarPlanilha(abas) {
     const todas = abas.map((a) => a.linhas.filter((l) => l.some((v) => String(v).trim() !== "")));
     if (todas.some((l) => F.pareceCte && F.pareceCte(l))) return "cte";
+    if (todas.some((l) => F.pareceAmazon && F.pareceAmazon(l))) return "amazon";
     if (todas.some((l) => F.pareceMercadoLivre && F.pareceMercadoLivre(l))) return "ml";
     if (todas.some((l) => F.pareceVendasLoja && F.pareceVendasLoja(l))) return "loja";
     if (todas.some(pareceContas)) return "contas";
@@ -64,7 +66,7 @@
       h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML, pasta .zip ou boleto em PDF. Eu descubro sozinha de que tipo é." }));
     const aviso = h("p", { class: "fraco", role: "status" }), escolhas = h("div", { class: "fin-chips-cnpj" });
     const corpo = h("div", null,
-      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML, boletos em PDF e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
+      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, transações da Amazon, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML, boletos em PDF e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
       input, zona, aviso, escolhas);
     let janela = null;
 
@@ -109,7 +111,7 @@
         if (planilhas.length + xmls.length > 1) { aviso.textContent = "Escolha um tipo de arquivo por vez (ou só CT-e, que aceita planilha e XML juntos)."; return; }
         if (tipo === "contas") { aviso.textContent = "Identifiquei: contas a pagar ou a receber. Abrindo..."; irPara(ctx.tela === "receber" ? "receber" : "pagar", [planilhas[0]]); return; }
         if (tipo) { aviso.textContent = "Identifiquei: " + DESTINOS[tipo].nome + ". Abrindo a " + DESTINOS[tipo].onde + "..."; irPara(tipo, [planilhas[0]]); return; }
-        opcoes([planilhas[0]], ["ml", "loja", "cte", "canal", "pagar", "receber"]);
+        opcoes([planilhas[0]], ["ml", "amazon", "loja", "cte", "canal", "pagar", "receber"]);
       }
     }
     input.addEventListener("change", () => ler(input.files));

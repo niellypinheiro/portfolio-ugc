@@ -67,7 +67,7 @@
       if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
       return ano + "-" + String(mes).padStart(2, "0") + "-" + String(dia).padStart(2, "0");
     }
-    return null;
+    return F.dataPtExtenso ? F.dataPtExtenso(s) : null;   /* "11 de set. de 2026", "5 de novembro de 2026" */
   }
   function valorNum(v) {
     if (typeof v === "number") return isFinite(v) ? Math.round(Math.abs(v) * 100) / 100 : NaN;
