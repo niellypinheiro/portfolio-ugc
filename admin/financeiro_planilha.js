@@ -108,7 +108,7 @@
     return { linhas: linhas.filter((l) => l.some((v) => String(v).trim() !== "")), aba: "" };
   }
 
-  F.abrirImportacaoPlanilha = function (ctx, tipoPadrao) {
+  F.abrirImportacaoPlanilha = function (ctx, tipoPadrao, arquivoPre) {
     let lido = null;
     const input = h("input", { type: "file", accept: ".xlsx,.xls,.csv,text/csv", id: "finPlanilha", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilha", tabindex: "0" },
@@ -224,5 +224,6 @@
         ctx.recarregar();
       } }
     ] });
+    if (arquivoPre) ler(arquivoPre);
   };
 })();

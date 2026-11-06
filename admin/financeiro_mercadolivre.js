@@ -165,7 +165,7 @@
   const igual = (a, b) => CAMPOS_COMPARAR.every((k) => (typeof a[k] === "number" || typeof b[k] === "number" ? dois(a[k]) === dois(b[k]) : (a[k] || "") === (b[k] || "")));
 
   /* ---------- janela de importação ---------- */
-  F.abrirImportacaoML = function (ctx) {
+  F.abrirImportacaoML = function (ctx, arquivoPre) {
     let lido = null, plano = null;
     const input = h("input", { type: "file", accept: ".xlsx,.xls,.csv,text/csv", id: "finPlanilhaML", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilhaML", tabindex: "0" },
@@ -238,6 +238,7 @@
         ctx.recarregar();
       } }
     ] });
+    if (arquivoPre) ler(arquivoPre);
   };
 
   /* ---------- a tela ---------- */
