@@ -1,9 +1,18 @@
 /* =========================================================================
    Financeiro: RELATÓRIO DE VENDAS DA LOJA (por produto).
-   É o relatório do sistema da loja com as colunas Produto, Código (SKU),
-   Quantidade, Valor, Frete e Total. Ele não traz datas, então na importação
-   você diz de que período ele é. Subir de novo o mesmo período substitui os
-   valores (não soma duas vezes).
+   É o relatório do sistema da loja (Olist/Tiny) com as colunas Produto,
+   Código (SKU), Quantidade, Valor, Frete e Total. Ele NÃO traz datas dentro
+   dele (a data no nome do arquivo é só o dia em que foi baixado), então na
+   importação você diz de que período ele é.
+
+   Conferências feitas:
+   - o total das vendas contra o "Totalizador Geral" do próprio relatório;
+   - as devoluções (aba Devoluções) entram descontadas;
+   - relatório do mesmo período já existente (pede confirmação antes de trocar);
+   - mesmo arquivo ou mesmo conteúdo já importado em outro período;
+   - períodos que se misturam (venda contada duas vezes);
+   - produtos iguais em vários relatórios (juntados pelo código ou pelo nome);
+   - preços que fogem do normal.
 
    Esses números ficam numa tela própria e NÃO entram na DRE nem na Visão
    geral, porque as notas fiscais dessas vendas já entram pelo XML.
@@ -57,97 +66,192 @@
 
   /* ---------- tipo e categoria do produto (pelo nome) ---------- */
   const CATEGORIAS = [
-    ["Serviços e assistência", /servic|manuten|desbloque|limpeza|formatac|reparo|conserto|mao de obra/],
+    ["Serviços e assistência", /servic|manuten|menuten|desbloque|limpeza|formatac|reparo|conserto|mao de obra/],
     ["Películas", /^pelicula|\bpelicula\b/],
     ["Capas e cases", /\bcapa\b|\bcapinha\b|\bcase\b/],
     ["Cabos e carregadores", /\bcabo\b|carregador|\bfonte\b|power bank|bateria portatil|adaptador/],
-    ["Fones e caixas de som", /\bfone\b|caixa de som|headset/],
+    ["Fones e caixas de som", /\bfone\b|caixa de som|headset|alto falante/],
     ["Casa e eletros", /lampada|ventilador|\bferro\b|bebedouro|garrafa/],
-    ["Celulares e tablets", /celular|iphone|redmi|redmir|samsung|sansung|\bmoto\b|motorola|xiaomi|multilaser g|tablet|tablat|\bblu\b/],
+    ["Celulares e tablets", /celular|iphone|redmi|redmir|samsung|sansung|\bmoto\b|motorola|xiaomi|multilaser g|tablet|tablat|\bblu\b|smartphone/],
     ["Relógios", /relogio/]
   ];
   F.categoriaLoja = (produto) => { const t = norm(produto); const c = CATEGORIAS.find(([, re]) => re.test(t)); return c ? c[0] : "Outros acessórios"; };
   F.ehServicoLoja = (produto) => F.categoriaLoja(produto) === "Serviços e assistência";
 
-  /* ---------- importação ---------- */
-  function palpitePeriodo(nomeArquivo) {   /* relatorio-de-vendas_05-11-2026-15-59-34 → do dia 1 do mês até o dia 5 */
-    const m = String(nomeArquivo || "").match(/(\d{2})-(\d{2})-(\d{4})/);
-    if (!m) { const hoje = F.hoje(); return { ini: hoje.slice(0, 8) + "01", fim: hoje }; }
-    return { ini: m[3] + "-" + m[2] + "-01", fim: m[3] + "-" + m[2] + "-" + m[1] };
+  /* ---------- períodos ---------- */
+  const fmtPeriodo = (a, b) => P.fmtData(a) + " a " + P.fmtData(b);
+  const nomeBase = (n) => String(n || "").replace(/\.(xlsx?|csv)$/i, "").replace(/\s*\(vendas\)\s*$/i, "").trim().toLowerCase();
+  function atalhos() {
+    const hoje = F.hoje(), [a, m] = hoje.split("-").map(Number), mes = (mm) => F.limitesDoMes(F.mesesAtras(1, new Date(a, mm, 1))[0]);
+    return [
+      ["Este mês", { ini: hoje.slice(0, 8) + "01", fim: hoje }],
+      ["Mês passado", mes(m - 2)],
+      ["Mês retrasado", mes(m - 3)],
+      ["Este ano", { ini: a + "-01-01", fim: hoje }]
+    ];
   }
+
+  /* ---------- leitura ---------- */
   async function lerLinhas(arquivo) {
     const abas = await F.lerAbas(arquivo);
     let melhor = null;
     abas.forEach((a) => {
+      if (/devolu|totalizador/i.test(a.nome)) return;
       const linhas = a.linhas.filter((l) => l.some((v) => String(v).trim() !== ""));
       for (let r = 0; r < Math.min(15, linhas.length); r++) {
         const p = pontosCab(linhas[r].map(String));
-        if (p.ok && (!melhor || p.pontos > melhor.pontos)) melhor = { pontos: p.pontos, linhas, cab: r, aba: a.nome, multi: abas.length > 1 };
+        if (p.ok && (!melhor || p.pontos > melhor.pontos)) melhor = { pontos: p.pontos, linhas, cab: r, aba: a.nome, multi: abas.length > 1, abas };
       }
     });
     return melhor;
   }
-  function montarItens(lido) {
-    const idx = mapear(lido.linhas[lido.cab].map(String)), cel = (l, k) => (idx[k] === -1 ? "" : l[idx[k]]);
-    const mapa = new Map(), invalidas = [];
-    lido.linhas.slice(lido.cab + 1).forEach((l, n) => {
+  function linhasDaAba(abas, re) {
+    const a = abas.find((x) => re.test(x.nome));
+    return a ? a.linhas.filter((l) => l.some((v) => String(v).trim() !== "")) : [];
+  }
+  function lerBloco(linhas, cab, sinal) {
+    const idx = mapear(linhas[cab].map(String)), cel = (l, k) => (idx[k] === -1 ? "" : l[idx[k]]), lista = [];
+    linhas.slice(cab + 1).forEach((l) => {
       const produto = texto(cel(l, "produto"), 300);
-      if (!produto) return;
-      if (/^total\b/.test(norm(produto))) return;
+      if (!produto || /^total\b/.test(norm(produto))) return;
       const q = numero(cel(l, "quantidade")), valor = numero(cel(l, "valor")), frete = numero(cel(l, "frete"));
-      let total = idx.total === -1 ? dois(valor + frete) : numero(cel(l, "total"));
+      const total = idx.total === -1 ? dois(valor + frete) : numero(cel(l, "total"));
       if (!q && !valor && !total) return;
       const sku = texto(typeof cel(l, "sku") === "number" ? String(cel(l, "sku")) : cel(l, "sku"), 120);
-      const k = norm(produto) + "|" + (sku || "");
-      const e = mapa.get(k);
-      if (e) { e.quantidade += q; e.valor = dois(e.valor + valor); e.frete = dois(e.frete + frete); e.total = dois(e.total + total); }
-      else mapa.set(k, { produto, sku, quantidade: q, valor, frete, total });
+      lista.push({ produto, sku, quantidade: sinal * q, valor: sinal * valor, frete: sinal * frete, total: sinal * total, devolucao: sinal < 0 });
     });
-    return { itens: Array.from(mapa.values()), invalidas, idx };
+    return lista;
   }
-  const chaveDe = (ini, fim, x) => (ini + "|" + fim + "|" + norm(x.produto).slice(0, 200) + "|" + (x.sku || "")).slice(0, 400);
-  const fmtPeriodo = (a, b) => P.fmtData(a) + " a " + P.fmtData(b);
+  function montarItens(lido) {
+    const mapa = new Map();
+    const juntar = (x) => {
+      const k = norm(x.produto) + "|" + (x.sku || "") + (x.devolucao ? "|dev" : "");
+      const e = mapa.get(k);
+      if (e) { e.quantidade += x.quantidade; e.valor = dois(e.valor + x.valor); e.frete = dois(e.frete + x.frete); e.total = dois(e.total + x.total); }
+      else mapa.set(k, Object.assign({}, x));
+    };
+    lerBloco(lido.linhas, lido.cab, 1).forEach(juntar);
+    /* aba Devoluções: entra descontando */
+    const dev = linhasDaAba(lido.abas || [], /devolu/i);
+    let devolucoes = [];
+    if (dev.length) {
+      let c = 0, melhor = -1;
+      for (let r = 0; r < Math.min(10, dev.length); r++) { const p = pontosCab(dev[r].map(String)); if (p.ok && p.pontos > melhor) { melhor = p.pontos; c = r; } }
+      if (melhor >= 0) devolucoes = lerBloco(dev, c, -1);
+    }
+    devolucoes.forEach(juntar);
+    /* aba Totalizador Geral: o total que o próprio sistema calculou, para conferir */
+    let totalSistema = null;
+    linhasDaAba(lido.abas || [], /totalizador/i).forEach((l) => { if (norm(l[0]) === "total geral") totalSistema = numero(l[2]); });
+    return { itens: Array.from(mapa.values()), devolucoes, totalSistema };
+  }
+  const chaveDe = (ini, fim, x) => (ini + "|" + fim + "|" + norm(x.produto).slice(0, 200) + "|" + (x.sku || "") + (x.devolucao ? "|dev" : "")).slice(0, 400);
 
+  /* relatórios já importados, agrupados por período */
+  function relatoriosDe(lista) {
+    const m = new Map();
+    lista.forEach((x) => {
+      const k = x.periodo_ini + "|" + x.periodo_fim, r = m.get(k) || { ini: x.periodo_ini, fim: x.periodo_fim, arquivo: x.arquivo || "", criado: x.criado_em || "", linhas: 0, total: 0, qtd: 0 };
+      r.linhas++; r.total = dois(r.total + x.total); r.qtd += x.quantidade; m.set(k, r);
+    });
+    return Array.from(m.values()).sort((a, b) => (a.ini < b.ini ? 1 : a.ini > b.ini ? -1 : 0));
+  }
+
+  /* produtos iguais: juntam-se linhas com o mesmo código (SKU) ou o mesmo nome */
+  function agruparProdutos(lista) {
+    const pai = lista.map((_, i) => i), achar = (i) => { while (pai[i] !== i) { pai[i] = pai[pai[i]]; i = pai[i]; } return i; };
+    const unir = (a, b) => { a = achar(a); b = achar(b); if (a !== b) pai[b] = a; };
+    const porSku = new Map(), porNome = new Map();
+    lista.forEach((x, i) => {
+      if (x.sku) { if (porSku.has(x.sku)) unir(i, porSku.get(x.sku)); else porSku.set(x.sku, i); }
+      const n = norm(x.produto); if (porNome.has(n)) unir(i, porNome.get(n)); else porNome.set(n, i);
+    });
+    const g = new Map();
+    lista.forEach((x, i) => {
+      const r = achar(i), e = g.get(r) || { nome: x.produto, skus: new Set(), nomes: new Set(), qtd: 0, valor: 0, frete: 0, total: 0, linhas: [] };
+      if (x.sku) e.skus.add(x.sku); e.nomes.add(x.produto);
+      e.qtd += x.quantidade; e.valor += x.valor; e.frete += x.frete; e.total += x.total; e.linhas.push(x);
+      if (x.total > 0 && x.produto.length > e.nome.length) e.nome = x.produto;
+      g.set(r, e);
+    });
+    return Array.from(g.values());
+  }
+  const mediana = (v) => { const s = v.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  /* o que merece uma segunda olhada (não quer dizer que esteja errado) */
+  function pontosDeAtencao(lista) {
+    const avisos = [];
+    const unit = (x) => (x.quantidade > 0 ? x.total / x.quantidade : 0);
+    const itens = lista.filter((x) => x.quantidade > 0 && x.total > 0 && !F.ehServicoLoja(x.produto));
+    const med = mediana(itens.map(unit)), corte = Math.max(2500, med * 20);
+    itens.filter((x) => unit(x) >= corte).sort((a, b) => unit(b) - unit(a)).slice(0, 6).forEach((x) =>
+      avisos.push({ tipo: "Preço alto", texto: x.produto + ": " + x.quantidade + " un. por " + F.dinheiro(x.total) + " (" + F.dinheiro(unit(x)) + " cada). Confirme no sistema da loja." }));
+    /* mesmo produto com preço muito diferente entre relatórios */
+    agruparProdutos(itens).forEach((g) => {
+      const us = g.linhas.map(unit).filter((u) => u > 0);
+      if (g.linhas.length > 1 && us.length > 1 && Math.max(...us) / Math.min(...us) >= 1.6 && g.total > 300)
+        avisos.push({ tipo: "Preço variou", texto: g.nome + ": o preço por unidade foi de " + F.dinheiro(Math.min(...us)) + " a " + F.dinheiro(Math.max(...us)) + " entre as linhas." });
+    });
+    /* linha idêntica em dois relatórios de períodos diferentes */
+    const vistos = new Map();
+    lista.forEach((x) => {
+      if (x.total <= 0) return;
+      const k = norm(x.produto) + "|" + (x.sku || "") + "|" + x.quantidade + "|" + x.total;
+      const p = x.periodo_ini + "|" + x.periodo_fim;
+      if (vistos.has(k) && vistos.get(k).p !== p && x.total >= 200) avisos.push({ tipo: "Linha repetida", texto: x.produto + " (" + x.quantidade + " un., " + F.dinheiro(x.total) + ") aparece igual em " + fmtPeriodo(vistos.get(k).i, vistos.get(k).f) + " e em " + fmtPeriodo(x.periodo_ini, x.periodo_fim) + "." });
+      else if (!vistos.has(k)) vistos.set(k, { p, i: x.periodo_ini, f: x.periodo_fim });
+    });
+    return avisos;
+  }
+
+  /* ---------- importação ---------- */
   F.abrirImportacaoLoja = function (ctx, arquivoPre) {
     let lido = null, nomeArquivo = "";
-    const palpite = palpitePeriodo(arquivoPre && arquivoPre.name);
-    const ini = h("input", { type: "date", value: palpite.ini, "aria-label": "Início do período" }), fim = h("input", { type: "date", value: palpite.fim, "aria-label": "Fim do período" });
+    const ini = h("input", { type: "date", "aria-label": "Início do período" }), fim = h("input", { type: "date", "aria-label": "Fim do período" });
+    const chips = h("div", { class: "fin-chips-cnpj", role: "group", "aria-label": "Períodos prontos" }, atalhos().map(([t, v]) =>
+      h("button", { type: "button", class: "btn", text: t, onclick: () => { ini.value = v.ini; fim.value = v.fim; desenhar(); } })));
     const input = h("input", { type: "file", accept: ".xlsx,.xls,.csv,text/csv", id: "finPlanilhaLoja", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilhaLoja", tabindex: "0" },
       h("div", { class: "fin-zona-ic" }, P.ic("subir")),
       h("b", { text: "Escolha o relatório de vendas ou arraste até aqui" }),
-      h("span", { class: "fraco", text: "Excel (.xlsx) ou CSV com Produto, Código (SKU), Quantidade, Valor, Frete e Total." }));
+      h("span", { class: "fraco", text: "Excel (.xls ou .xlsx) ou CSV com Produto, Código (SKU), Quantidade, Valor, Frete e Total." }));
     const progresso = h("p", { class: "fraco", role: "status" }), previa = h("div");
     const corpo = h("div", null,
-      h("p", { class: "dica", text: "Este relatório não traz datas dentro dele. Por isso, diga de que dias ele é. Se você subir de novo o mesmo período, os valores são substituídos, não somados." }),
-      h("div", { class: "grade2" }, P.campo("Período: de", ini), P.campo("até", fim)),
+      h("p", { class: "dica", text: "Este relatório NÃO traz as datas das vendas. A data que aparece no nome do arquivo é só o dia em que você baixou, e os números depois dela são a hora do download. Por isso, diga de que dias são as vendas dele. Cada período deve ser importado uma vez só." }),
+      h("div", { class: "grade2" }, P.campo("Vendas de", ini), P.campo("até", fim)), chips,
       input, zona, progresso, previa);
 
-    function atual() {
-      const itens = lido ? montarItens(lido).itens : [];
-      return { itens, ok: !!lido && ini.value && fim.value && fim.value >= ini.value };
-    }
+    const dados = () => (lido ? montarItens(lido) : { itens: [], devolucoes: [], totalSistema: null });
+    const periodoOk = () => !!(ini.value && fim.value && fim.value >= ini.value);
+
     function desenhar() {
       P.limpar(previa);
       if (!lido) return;
-      const { itens, ok } = atual(), totalGeral = soma(itens, (x) => x.total);
+      const { itens, devolucoes, totalSistema } = dados(), ok = periodoOk();
+      const totalGeral = dois(soma(itens, (x) => x.total)), qtd = soma(itens, (x) => x.quantidade);
       const serv = itens.filter((x) => F.ehServicoLoja(x.produto)), prods = itens.filter((x) => !F.ehServicoLoja(x.produto));
-      const ja = (ctx.vendasLoja || []);
-      const iguais = ok ? ja.filter((x) => x.periodo_ini === ini.value && x.periodo_fim === fim.value) : [];
-      const cruzam = ok ? Array.from(new Set(ja.filter((x) => !(x.periodo_ini === ini.value && x.periodo_fim === fim.value) && x.periodo_ini <= fim.value && x.periodo_fim >= ini.value).map((x) => fmtPeriodo(x.periodo_ini, x.periodo_fim)))) : [];
+      const rels = relatoriosDe(ctx.vendasLoja || []);
+      const mesmoPeriodo = ok ? rels.find((r) => r.ini === ini.value && r.fim === fim.value) : null;
+      const cruzam = ok ? rels.filter((r) => !(r.ini === ini.value && r.fim === fim.value) && r.ini <= fim.value && r.fim >= ini.value) : [];
+      const mesmoArquivo = rels.filter((r) => nomeBase(r.arquivo) === nomeBase(nomeArquivo) && !(ok && r.ini === ini.value && r.fim === fim.value));
+      const mesmoConteudo = rels.filter((r) => Math.abs(r.total - totalGeral) < 0.01 && r.linhas === itens.length && !(ok && r.ini === ini.value && r.fim === fim.value));
+      const confere = totalSistema == null ? null : Math.abs(totalSistema - totalGeral) < 0.01;
       F.anexar(previa,
         h("div", { class: "fin-impo-res", style: "margin-top:12px" },
-          h("div", null, h("b", { text: String(itens.length) }), h("span", { text: "produtos e serviços" })),
-          h("div", null, h("b", { text: String(soma(itens, (x) => x.quantidade)) }), h("span", { text: "itens vendidos" })),
+          h("div", null, h("b", { text: String(itens.length) }), h("span", { text: "linhas" })),
+          h("div", null, h("b", { text: String(qtd) }), h("span", { text: "itens vendidos" })),
           h("div", null, h("b", { text: F.dinheiro(soma(prods, (x) => x.total)) }), h("span", { text: "em produtos" })),
           h("div", null, h("b", { text: F.dinheiro(soma(serv, (x) => x.total)) }), h("span", { text: "em serviços" }))),
-        h("p", { class: "dica", text: "Total do relatório: " + F.dinheiro(totalGeral) + (lido.aba && lido.multi ? " (aba \"" + lido.aba + "\")" : "") + "." }),
-        !ok ? h("p", { class: "aviso-pagina erro", text: "Confira o período: a data final precisa ser igual ou depois da inicial." }) : null,
-        iguais.length ? h("p", { class: "aviso-pagina", text: "Já existe um relatório deste mesmo período (" + fmtPeriodo(ini.value, fim.value) + "). Ao importar, os valores dele serão substituídos pelos desta planilha." }) : null,
-        cruzam.length ? h("p", { class: "aviso-pagina erro", text: "Atenção: este período se mistura com relatório(s) já importado(s): " + cruzam.join("; ") + ". Se os dias se repetem, as vendas contam duas vezes. Ajuste o período ou apague o outro relatório antes." }) : null,
+        h("p", { class: "dica", text: "Total do relatório: " + F.dinheiro(totalGeral) + (devolucoes.length ? " (já descontadas " + devolucoes.length + " devoluções)" : "") + (lido.aba && lido.multi ? ". Aba lida: \"" + lido.aba + "\"" : "") + "." }),
+        confere === true ? h("p", { class: "aviso-pagina ok", text: "Conferido: o total bate com o \"Total geral\" do próprio relatório (" + F.dinheiro(totalSistema) + ")." }) : null,
+        confere === false ? h("p", { class: "aviso-pagina erro", text: "Atenção: o \"Total geral\" do relatório é " + F.dinheiro(totalSistema) + ", mas a soma das linhas deu " + F.dinheiro(totalGeral) + ". Pode ter linha que não consegui ler." }) : null,
+        !ok ? h("p", { class: "aviso-pagina erro", text: "Escolha de que dias são essas vendas (use os botões acima ou as datas) para poder importar." }) : null,
+        mesmoPeriodo ? h("p", { class: "aviso-pagina erro", text: "Já existe um relatório para " + fmtPeriodo(mesmoPeriodo.ini, mesmoPeriodo.fim) + (mesmoPeriodo.arquivo ? " (do arquivo " + mesmoPeriodo.arquivo + ")" : "") + " com " + F.dinheiro(mesmoPeriodo.total) + ". Se você importar, ele será SUBSTITUÍDO por este. Se este relatório é de outros dias, mude o período." }) : null,
+        cruzam.length ? h("p", { class: "aviso-pagina erro", text: "Este período se mistura com: " + cruzam.map((r) => fmtPeriodo(r.ini, r.fim)).join("; ") + ". Nos dias que se repetem, as vendas seriam contadas duas vezes." }) : null,
+        mesmoArquivo.length ? h("p", { class: "aviso-pagina erro", text: "Este mesmo arquivo já foi importado antes, no período " + fmtPeriodo(mesmoArquivo[0].ini, mesmoArquivo[0].fim) + ". Importar de novo em outro período duplica as vendas." }) : null,
+        !mesmoArquivo.length && mesmoConteudo.length ? h("p", { class: "aviso-pagina erro", text: "O conteúdo é idêntico ao relatório de " + fmtPeriodo(mesmoConteudo[0].ini, mesmoConteudo[0].fim) + " (mesmo total e mesmo número de linhas). Parece o mesmo relatório baixado de novo." }) : null,
         itens.length ? F.tabela(["Produto", "Categoria", { t: "Qtd.", num: true }, { t: "Total", num: true }],
-          itens.slice(0, 8).map((x) => h("tr", null, h("td", { class: "truncar", text: x.produto }), h("td", { class: "truncar", text: F.categoriaLoja(x.produto) }), h("td", { class: "num", text: String(x.quantidade) }), h("td", { class: "num", text: F.dinheiro(x.total) })))) : null,
-        itens.length > 8 ? h("p", { class: "dica", text: "Mostrando 8 de " + itens.length + "." }) : null);
+          itens.slice().sort((a, b) => b.total - a.total).slice(0, 8).map((x) => h("tr", null, h("td", { class: "truncar", text: (x.devolucao ? "(devolução) " : "") + x.produto }), h("td", { class: "truncar", text: F.categoriaLoja(x.produto) }), h("td", { class: "num", text: String(x.quantidade) }), h("td", { class: "num", text: F.dinheiro(x.total) })))) : null,
+        itens.length > 8 ? h("p", { class: "dica", text: "Mostrando os 8 maiores de " + itens.length + "." }) : null);
     }
     async function ler(arquivo) {
       if (!arquivo) return;
@@ -156,12 +260,11 @@
       catch (e) { progresso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
       if (!lido) { progresso.textContent = ""; P.toast("Não achei as colunas Produto, Quantidade e Total nesse arquivo.", true); return; }
       nomeArquivo = arquivo.name;
-      const p = palpitePeriodo(arquivo.name); if (!ini.dataset.mexeu) { ini.value = p.ini; fim.value = p.fim; }
       progresso.textContent = (lido.linhas.length - lido.cab - 1) + " linha(s) lidas de " + arquivo.name + ".";
       desenhar();
     }
     input.addEventListener("change", () => ler(input.files[0]));
-    [ini, fim].forEach((c) => c.addEventListener("change", () => { ini.dataset.mexeu = "1"; desenhar(); }));
+    [ini, fim].forEach((c) => c.addEventListener("change", desenhar));
     ["dragenter", "dragover"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add("sobre"); }));
     ["dragleave", "drop"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove("sobre"); }));
     zona.addEventListener("drop", (e) => ler(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
@@ -169,14 +272,20 @@
     P.modal({ titulo: "Importar relatório de vendas da loja", larga: true, corpo, botoes: [
       { texto: "Cancelar" },
       { texto: "Importar", classe: "p", aoClicar: async () => {
-        const { itens, ok } = atual();
+        const { itens } = dados();
         if (!lido) { P.toast("Escolha o relatório primeiro.", true); return false; }
-        if (!ok) { P.toast("Confira o período do relatório.", true); return false; }
+        if (!periodoOk()) { P.toast("Diga de que dias são essas vendas antes de importar.", true); return false; }
         if (!itens.length) { P.toast("Não há linhas para importar.", true); return false; }
+        const existente = relatoriosDe(ctx.vendasLoja || []).find((r) => r.ini === ini.value && r.fim === fim.value);
+        if (existente && nomeBase(existente.arquivo) !== nomeBase(nomeArquivo)) {
+          const sim = await P.confirmar("Já existe outro relatório (" + (existente.arquivo || "sem nome") + ", " + F.dinheiro(existente.total) + ") em " + fmtPeriodo(ini.value, fim.value) + ". Ele será apagado e trocado por este. Continuar?", { botao: "Trocar", perigo: true });
+          if (!sim) return false;
+        }
         /* mesmo período: troca o que existe (apaga o antigo e grava o novo) */
         const apagar = await P.gravar(() => window.sb.from("fin_vendas_loja").delete().eq("periodo_ini", ini.value).eq("periodo_fim", fim.value));
         if (!apagar.ok) return false;
-        const linhas = itens.map((x) => Object.assign({ chave: chaveDe(ini.value, fim.value, x), periodo_ini: ini.value, periodo_fim: fim.value, arquivo: nomeArquivo.slice(0, 200) }, x));
+        const linhas = itens.map((x) => ({ chave: chaveDe(ini.value, fim.value, x), periodo_ini: ini.value, periodo_fim: fim.value, arquivo: nomeArquivo.slice(0, 200),
+          produto: x.produto, sku: x.sku, quantidade: x.quantidade, valor: x.valor, frete: x.frete, total: x.total }));
         let feitas = 0;
         for (let i = 0; i < linhas.length; i += 200) {
           const r = await P.gravar(() => window.sb.from("fin_vendas_loja").insert(linhas.slice(i, i + 200)));
@@ -184,7 +293,7 @@
           feitas += Math.min(200, linhas.length - i);
         }
         ctx.lojaSel = ini.value + "|" + fim.value;
-        P.toast(feitas + " produtos e serviços importados!");
+        P.toast(feitas + " linhas importadas!");
         ctx.recarregar();
       } }
     ] });
@@ -205,11 +314,12 @@
         h("button", { type: "button", class: "btn p", onclick: () => F.abrirImportacaoLoja(ctx) }, P.ic("subir"), "Importar relatório"))));
       return raiz;
     }
-    const periodos = Array.from(new Set(todos.map((x) => x.periodo_ini + "|" + x.periodo_fim))).sort().reverse();
+    const rels = relatoriosDe(todos);
+    const periodos = rels.map((r) => r.ini + "|" + r.fim);
     if (ctx.lojaSel !== "todos" && periodos.indexOf(ctx.lojaSel) === -1) ctx.lojaSel = periodos[0];
     const sel = h("select", { "aria-label": "Relatório", onchange: (e) => { ctx.lojaSel = e.target.value; ctx.desenhar(); } },
-      periodos.map((p) => { const [a, b] = p.split("|"); return h("option", { value: p, text: fmtPeriodo(a, b), selected: p === ctx.lojaSel }); }),
-      h("option", { value: "todos", text: "Todos os relatórios somados", selected: ctx.lojaSel === "todos" }));
+      rels.map((r) => h("option", { value: r.ini + "|" + r.fim, text: fmtPeriodo(r.ini, r.fim), selected: r.ini + "|" + r.fim === ctx.lojaSel })),
+      rels.length > 1 ? h("option", { value: "todos", text: "Todos os relatórios somados", selected: ctx.lojaSel === "todos" }) : null);
     const dados = ctx.lojaSel === "todos" ? todos : todos.filter((x) => x.periodo_ini + "|" + x.periodo_fim === ctx.lojaSel);
 
     raiz.append(h("div", { class: "ferramentas" }, h("label", { class: "fraco", text: "Relatório:" }), sel, h("span", { class: "espaco" }),
@@ -228,6 +338,20 @@
       F.tile("t-verde", "Serviços e assistência", F.dinheiro(soma(servicos, (x) => x.total)), totalG ? F.pct((soma(servicos, (x) => x.total) / totalG) * 100, 0) + " do total" : ""),
       F.tile("t-vinho", "Frete cobrado", F.dinheiro(soma(dados, (x) => x.frete)), "dentro do total")));
 
+    /* o que conferir */
+    const avisos = pontosDeAtencao(todos);
+    const cruzados = [];
+    rels.forEach((a, i) => rels.slice(i + 1).forEach((b) => { if (a.ini <= b.fim && a.fim >= b.ini) cruzados.push(fmtPeriodo(a.ini, a.fim) + " e " + fmtPeriodo(b.ini, b.fim)); }));
+    cruzados.forEach((t) => avisos.unshift({ tipo: "Períodos misturados", texto: t + ": as vendas dos dias em comum são contadas duas vezes." }));
+    raiz.append(F.cartao("Para conferir" + (avisos.length ? " (" + avisos.length + ")" : ""),
+      avisos.length ? h("div", null, h("ul", { class: "fin-lista-avisos" }, avisos.slice(0, 15).map((a) => h("li", null, h("b", { text: a.tipo + ": " }), a.texto))),
+        h("p", { class: "fraco", text: "Isso não quer dizer que esteja errado. É só o que foge do normal e vale uma segunda olhada." }))
+        : h("p", { class: "fraco", text: "Nada fora do normal nos relatórios importados." })));
+
+    /* relatórios importados */
+    raiz.append(F.cartao("Relatórios importados", F.tabela(["Período", "Arquivo", { t: "Linhas", num: true }, { t: "Total", num: true }],
+      rels.map((r) => h("tr", null, h("td", { class: "nw", text: fmtPeriodo(r.ini, r.fim) }), h("td", { class: "truncar", text: r.arquivo || "" }), h("td", { class: "num", text: String(r.linhas) }), h("td", { class: "num", text: F.dinheiro(r.total) }))))));
+
     /* por categoria */
     const cats = new Map();
     dados.forEach((x) => { const c = F.categoriaLoja(x.produto), g = cats.get(c) || { nome: c, total: 0, qtd: 0 }; g.total += x.total; g.qtd += x.quantidade; cats.set(c, g); });
@@ -236,10 +360,11 @@
     const donut = F.cartao("Por categoria", h("div", { class: "fin-rosca-caixa" }, F.rosca(fatias, F.curto(totalG), "total"),
       h("ul", { class: "fin-legenda-lista" }, lista.map((g, i) => h("li", null, h("i", { style: "background:" + F.CORES[i % F.CORES.length] }), h("span", { text: g.nome + " (" + g.qtd + ")" }), h("b", { text: F.dinheiro(g.total) }))))));
 
-    /* mais vendidos */
-    const top = dados.slice().sort((a, b) => b.total - a.total).slice(0, 10);
+    /* produtos (iguais juntados pelo código ou pelo nome) */
+    const prodsAgrupados = agruparProdutos(dados).sort((a, b) => b.total - a.total);
+    const top = prodsAgrupados.slice(0, 10);
     const maisVendidos = F.cartao("O que mais faturou", F.tabela(["Produto", { t: "Qtd.", num: true }, { t: "Total", num: true }],
-      top.map((x) => h("tr", null, h("td", { class: "truncar", text: x.produto }), h("td", { class: "num", text: String(x.quantidade) }), h("td", { class: "num", text: F.dinheiro(x.total) })))));
+      top.map((g) => h("tr", null, h("td", { class: "truncar", title: Array.from(g.nomes).join(" | "), text: g.nome }), h("td", { class: "num", text: String(g.qtd) }), h("td", { class: "num", text: F.dinheiro(g.total) })))));
     raiz.append(h("div", { class: "fin-duas" }, donut, maisVendidos));
 
     /* lista completa */
@@ -249,17 +374,17 @@
     function tabela() {
       P.limpar(caixa);
       const q = P.semAcento(ctx.estadoLoja.busca);
-      let l = dados.slice().sort((a, b) => b.total - a.total);
-      if (q) l = l.filter((x) => P.semAcento([x.produto, x.sku, F.categoriaLoja(x.produto)].join(" ")).includes(q));
+      let l = prodsAgrupados.slice();
+      if (q) l = l.filter((g) => P.semAcento(Array.from(g.nomes).join(" ") + " " + Array.from(g.skus).join(" ") + " " + F.categoriaLoja(g.nome)).includes(q));
       F.anexar(caixa, F.tabela(["Produto", "Código", "Categoria", { t: "Qtd.", num: true }, { t: "Valor", num: true }, { t: "Frete", num: true }, { t: "Total", num: true }],
-        l.slice(0, 300).map((x) => h("tr", null, h("td", { class: "truncar", text: x.produto }), h("td", { class: "nw", text: x.sku || "" }), h("td", { class: "truncar", text: F.categoriaLoja(x.produto) }),
-          h("td", { class: "num", text: String(x.quantidade) }), h("td", { class: "num", text: F.dinheiro(x.valor) }), h("td", { class: "num", text: F.dinheiro(x.frete) }), h("td", { class: "num", text: F.dinheiro(x.total) }))),
+        l.slice(0, 300).map((g) => h("tr", null, h("td", { class: "truncar", title: Array.from(g.nomes).join(" | "), text: g.nome }), h("td", { class: "nw", text: Array.from(g.skus).join(", ") }), h("td", { class: "truncar", text: F.categoriaLoja(g.nome) }),
+          h("td", { class: "num", text: String(g.qtd) }), h("td", { class: "num", text: F.dinheiro(g.valor) }), h("td", { class: "num", text: F.dinheiro(g.frete) }), h("td", { class: "num", text: F.dinheiro(g.total) }))),
         "Nada encontrado."), l.length > 300 ? h("p", { class: "fraco", text: "Mostrando 300 de " + l.length + ". Use a busca." }) : null);
     }
     busca.addEventListener("input", P.debounce(() => { ctx.estadoLoja.busca = busca.value; tabela(); }, 150));
     raiz.append(h("div", { class: "ferramentas", style: "margin-top:14px" }, h("div", { class: "busca" }, P.ic("busca"), busca)), caixa);
     tabela();
-    raiz.append(F.aviso("Estes números são só do relatório de vendas da loja e não entram na Visão geral nem na DRE, porque as notas fiscais dessas vendas já entram pelo XML. Assim o faturamento não é contado duas vezes. A categoria é escolhida pelo nome do produto."));
+    raiz.append(F.aviso("Estes números são só do relatório de vendas da loja e não entram na Visão geral nem na DRE, porque as notas fiscais dessas vendas já entram pelo XML. Assim o faturamento não é contado duas vezes. Produtos com o mesmo código ou o mesmo nome são somados numa linha só. A categoria é escolhida pelo nome do produto."));
     return raiz;
   };
 })();

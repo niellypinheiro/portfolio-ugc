@@ -570,7 +570,7 @@
           lerTudo("fin_lancamentos", "*", "vencimento", true),
           P.carregar("fin_config", (t) => t.select("chave,valor")),
           lerTudo("fin_vendas_ml", COLUNAS_ML, "data_venda", false),
-          lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total", "periodo_ini", false)
+          lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total,arquivo,criado_em", "periodo_ini", false)
         ]);
         ctx.lojaOk = rv.ok;   /* idem: tabela separada, só a tela dela avisa se faltar */
         ctx.vendasLoja = rv.dados.map((v) => numerar(v, ["quantidade", "valor", "frete", "total"]));
