@@ -641,7 +641,7 @@
         P.limpar(area);
         const fn = F.telas[ctx.tela];
         if (!fn) { area.append(F.aviso("Esta tela ainda não foi carregada. Atualize a página (Ctrl+F5).", "erro")); return; }
-        if (["estoque", "geral", "metas", "parceiros", "canais"].includes(ctx.tela) && ctx.itens === null) carregarItens();
+        if (["estoque", "geral", "metas", "parceiros", "canais", "ml"].includes(ctx.tela) && ctx.itens === null) carregarItens();
         try { area.append(fn(ctx)); } catch (e) { console.error(e); area.append(F.aviso("Esta tela encontrou um problema e não abriu direito. As outras continuam funcionando.", "erro")); }
       }
       function desenhar() {

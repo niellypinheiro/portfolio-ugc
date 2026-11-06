@@ -244,6 +244,9 @@
   /* ---------- a tela ---------- */
   F.telas.ml = function (ctx) {
     const raiz = h("div"), fx = ctx.faixa;
+    /* primeiro, as notas fiscais: o que foi vendido no Mercado Livre pelas notas das suas empresas */
+    if (F.cartaoNotasCanal) raiz.append(F.cartaoNotasCanal(ctx, "Mercado Livre"));
+    raiz.append(h("h3", { class: "fin-subtitulo", text: "Planilha de vendas do Mercado Livre" }));
     if (!ctx.mlOk) {
       raiz.append(F.aviso("A tabela das vendas do Mercado Livre ainda não existe no Supabase. Use a faixa amarela no topo (\"Copiar o SQL\"), cole no SQL Editor do projeto \"niellypinheiro portfólio\" e clique em Run. Depois atualize esta página.", "erro"));
       return raiz;

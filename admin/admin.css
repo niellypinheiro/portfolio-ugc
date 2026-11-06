@@ -832,3 +832,5 @@ a{color:var(--bordo)}
 .fin-boleto-codigo{display:block;font-size:12.5px;line-height:1.4;padding:6px 8px;margin-bottom:8px;border-radius:8px;background:var(--papel);color:var(--tinta-2);overflow-wrap:anywhere}
 .fin-boleto-nota{margin:6px 0 0;font-size:13px;line-height:1.4}
 .fin-boleto-nota.aviso{color:var(--amarelo)}.fin-boleto-nota.ruim{color:var(--vermelho)}.fin-boleto-nota.info{color:var(--tinta-3)}
+
+.fin-subtitulo{margin:24px 0 4px;font-size:16px;font-weight:600;color:var(--tinta-2)}

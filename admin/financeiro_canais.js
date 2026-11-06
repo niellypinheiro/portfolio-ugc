@@ -21,16 +21,75 @@
   const dois = (n) => Math.round((Number(n) || 0) * 100) / 100;
   const soma = (l, f) => l.reduce((s, x) => s + (Number(f(x)) || 0), 0);
   const digitos = (s) => String(s == null ? "" : s).replace(/\D/g, "");
-  const ROTULO_ORIGEM = { relatorio: "pelo relatório do canal", xml: "pela própria nota", manual: "escolhido por você", cte: "pelo frete (Mercado Envios)" };
+  const ROTULO_ORIGEM = { relatorio: "pelo relatório do canal", xml: "pela própria nota", manual: "escolhido por você", cte: "pelo frete (Mercado Envios)", padrao: "canal padrão" };
 
-  /* canal de uma nota: o gravado, ou o do frete do Mercado Envios */
+  /* canal padrão: o canal das notas de venda que nenhuma outra pista identificou. Vale o que a Nielly disse: o que não é Amazon é Mercado Livre.
+     Fica em fin_config (chave canal_padrao); "nenhum" desliga. */
+  F.canalPadrao = (ctx) => { const v = ctx.cfg && ctx.cfg.canal_padrao; return v === undefined || v === null || v === "" ? "Mercado Livre" : v === "nenhum" ? "" : v; };
+
+  /* canal de uma nota: o gravado, o do frete do Mercado Envios ou, por último, o canal padrão */
   F.canalDaNota = function (ctx, n) {
     if (n.canal) return { canal: n.canal, origem: n.canal_origem || "manual" };
     if (ctx._cteNotas === undefined || ctx._cteRef !== ctx.ctes) {
       ctx._cteNotas = new Set((ctx.ctes || []).filter((c) => c.nfe_chave && c.status === "autorizado").map((c) => c.nfe_chave)); ctx._cteRef = ctx.ctes;
     }
     if (ctx._cteNotas.has(n.chave)) return { canal: "Mercado Livre", origem: "cte" };
-    return null;
+    const padrao = F.canalPadrao(ctx);
+    return padrao ? { canal: padrao, origem: "padrao" } : null;
+  };
+
+  /* custo dos produtos de cada nota de venda (estimado pelo último custo de compra de cada produto). null enquanto os itens não carregaram */
+  F.custoPorNota = function (ctx) {
+    if (!ctx.itens) return null;
+    const prod = F.produtos ? F.produtos(ctx) : null, custo = new Map((prod || []).map((p) => [p.chave, p.custo])), mapa = new Map();
+    ctx.itens.forEach((i) => { if (i.tipo !== "saida" || i.devolucao) return; const k = i.ean || "d:" + norm(i.descricao); mapa.set(i.nota_id, (mapa.get(i.nota_id) || 0) + i.quantidade * (custo.get(k) || 0)); });
+    return mapa;
+  };
+  F.fretePorNota = function (ctx) {
+    const m = new Map();
+    (ctx.ctes || []).forEach((c) => { if (c.nfe_chave && F.cteCusto && F.cteCusto(ctx, c)) m.set(c.nfe_chave, (m.get(c.nfe_chave) || 0) + c.valor); });
+    return m;
+  };
+
+  /* Cartão "notas fiscais do canal" (usado na tela do Mercado Livre): faturamento, custo, frete e lucro estimado por empresa */
+  F.cartaoNotasCanal = function (ctx, canal) {
+    const fx = ctx.faixa, nomes = nomesEmpresas(ctx);
+    const doCanal = (a, b) => ctx.notas.filter((n) => n.tipo === "saida" && !n.devolucao && n.status === "autorizada" && n.data_emissao >= a && n.data_emissao <= b && (F.canalDaNota(ctx, n) || {}).canal === canal);
+    const notas = doCanal(fx.ini, fx.fim), antes = doCanal(fx.ant.ini, fx.ant.fim);
+    const raiz = h("div");
+    if (!notas.length) { raiz.append(F.cartao("Notas fiscais do " + canal, h("p", { text: "Não há notas de venda do " + canal + " neste período. Troque o período lá em cima ou importe as notas em Importar notas." }))); return raiz; }
+    const custo = F.custoPorNota(ctx), frete = F.fretePorNota(ctx);
+    const receita = soma(notas, (n) => n.valor_total), receitaAnt = soma(antes, (n) => n.valor_total);
+    const porEmp = new Map();
+    notas.forEach((n) => {
+      const d = n.empresa_doc || "?", g = porEmp.get(d) || { doc: d, notas: 0, receita: 0, custo: 0, frete: 0, semCusto: 0 };
+      g.notas++; g.receita += n.valor_total; g.frete += frete.get(n.chave) || 0;
+      if (custo) { const c = custo.get(n.id); if (!c) g.semCusto++; g.custo += c || 0; }
+      porEmp.set(d, g);
+    });
+    const empresas = Array.from(porEmp.values()).sort((a, b) => b.receita - a.receita);
+    const tarifaRel = canal === "Mercado Livre" && ctx.mlOk && ctx.vendasML ? ctx.vendasML.filter((v) => v.data_venda && v.data_venda >= fx.ini && v.data_venda <= fx.fim && !(F.vendaCancelada && F.vendaCancelada(v))) : [];
+    const tarifa = soma(tarifaRel, (v) => -v.tarifa_venda), totCusto = soma(empresas, (g) => g.custo), totFrete = soma(empresas, (g) => g.frete), semCusto = soma(empresas, (g) => g.semCusto);
+    const lucro = custo ? receita - totCusto - totFrete - tarifa : null, confiavel = custo && semCusto / notas.length <= 0.2;
+    const assumidas = notas.filter((n) => (F.canalDaNota(ctx, n) || {}).origem === "padrao");
+
+    raiz.append(h("div", { class: "fin-tiles quatro" },
+      F.tile("t-azul", "Faturamento (notas)", F.dinheiro(receita), notas.length + " nota(s), " + fx.rotulo, F.variacao(receita, receitaAnt)),
+      F.tile("t-ouro", "Custo dos produtos", custo ? F.dinheiro(totCusto) : "...", custo ? (semCusto ? semCusto + " nota(s) sem custo conhecido" : "pelo último custo de compra") : "calculando..."),
+      F.tile("t-vinho", "Frete e tarifas", F.dinheiro(totFrete + tarifa), "frete (CT-e) " + F.dinheiro(totFrete) + (tarifa ? ", tarifa do ML " + F.dinheiro(tarifa) : "")),
+      F.tile(lucro != null && lucro < 0 ? "t-vermelho" : "t-verde", "Lucro estimado", lucro == null ? "..." : F.dinheiro(lucro), confiavel ? F.pct((lucro / receita) * 100, 1) + " de margem" : (custo ? "falta custo de muitos produtos (importe as notas de compra)" : ""))));
+    raiz.append(F.cartao("Por empresa que emitiu a nota", F.tabela(["Empresa", { t: "Notas", num: true }, { t: "Faturamento", num: true }, { t: "Custo dos produtos", num: true }, { t: "Frete (CT-e)", num: true }, { t: "Lucro antes da tarifa", num: true }],
+      empresas.map((g) => h("tr", null, h("td", { class: "truncar", text: nomes.get(g.doc) || F.fmtDoc(g.doc) }), h("td", { class: "num", text: String(g.notas) }), h("td", { class: "num", text: F.dinheiro(g.receita) }),
+        h("td", { class: "num", text: custo ? F.dinheiro(g.custo) + (g.semCusto ? " *" : "") : "..." }), h("td", { class: "num", text: F.dinheiro(g.frete) }),
+        h("td", { class: "num", text: custo ? F.dinheiro(g.receita - g.custo - g.frete) : "..." }))), "Nenhuma nota."), "fin-cartao-tab"));
+    /* confere com a planilha de vendas do Mercado Livre, quando ela foi importada */
+    if (tarifaRel.length) {
+      const vRel = soma(tarifaRel, (v) => v.receita_produtos), dif = receita - vRel;
+      raiz.append(F.aviso("Conferência: a planilha de vendas do Mercado Livre tem " + tarifaRel.length + " venda(s) neste período, somando " + F.dinheiro(vRel) + " em produtos. As notas somam " + F.dinheiro(receita) + (Math.abs(dif) < 1 ? ". Os valores batem." : ", uma diferença de " + F.dinheiro(Math.abs(dif)) + (dif > 0 ? " a mais nas notas" : " a menos nas notas") + ". Costuma ser nota emitida num mês e venda em outro, venda sem nota ou nota de outro canal.")));
+    }
+    if (assumidas.length) raiz.append(F.aviso(assumidas.length + " dessas notas foram contadas como Mercado Livre porque esse é o canal padrão das notas sem outro canal (as da Amazon, por exemplo, ficam fora quando identificadas). Dá para mudar o canal padrão em Canais de venda." + (ctx.canaisOk ? "" : " Atenção: falta criar o campo de canal no banco (SQL do canal), então as notas da Amazon ainda não são separadas.")));
+    if (custo && semCusto) raiz.append(F.aviso("* Algumas notas têm produtos sem custo conhecido (sem nota de compra importada), então o custo ficou subestimado e o lucro parece maior do que é."));
+    return raiz;
   };
 
   /* nome de cada empresa (pelo emitente das notas de venda) */
@@ -177,14 +236,7 @@
     const devolucoes = ctx.notas.filter((n) => n.tipo === "entrada" && n.devolucao && n.status === "autorizada" && n.data_emissao >= fx.ini && n.data_emissao <= fx.fim && (!e.empresa || n.empresa_doc === e.empresa));
 
     /* custo dos produtos vendidos (estimado pelo último custo de compra de cada produto) */
-    let custoPorNota = null;
-    if (ctx.itens) {
-      const prod = F.produtos ? F.produtos(ctx) : null, custo = new Map((prod || []).map((p) => [p.chave, p.custo]));
-      custoPorNota = new Map();
-      ctx.itens.forEach((i) => { if (i.tipo !== "saida" || i.devolucao) return; const k = i.ean || "d:" + norm(i.descricao); custoPorNota.set(i.nota_id, (custoPorNota.get(i.nota_id) || 0) + i.quantidade * (custo.get(k) || 0)); });
-    }
-    const fretePorNota = new Map();
-    (ctx.ctes || []).forEach((c) => { if (c.nfe_chave && F.cteCusto && F.cteCusto(ctx, c)) fretePorNota.set(c.nfe_chave, (fretePorNota.get(c.nfe_chave) || 0) + c.valor); });
+    const custoPorNota = F.custoPorNota(ctx), fretePorNota = F.fretePorNota(ctx);
     /* tarifa do marketplace: por enquanto só do Mercado Livre, pelo relatório de vendas dele (comissão e impostos do ML, no período) */
     const tarifaML = (ctx.mlOk && ctx.vendasML ? ctx.vendasML : []).filter((v) => v.data_venda && v.data_venda >= fx.ini && v.data_venda <= fx.fim && !(F.vendaCancelada && F.vendaCancelada(v))).reduce((s, v) => s - v.tarifa_venda, 0);
 
@@ -214,14 +266,18 @@
 
     const seletor = h("select", { "aria-label": "Empresa", onchange: (ev) => { e.empresa = ev.target.value; e.sel = new Set(); ctx.desenhar(); } },
       h("option", { value: "", text: "Todas as empresas" }), Array.from(nomes.entries()).map(([d, n]) => h("option", { value: d, text: n, selected: d === e.empresa })));
-    raiz.append(h("div", { class: "ferramentas" }, h("label", { class: "fraco", text: "Empresa:" }), seletor, h("span", { class: "espaco" }),
+    const padraoAtual = F.canalPadrao(ctx);
+    const seletorPadrao = h("select", { "aria-label": "Canal padrão das notas sem canal", onchange: async (ev) => { if (await ctx.salvarCfg("canal_padrao", ev.target.value || "nenhum")) { P.toast("Canal padrão salvo"); ctx.desenhar(); } } },
+      h("option", { value: "", text: "Nenhum (deixar sem canal)", selected: !padraoAtual }), F.CANAIS.map((c) => h("option", { value: c, text: c, selected: c === padraoAtual })));
+    raiz.append(h("div", { class: "ferramentas" }, h("label", { class: "fraco", text: "Empresa:" }), seletor,
+      h("label", { class: "fraco", text: "Notas sem canal contam como:", title: "Vale para toda nota de venda que o relatório, a nota ou o frete não identificou" }), seletorPadrao, h("span", { class: "espaco" }),
       h("button", { type: "button", class: "btn p", onclick: () => F.abrirImportacaoCanal(ctx) }, P.ic("subir"), "Importar relatório de um canal")));
 
     if (!vendas.length) { raiz.append(F.cartao("Sem vendas neste período", h("p", { text: "Não há notas de venda autorizadas neste período. Troque o período lá em cima ou importe as notas em Importar notas." }))); return raiz; }
 
     raiz.append(h("div", { class: "fin-tiles quatro" },
       F.tile("t-azul", "Faturamento (notas)", F.dinheiro(receitaTotal), vendas.length + " notas, " + fx.rotulo),
-      F.tile("t-ouro", "Canal identificado", F.pct(receitaTotal ? (identificada / receitaTotal) * 100 : 0, 0), semCanal.length ? semCanal.length + " nota(s) ainda sem canal" : "todas com canal"),
+      F.tile("t-ouro", "Canal identificado", F.pct(receitaTotal ? (identificada / receitaTotal) * 100 : 0, 0), semCanal.length ? semCanal.length + " nota(s) ainda sem canal" : (() => { const n = vendas.filter((x) => (F.canalDaNota(ctx, x) || {}).origem === "padrao").length; return n ? n + " pelo canal padrão (" + padraoAtual + ")" : "todas com canal"; })()),
       F.tile("t-verde", "Melhor margem", melhor ? melhor.canal : "-", melhor ? F.pct((melhor.lucro / melhor.receita) * 100, 1) + " de margem" : (custoPorNota ? "falta custo dos produtos (importe as notas de compra)" : "calculando custos...")),
       F.tile(pior && pior.lucro < 0 ? "t-vermelho" : "t-vinho", "Pior margem", pior ? pior.canal : "-", pior ? F.pct((pior.lucro / pior.receita) * 100, 1) + " de margem" : "")));
 
