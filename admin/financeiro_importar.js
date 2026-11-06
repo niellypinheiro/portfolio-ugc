@@ -40,6 +40,7 @@
     ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a[0]); } },
     loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a[0]); } },
     cte: { nome: "Fretes (CT-e)", onde: "tela Fretes (CT-e)", abrir: (ctx, a) => { ctx.ir("cte"); F.abrirImportacaoCte(ctx, a); } },
+    canal: { nome: "Relatório de notas de um canal (Shopee, Amazon, Mercado Livre...)", onde: "tela Canais de venda", abrir: (ctx, a) => { ctx.ir("canais"); F.abrirImportacaoCanal(ctx, a[0]); } },
     notas: { nome: "Notas fiscais (XML)", onde: "tela Notas fiscais", abrir: (ctx, a) => { ctx.ir("notas"); F.abrirImportacao(ctx, a); } },
     pagar: { nome: "Contas a pagar", onde: "tela Contas a pagar", abrir: (ctx, a) => { ctx.ir("pagar"); F.abrirImportacaoPlanilha(ctx, "pagar", a[0]); } },
     receber: { nome: "Contas a receber", onde: "tela Contas a receber", abrir: (ctx, a) => { ctx.ir("receber"); F.abrirImportacaoPlanilha(ctx, "receber", a[0]); } }
@@ -50,6 +51,7 @@
     if (todas.some((l) => F.pareceMercadoLivre && F.pareceMercadoLivre(l))) return "ml";
     if (todas.some((l) => F.pareceVendasLoja && F.pareceVendasLoja(l))) return "loja";
     if (todas.some(pareceContas)) return "contas";
+    if (todas.some((l) => F.pareceRelatorioCanal && F.pareceRelatorioCanal(l))) return "canal";
     return null;
   }
 
@@ -99,7 +101,7 @@
         if (planilhas.length + xmls.length > 1) { aviso.textContent = "Escolha um tipo de arquivo por vez (ou só CT-e, que aceita planilha e XML juntos)."; return; }
         if (tipo === "contas") { aviso.textContent = "Identifiquei: contas a pagar ou a receber. Abrindo..."; irPara(ctx.tela === "receber" ? "receber" : "pagar", [planilhas[0]]); return; }
         if (tipo) { aviso.textContent = "Identifiquei: " + DESTINOS[tipo].nome + ". Abrindo a " + DESTINOS[tipo].onde + "..."; irPara(tipo, [planilhas[0]]); return; }
-        opcoes([planilhas[0]], ["ml", "loja", "cte", "pagar", "receber"]);
+        opcoes([planilhas[0]], ["ml", "loja", "cte", "canal", "pagar", "receber"]);
       }
     }
     input.addEventListener("change", () => ler(input.files));

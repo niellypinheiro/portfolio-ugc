@@ -10,6 +10,8 @@
 
   const FORMAS = { "01": "Dinheiro", "02": "Cheque", "03": "Cartão de crédito", "04": "Cartão de débito", "05": "Crédito da loja", "10": "Vale alimentação", "11": "Vale refeição",
     "12": "Vale presente", "13": "Vale combustível", "15": "Boleto", "16": "Depósito", "17": "Pix", "18": "Transferência", "19": "Fidelidade", "90": "Sem pagamento", "99": "Outros" };
+  /* CNPJ (8 primeiros números, a raiz) dos marketplaces que aparecem como intermediador da venda na nota */
+  const INTERMEDIADORES = { "03007331": "Mercado Livre", "35635824": "Shopee", "15436940": "Amazon", "47960950": "Magalu" };
   const CFOP_DEVOLUCAO = /^[1256](20\d|41\d)$/;   /* 1201, 5202, 2411 e parecidos: devolução de venda ou de compra */
 
   const filho = (el, tag) => (el ? el.getElementsByTagNameNS("*", tag)[0] || null : null);
@@ -122,6 +124,14 @@
       });
     });
 
+    /* canal de venda, quando a própria nota diz: CNPJ do intermediador (marketplace) ou número de pedido da Amazon (000-0000000-0000000) */
+    let canalXml = null;
+    const cnpjInterm = soDigitos(texto(filho(inf, "infIntermed"), "CNPJ"));
+    if (cnpjInterm) canalXml = INTERMEDIADORES[cnpjInterm.slice(0, 8)] || "Outro";
+    else {
+      const pedidos = Array.from(inf.getElementsByTagNameNS("*", "xPed")).map((e) => e.textContent.trim());
+      if (pedidos.some((p) => /^\d{3}-\d{7}-\d{7}$/.test(p))) canalXml = "Amazon";
+    }
     const finalidade = texto(ide, "finNFe");
     const devolucao = finalidade === "4" || (itens.length > 0 && itens.every((i) => CFOP_DEVOLUCAO.test(i.cfop)));
     const pagto = filho(inf, "detPag");
@@ -138,7 +148,7 @@
         valor_produtos: dois(num(tot, "vProd")), valor_frete: dois(num(tot, "vFrete")), valor_desconto: dois(num(tot, "vDesc")),
         valor_outros: dois(num(tot, "vOutro") + num(tot, "vSeg")), valor_total: dois(num(tot, "vNF")),
         valor_icms: dois(num(tot, "vICMS")), valor_pis: dois(num(tot, "vPIS")), valor_cofins: dois(num(tot, "vCOFINS")),
-        valor_ipi: dois(num(tot, "vIPI")), valor_tributos: dois(num(tot, "vTotTrib")), forma_pagamento: forma, status
+        valor_ipi: dois(num(tot, "vIPI")), valor_tributos: dois(num(tot, "vTotTrib")), forma_pagamento: forma, status, canal_xml: canalXml
       }
     };
   }

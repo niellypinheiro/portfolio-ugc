@@ -523,14 +523,23 @@
         if (!p.meus.length && p.novas.length) { P.toast("Informe o CNPJ das suas empresas (14 números cada).", true); return false; }
         const planoCte = lido.ctes.length && ctx.cteOk ? F.planoCtes(ctx, lido.ctes.map((c) => c.cte), lido.eventosCte.map((e) => e.chave)) : null;
         const temCte = !!planoCte && (planoCte.novos.length > 0 || planoCte.atualizar.length > 0);
-        if (!p.novas.length && !p.cancelarExistentes.length && !temCte) { P.toast("Não há nada novo para importar.", true); return false; }
+        /* notas que já estavam no painel mas agora mostram o canal na própria nota (intermediador ou pedido da Amazon) */
+        const completarCanal = new Map();
+        if (ctx.canaisOk) {
+          const porChave = new Map(ctx.notas.map((n) => [n.chave, n]));
+          p.repetidas.forEach((r) => { const e = porChave.get(r.nota.chave); if (e && !e.canal && e.tipo === "saida" && r.nota.canal_xml) (completarCanal.get(r.nota.canal_xml) || completarCanal.set(r.nota.canal_xml, new Set()).get(r.nota.canal_xml)).add(e.id); });
+        }
+        const qtdCanal = Array.from(completarCanal.values()).reduce((s, x) => s + x.size, 0);
+        if (!p.novas.length && !p.cancelarExistentes.length && !temCte && !qtdCanal) { P.toast("Não há nada novo para importar.", true); return false; }
         if (p.meus.length && p.meus.join(",") !== F.meusCnpjs(ctx).join(",")) {
           if (!(await ctx.salvarCfg("cnpjs_empresa", p.meus.join(",")))) return false;
         }
         let feitas = 0;
         for (let i = 0; i < p.novas.length; i += 100) {
           const pedaco = p.novas.slice(i, i + 100);
-          const linhas = pedaco.map((r) => { const n = Object.assign({}, r.nota, { tipo: r.tipoFinal, empresa_doc: r.empresa || null }); delete n.tpNF; return n; });
+          const linhas = pedaco.map((r) => { const n = Object.assign({}, r.nota, { tipo: r.tipoFinal, empresa_doc: r.empresa || null }); delete n.tpNF;
+            if (ctx.canaisOk && n.canal_xml && r.tipoFinal === "saida") { n.canal = n.canal_xml; n.canal_origem = "xml"; }
+            delete n.canal_xml; return n; });
           const rn = await P.gravar(() => window.sb.from("fin_notas").insert(linhas).select("id,chave"));
           if (!rn.ok) { P.toast("Parei no meio: " + feitas + " notas já foram guardadas. Rode a importação de novo para continuar.", true); ctx.recarregar(); return false; }
           const idPorChave = new Map((rn.data || []).map((x) => [x.chave, x.id]));
@@ -550,13 +559,14 @@
           await P.gravar(() => window.sb.from("fin_notas").update({ status: "cancelada" }).eq("id", n.id));
           await P.gravar(() => window.sb.from("fin_nota_itens").delete().eq("nota_id", n.id));
         }
+        for (const [canal, ids] of completarCanal) await F.gravarCanal(ctx, Array.from(ids), canal, "xml");
         let msgCte = "";
         if (temCte) {
           const rc = await F.gravarCtes(ctx, planoCte, Array.from(arquivosPre || []).map((a) => a.name).join(", ") || null);
           msgCte = rc.ok ? " e " + (planoCte.novos.length + planoCte.atualizar.length) + " CT-e de frete" : "";
           if (!rc.ok) P.toast("As notas foram guardadas, mas parei no meio dos CT-e. Importe-os de novo em Fretes (CT-e).", true);
         }
-        P.toast(feitas + (feitas === 1 ? " nota importada" : " notas importadas") + (p.cancelarExistentes.length ? " e " + p.cancelarExistentes.length + " cancelada(s)" : "") + msgCte + "!");
+        P.toast(feitas + (feitas === 1 ? " nota importada" : " notas importadas") + (p.cancelarExistentes.length ? " e " + p.cancelarExistentes.length + " cancelada(s)" : "") + msgCte + (qtdCanal ? ". Canal de venda identificado em " + qtdCanal + " nota(s) que já estavam aqui" : "") + "!");
         ctx.recarregar(true);
       } }
     ] });
@@ -564,7 +574,7 @@
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };
@@ -578,14 +588,18 @@
       const area = h("div", { class: "fin-area" });
 
       async function carregar() {
-        const [rn, rl, rc, rm, rv, rt] = await Promise.all([
+        const [rn, rl, rc, rm, rv, rt, rk] = await Promise.all([
           lerTudo("fin_notas", COLUNAS_NOTA, "data_emissao", false),
           lerTudo("fin_lancamentos", "*", "vencimento", true),
           P.carregar("fin_config", (t) => t.select("chave,valor")),
           lerTudo("fin_vendas_ml", COLUNAS_ML, "data_venda", false),
           lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total,arquivo,criado_em", "periodo_ini", false),
-          lerTudo("fin_cte", "id,chave,numero,serie,data_emissao,status,emitente_nome,emitente_doc,tomador_nome,tomador_doc,remetente_nome,remetente_doc,destino,valor,valor_icms,nfe_chave,nfe_numero,tipo_operacao,origem,empresa_doc", "data_emissao", false)
+          lerTudo("fin_cte", "id,chave,numero,serie,data_emissao,status,emitente_nome,emitente_doc,tomador_nome,tomador_doc,remetente_nome,remetente_doc,destino,valor,valor_icms,nfe_chave,nfe_numero,tipo_operacao,origem,empresa_doc", "data_emissao", false),
+          lerTudo("fin_notas", "id,canal,canal_origem", "id", true)
         ]);
+        ctx.canaisOk = rk.ok;   /* o canal de venda é um campo à parte: se faltar no banco, só a tela de canais avisa */
+        const canalPorId = new Map(rk.dados.map((x) => [x.id, x]));
+        rn.dados.forEach((n) => { const c = canalPorId.get(n.id); n.canal = c ? c.canal : null; n.canal_origem = c ? c.canal_origem : null; });
         ctx.cteOk = rt.ok;   /* idem: tabela separada */
         ctx.ctes = rt.dados.map((v) => numerar(v, ["valor", "valor_icms"]));
         ctx.lojaOk = rv.ok;   /* idem: tabela separada, só a tela dela avisa se faltar */
@@ -619,7 +633,7 @@
         P.limpar(area);
         const fn = F.telas[ctx.tela];
         if (!fn) { area.append(F.aviso("Esta tela ainda não foi carregada. Atualize a página (Ctrl+F5).", "erro")); return; }
-        if (["estoque", "geral", "metas", "parceiros"].includes(ctx.tela) && ctx.itens === null) carregarItens();
+        if (["estoque", "geral", "metas", "parceiros", "canais"].includes(ctx.tela) && ctx.itens === null) carregarItens();
         try { area.append(fn(ctx)); } catch (e) { console.error(e); area.append(F.aviso("Esta tela encontrou um problema e não abriu direito. As outras continuam funcionando.", "erro")); }
       }
       function desenhar() {
