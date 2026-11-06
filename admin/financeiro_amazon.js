@@ -13,7 +13,7 @@
    Esses números ficam numa tela própria (Amazon) e NÃO entram na DRE nem na
    Visão geral, porque a nota fiscal dessas vendas já entra pelo XML. A tarifa
    da Amazon entra na tela Canais de venda, para calcular o lucro do canal.
-   (Relatório de exemplo testado: "Todas as transações", agosto a outubro de 2026.)
+   (Relatório de exemplo testado: "Todas as transações" da Amazon Brasil, agosto a outubro de 2026.)
    ========================================================================= */
 (function () {
   "use strict";
