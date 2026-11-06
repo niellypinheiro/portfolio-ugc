@@ -1,10 +1,12 @@
 /* =========================================================================
-   Financeiro: IMPORTAR PLANILHA (automático).
-   Você escolhe qualquer planilha e o painel descobre sozinho de que tipo ela
-   é e abre a importação certa:
-     - vendas do Mercado Livre   → tela Mercado Livre
+   Financeiro: IMPORTAR (automático).
+   Você escolhe qualquer arquivo e o painel descobre sozinho de que tipo é e
+   abre a importação certa:
+     - planilha de vendas do Mercado Livre      → tela Mercado Livre
      - relatório de vendas da loja (por produto) → tela Vendas da loja
-     - contas a pagar / a receber → Contas a pagar e a receber
+     - planilha "Informe de CT-e" ou XML/ZIP de CT-e → tela Fretes (CT-e)
+     - XML/ZIP de notas fiscais                  → Notas fiscais
+     - contas a pagar / a receber                → Contas a pagar e a receber
    ========================================================================= */
 (function () {
   "use strict";
@@ -35,13 +37,16 @@
     return c.some((x) => /^(data de |data )?(vencimento|vcto|venc)$/.test(x)) && c.some((x) => /valor|total|parcela/.test(x));
   });
   const DESTINOS = {
-    ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a); } },
-    loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a); } },
-    pagar: { nome: "Contas a pagar", onde: "tela Contas a pagar", abrir: (ctx, a) => { ctx.ir("pagar"); F.abrirImportacaoPlanilha(ctx, "pagar", a); } },
-    receber: { nome: "Contas a receber", onde: "tela Contas a receber", abrir: (ctx, a) => { ctx.ir("receber"); F.abrirImportacaoPlanilha(ctx, "receber", a); } }
+    ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a[0]); } },
+    loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a[0]); } },
+    cte: { nome: "Fretes (CT-e)", onde: "tela Fretes (CT-e)", abrir: (ctx, a) => { ctx.ir("cte"); F.abrirImportacaoCte(ctx, a); } },
+    notas: { nome: "Notas fiscais (XML)", onde: "tela Notas fiscais", abrir: (ctx, a) => { ctx.ir("notas"); F.abrirImportacao(ctx, a); } },
+    pagar: { nome: "Contas a pagar", onde: "tela Contas a pagar", abrir: (ctx, a) => { ctx.ir("pagar"); F.abrirImportacaoPlanilha(ctx, "pagar", a[0]); } },
+    receber: { nome: "Contas a receber", onde: "tela Contas a receber", abrir: (ctx, a) => { ctx.ir("receber"); F.abrirImportacaoPlanilha(ctx, "receber", a[0]); } }
   };
-  function detectar(abas) {
+  function detectarPlanilha(abas) {
     const todas = abas.map((a) => a.linhas.filter((l) => l.some((v) => String(v).trim() !== "")));
+    if (todas.some((l) => F.pareceCte && F.pareceCte(l))) return "cte";
     if (todas.some((l) => F.pareceMercadoLivre && F.pareceMercadoLivre(l))) return "ml";
     if (todas.some((l) => F.pareceVendasLoja && F.pareceVendasLoja(l))) return "loja";
     if (todas.some(pareceContas)) return "contas";
@@ -49,43 +54,58 @@
   }
 
   F.importarPlanilha = function (ctx) {
-    const input = h("input", { type: "file", accept: ".xlsx,.xls,.csv,text/csv", id: "finPlanilhaAuto", style: "display:none" });
+    const input = h("input", { type: "file", multiple: true, accept: ".xlsx,.xls,.csv,.xml,.zip,text/csv,text/xml,application/zip", id: "finPlanilhaAuto", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilhaAuto", tabindex: "0" },
       h("div", { class: "fin-zona-ic" }, P.ic("subir")),
-      h("b", { text: "Escolha a planilha ou arraste até aqui" }),
-      h("span", { class: "fraco", text: "Excel (.xlsx) ou CSV. Eu descubro sozinha de que tipo ela é." }));
+      h("b", { text: "Escolha os arquivos ou arraste até aqui" }),
+      h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML ou pasta .zip. Eu descubro sozinha de que tipo é." }));
     const aviso = h("p", { class: "fraco", role: "status" }), escolhas = h("div", { class: "fin-chips-cnpj" });
     const corpo = h("div", null,
-      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, relatório de vendas da loja (por produto) e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
+      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
       input, zona, aviso, escolhas);
     let janela = null;
 
-    function irPara(tipo, arquivo) {
+    function irPara(tipo, arquivos) {
       const d = DESTINOS[tipo];
       janela.fechar();
-      d.abrir(ctx, arquivo);
+      d.abrir(ctx, arquivos);
     }
-    async function ler(arquivo) {
-      if (!arquivo) return;
-      P.limpar(escolhas); aviso.textContent = "Lendo a planilha...";
-      let abas;
-      try { abas = await F.lerAbas(arquivo); }
-      catch (e) { aviso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
-      const tipo = detectar(abas);
-      if (tipo === "contas") {
-        /* contas pode ser a pagar ou a receber: o painel de contas usa a coluna "Tipo" da planilha, e senão o que for escolhido ali */
-        aviso.textContent = "Identifiquei: contas a pagar ou a receber. Abrindo...";
-        irPara(ctx.tela === "receber" ? "receber" : "pagar", arquivo);
-        return;
+    function opcoes(arquivos, tipos) {
+      aviso.textContent = "Não reconheci esse tipo de arquivo pelo conteúdo. Escolha para onde ele vai:";
+      tipos.forEach((t) => escolhas.append(h("button", { type: "button", class: "btn", text: DESTINOS[t].nome, onclick: () => irPara(t, arquivos) })));
+    }
+    async function ler(lista) {
+      const arquivos = Array.from(lista || []);
+      if (!arquivos.length) return;
+      P.limpar(escolhas); aviso.textContent = "Lendo os arquivos...";
+      const planilhas = arquivos.filter((a) => /\.(xlsx?|csv)$/i.test(a.name)), xmls = arquivos.filter((a) => /\.(xml|zip)$/i.test(a.name));
+
+      /* XML e pastas .zip: notas fiscais e/ou CT-e */
+      if (xmls.length && !planilhas.length) {
+        let r;
+        try { r = await P.finXml.lerArquivos(xmls); }
+        catch (e) { aviso.textContent = ""; P.toast(e && e.message ? e.message : "Não consegui abrir esses arquivos.", true); return; }
+        if (r.notas.length) { aviso.textContent = "Identifiquei: notas fiscais" + (r.ctes.length ? " e fretes (CT-e)" : "") + ". Abrindo..."; irPara("notas", xmls); return; }
+        if (r.ctes.length) { aviso.textContent = "Identifiquei: fretes (CT-e). Abrindo..."; irPara("cte", xmls); return; }
+        opcoes(xmls, ["notas", "cte"]); return;
       }
-      if (tipo) { aviso.textContent = "Identifiquei: " + DESTINOS[tipo].nome + ". Abrindo a " + DESTINOS[tipo].onde + "..."; irPara(tipo, arquivo); return; }
-      aviso.textContent = "Não reconheci esse tipo de planilha pelos títulos das colunas. Escolha para onde ela vai:";
-      ["ml", "loja", "pagar", "receber"].forEach((t) => escolhas.append(h("button", { type: "button", class: "btn", text: DESTINOS[t].nome, onclick: () => irPara(t, arquivo) })));
+      /* planilhas: vale a primeira; CT-e aceita várias planilhas e XML juntos */
+      if (planilhas.length) {
+        let abas;
+        try { abas = await F.lerAbas(planilhas[0]); }
+        catch (e) { aviso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui ler esse arquivo. Confira se é uma planilha Excel ou CSV.", true); return; }
+        const tipo = detectarPlanilha(abas);
+        if (tipo === "cte") { aviso.textContent = "Identifiquei: fretes (CT-e). Abrindo..."; irPara("cte", arquivos); return; }
+        if (planilhas.length + xmls.length > 1) { aviso.textContent = "Escolha um tipo de arquivo por vez (ou só CT-e, que aceita planilha e XML juntos)."; return; }
+        if (tipo === "contas") { aviso.textContent = "Identifiquei: contas a pagar ou a receber. Abrindo..."; irPara(ctx.tela === "receber" ? "receber" : "pagar", [planilhas[0]]); return; }
+        if (tipo) { aviso.textContent = "Identifiquei: " + DESTINOS[tipo].nome + ". Abrindo a " + DESTINOS[tipo].onde + "..."; irPara(tipo, [planilhas[0]]); return; }
+        opcoes([planilhas[0]], ["ml", "loja", "cte", "pagar", "receber"]);
+      }
     }
-    input.addEventListener("change", () => ler(input.files[0]));
+    input.addEventListener("change", () => ler(input.files));
     ["dragenter", "dragover"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add("sobre"); }));
     ["dragleave", "drop"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove("sobre"); }));
-    zona.addEventListener("drop", (e) => ler(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
-    janela = P.modal({ titulo: "Importar planilha", corpo, botoes: [{ texto: "Cancelar" }] });
+    zona.addEventListener("drop", (e) => ler(e.dataTransfer && e.dataTransfer.files));
+    janela = P.modal({ titulo: "Importar arquivos", corpo, botoes: [{ texto: "Cancelar" }] });
   };
 })();

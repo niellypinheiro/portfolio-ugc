@@ -206,6 +206,9 @@
     const impostos = porCat[F.CAT_IMPOSTOS] || 0;
     const financeiras = soma(F.FINANCEIRAS, (c) => porCat[c] || 0);
     const fornecedoresLanc = porCat[F.CAT_FORNECEDORES] || 0;
+    /* fretes dos CT-e (tela Fretes) entram como despesa operacional */
+    const freteCte = F.custoCte ? F.custoCte(ctx, ini, fim) : 0;
+    if (freteCte > 0) porCat["Frete (CT-e)"] = (porCat["Frete (CT-e)"] || 0) + freteCte;
     const operacionais = soma(Object.keys(porCat).filter((c) => c !== F.CAT_IMPOSTOS && c !== F.CAT_FORNECEDORES && !F.FINANCEIRAS.includes(c)), (c) => porCat[c]);
     const comprasLiq = soma(compras, (n) => n.valor_total) - soma(devCompra, (n) => n.valor_total);
     const temCompras = compras.length > 0 || devCompra.length > 0;
@@ -422,7 +425,7 @@
   };
 
   /* ---------- IMPORTAÇÃO (XML soltos e pastas .zip) ---------- */
-  F.abrirImportacao = function (ctx) {
+  F.abrirImportacao = function (ctx, arquivosPre) {
     const X = P.finXml;
     let lido = null;   /* resultado da leitura dos arquivos */
     const input = h("input", { type: "file", multiple: true, accept: ".xml,.zip,application/zip,text/xml,application/xml", id: "finArquivos", style: "display:none" });
@@ -476,6 +479,7 @@
           h("div", null, h("b", { text: String(p.repetidas.length) }), h("span", { text: "já estavam aqui" }))),
         p.internas.length ? h("p", { class: "dica", text: p.internas.length + (p.internas.length === 1 ? " nota é" : " notas são") + " entre as suas próprias empresas (transferência). Elas não entram no faturamento nem nas compras, então não serão importadas." }) : null,
         !p.meus.length ? h("p", { class: "aviso-pagina erro", text: "Informe acima o CNPJ das suas empresas para eu separar o que é compra e o que é venda." }) : null,
+        lido.ctes.length ? h("p", { class: "aviso-pagina ok", text: lido.ctes.length + " CT-e (frete) encontrados nos arquivos. Eles serão importados junto e aparecem na tela Fretes (CT-e)." + (ctx.cteOk ? "" : " Antes, rode o SQL da tabela de fretes (faixa amarela no topo).") }) : null,
         p.cancelarExistentes.length || lido.eventos.length ? h("p", { class: "dica", text: lido.eventos.length + " aviso(s) de cancelamento encontrados" + (p.cancelarExistentes.length ? ". " + p.cancelarExistentes.length + " nota(s) que já estão no painel serão marcadas como canceladas." : ".") }) : null,
         Object.keys(agrup).length ? h("div", { class: "aviso-pagina" }, Object.keys(agrup).map((m) => h("p", { text: agrup[m] + " arquivo(s) não importado(s): " + m }))) : null,
         lido.outros.length ? h("p", { class: "dica", text: lido.outros.length + " arquivo(s) que não são XML (como PDF) foram ignorados: o painel guarda só os dados das notas." }) : null,
@@ -516,9 +520,11 @@
       { texto: "Importar", classe: "p", aoClicar: async () => {
         if (!lido) { P.toast("Escolha os arquivos primeiro.", true); return false; }
         const p = plano();
-        if (!p.meus.length) { P.toast("Informe o CNPJ das suas empresas (14 números cada).", true); return false; }
-        if (!p.novas.length && !p.cancelarExistentes.length) { P.toast("Não há nada novo para importar.", true); return false; }
-        if (p.meus.join(",") !== F.meusCnpjs(ctx).join(",")) {
+        if (!p.meus.length && p.novas.length) { P.toast("Informe o CNPJ das suas empresas (14 números cada).", true); return false; }
+        const planoCte = lido.ctes.length && ctx.cteOk ? F.planoCtes(ctx, lido.ctes.map((c) => c.cte), lido.eventosCte.map((e) => e.chave)) : null;
+        const temCte = !!planoCte && (planoCte.novos.length > 0 || planoCte.atualizar.length > 0);
+        if (!p.novas.length && !p.cancelarExistentes.length && !temCte) { P.toast("Não há nada novo para importar.", true); return false; }
+        if (p.meus.length && p.meus.join(",") !== F.meusCnpjs(ctx).join(",")) {
           if (!(await ctx.salvarCfg("cnpjs_empresa", p.meus.join(",")))) return false;
         }
         let feitas = 0;
@@ -544,14 +550,21 @@
           await P.gravar(() => window.sb.from("fin_notas").update({ status: "cancelada" }).eq("id", n.id));
           await P.gravar(() => window.sb.from("fin_nota_itens").delete().eq("nota_id", n.id));
         }
-        P.toast(feitas + (feitas === 1 ? " nota importada" : " notas importadas") + (p.cancelarExistentes.length ? " e " + p.cancelarExistentes.length + " cancelada(s)" : "") + "!");
+        let msgCte = "";
+        if (temCte) {
+          const rc = await F.gravarCtes(ctx, planoCte, Array.from(arquivosPre || []).map((a) => a.name).join(", ") || null);
+          msgCte = rc.ok ? " e " + (planoCte.novos.length + planoCte.atualizar.length) + " CT-e de frete" : "";
+          if (!rc.ok) P.toast("As notas foram guardadas, mas parei no meio dos CT-e. Importe-os de novo em Fretes (CT-e).", true);
+        }
+        P.toast(feitas + (feitas === 1 ? " nota importada" : " notas importadas") + (p.cancelarExistentes.length ? " e " + p.cancelarExistentes.length + " cancelada(s)" : "") + msgCte + "!");
         ctx.recarregar(true);
       } }
     ] });
+    if (arquivosPre && arquivosPre.length) ler(arquivosPre);
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };
@@ -565,13 +578,16 @@
       const area = h("div", { class: "fin-area" });
 
       async function carregar() {
-        const [rn, rl, rc, rm, rv] = await Promise.all([
+        const [rn, rl, rc, rm, rv, rt] = await Promise.all([
           lerTudo("fin_notas", COLUNAS_NOTA, "data_emissao", false),
           lerTudo("fin_lancamentos", "*", "vencimento", true),
           P.carregar("fin_config", (t) => t.select("chave,valor")),
           lerTudo("fin_vendas_ml", COLUNAS_ML, "data_venda", false),
-          lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total,arquivo,criado_em", "periodo_ini", false)
+          lerTudo("fin_vendas_loja", "id,periodo_ini,periodo_fim,produto,sku,quantidade,valor,frete,total,arquivo,criado_em", "periodo_ini", false),
+          lerTudo("fin_cte", "id,chave,numero,serie,data_emissao,status,emitente_nome,emitente_doc,tomador_nome,tomador_doc,remetente_nome,remetente_doc,destino,valor,valor_icms,nfe_chave,nfe_numero,tipo_operacao,origem,empresa_doc", "data_emissao", false)
         ]);
+        ctx.cteOk = rt.ok;   /* idem: tabela separada */
+        ctx.ctes = rt.dados.map((v) => numerar(v, ["valor", "valor_icms"]));
         ctx.lojaOk = rv.ok;   /* idem: tabela separada, só a tela dela avisa se faltar */
         ctx.vendasLoja = rv.dados.map((v) => numerar(v, ["quantidade", "valor", "frete", "total"]));
         ctx.tabelasOk = rn.ok && rl.ok && rc.ok;

@@ -36,6 +36,37 @@
     catch (e) { return new TextDecoder("utf-8").decode(bytes); }
   }
 
+  /* CT-e: conhecimento de transporte (o frete que a transportadora cobra). Guardo só o que serve à gestão: sem CPF nem nome do cliente final. */
+  function lerCte(doc, nome) {
+    const inf = filho(doc.documentElement, "infCte");
+    if (!inf) return { tipo: "erro", nome, motivo: "Não achei os dados do CT-e." };
+    const chave = soDigitos((inf.getAttribute("Id") || "").replace(/^CTe/i, ""));
+    if (chave.length !== 44) return { tipo: "erro", nome, motivo: "A chave de acesso do CT-e não está completa." };
+    const ide = filho(inf, "ide"), emit = filho(inf, "emit"), rem = filho(inf, "rem"), vp = filho(inf, "vPrest");
+    const cStat = texto(filho(doc.documentElement, "infProt"), "cStat");
+    let status = "autorizado";
+    if (cStat) status = ["100", "150"].includes(cStat) ? "autorizado" : ["101", "135", "155"].includes(cStat) ? "cancelado" : "rejeitado";
+    const data = (texto(ide, "dhEmi") || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { tipo: "erro", nome, motivo: "Não achei a data de emissão do CT-e." };
+    /* quem paga o frete (tomador): informado direto (toma4) ou indicado por um código (0 remetente, 1 expedidor, 2 recebedor, 3 destinatário) */
+    let tom = filho(ide, "toma4");
+    if (!tom) tom = filho(inf, ["rem", "exped", "receb", "dest"][parseInt(texto(filho(ide, "toma3"), "toma"), 10)] || "rem");
+    const nfe = texto(filho(inf, "infNFe"), "chave");
+    return {
+      tipo: "cte", nome,
+      cte: {
+        chave, numero: texto(ide, "nCT"), serie: texto(ide, "serie"), data_emissao: data, status,
+        emitente_nome: texto(emit, "xNome").slice(0, 200), emitente_doc: soDigitos(texto(emit, "CNPJ") || texto(emit, "CPF")),
+        tomador_nome: texto(tom, "xNome").slice(0, 200), tomador_doc: soDigitos(texto(tom, "CNPJ") || texto(tom, "CPF")),
+        remetente_nome: texto(rem, "xNome").slice(0, 200), remetente_doc: soDigitos(texto(rem, "CNPJ") || texto(rem, "CPF")),
+        destino: (texto(ide, "xMunFim") + (texto(ide, "UFFim") ? "/" + texto(ide, "UFFim") : "")).slice(0, 120),
+        valor: dois(num(vp, "vTPrest")), valor_icms: dois(num(filho(inf, "imp"), "vICMS")),
+        nfe_chave: soDigitos(nfe).length === 44 ? soDigitos(nfe) : null, nfe_numero: soDigitos(nfe).length === 44 ? String(parseInt(soDigitos(nfe).slice(25, 34), 10)) : null,
+        tipo_operacao: null, origem: "xml", empresa_doc: null
+      }
+    };
+  }
+
   /* Lê UM arquivo XML. Devolve { tipo: "nota" | "evento" | "ignorado" | "erro", ... } */
   function lerXml(conteudo, nome) {
     let doc;
@@ -50,9 +81,15 @@
       if (chave && tp === "110111") return { tipo: "evento", nome, chave, evento: "cancelamento" };
       return { tipo: "ignorado", nome, motivo: "Evento da nota (não é uma nota)." };
     }
+    if (/^(procEventoCTe|eventoCTe)$/.test(raiz)) {
+      const ev = filho(doc.documentElement, "infEvento");
+      if (texto(ev, "chCTe") && texto(ev, "tpEvento") === "110111") return { tipo: "evento_cte", nome, chave: texto(ev, "chCTe") };
+      return { tipo: "ignorado", nome, motivo: "Evento do CT-e (não é um CT-e)." };
+    }
+    if (raiz === "cteProc" || raiz === "CTe") return lerCte(doc, nome);
     const inf = filho(doc.documentElement, "infNFe");
     if (!inf) {
-      const quem = raiz === "cteProc" || raiz === "CTe" ? "CT-e (nota de transporte)" : /nfse|CompNfse|Nfse/i.test(raiz) ? "NFS-e (nota de serviço)" : "tipo de arquivo que ainda não leio";
+      const quem = /nfse|CompNfse|Nfse/i.test(raiz) ? "NFS-e (nota de serviço)" : "tipo de arquivo que ainda não leio";
       return { tipo: "ignorado", nome, motivo: "É um " + quem + ". Por enquanto só leio NF-e e NFC-e de produtos." };
     }
 
@@ -108,7 +145,7 @@
 
   /* Abre uma lista de arquivos (XML soltos e/ou .zip, inclusive zip dentro de zip) */
   async function lerArquivos(arquivos, aoProgresso) {
-    const r = { notas: [], eventos: [], ignorados: [], erros: [], outros: [], lidos: 0 };
+    const r = { notas: [], eventos: [], ctes: [], eventosCte: [], ignorados: [], erros: [], outros: [], lidos: 0 };
     const fila = [];
     for (const a of Array.from(arquivos)) fila.push({ nome: a.name, ler: () => a.arrayBuffer() });
     async function tratar(nome, buffer, nivel) {
@@ -129,6 +166,7 @@
         const res = lerXml(decodificar(bytes), nome);
         r.lidos++;
         if (res.tipo === "nota") r.notas.push(res); else if (res.tipo === "evento") r.eventos.push(res);
+        else if (res.tipo === "cte") r.ctes.push(res); else if (res.tipo === "evento_cte") r.eventosCte.push(res);
         else if (res.tipo === "ignorado") r.ignorados.push(res); else r.erros.push(res);
         if (aoProgresso && r.lidos % 25 === 0) aoProgresso(r.lidos);
         return;
