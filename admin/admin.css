@@ -823,3 +823,12 @@ a{color:var(--bordo)}
 /* Financeiro: avisos de conferência */
 .aviso-pagina.ok{background:#e6f4ea;color:#1e6b34;border-color:rgba(30,107,52,.3)}
 .fin-lista-avisos{margin:0 0 8px;padding-left:18px;display:grid;gap:6px;font-size:13.5px;line-height:1.45}
+/* Boletos em PDF */
+.fin-boleto{border:1px solid var(--linha);border-radius:14px;padding:12px 14px;margin-top:12px;background:var(--cartao)}
+.fin-boleto.repetido{opacity:.65}
+.fin-boleto-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.fin-boleto-marca{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}
+.fin-boleto-marca b{overflow-wrap:anywhere}
+.fin-boleto-codigo{display:block;font-size:12.5px;line-height:1.4;padding:6px 8px;margin-bottom:8px;border-radius:8px;background:var(--papel);color:var(--tinta-2);overflow-wrap:anywhere}
+.fin-boleto-nota{margin:6px 0 0;font-size:13px;line-height:1.4}
+.fin-boleto-nota.aviso{color:var(--amarelo)}.fin-boleto-nota.ruim{color:var(--vermelho)}.fin-boleto-nota.info{color:var(--tinta-3)}

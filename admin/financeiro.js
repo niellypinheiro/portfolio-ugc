@@ -574,7 +574,7 @@
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["boletos", "Boletos (PDF)"],["receber", "Contas a receber"], ["impostos", "Impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };

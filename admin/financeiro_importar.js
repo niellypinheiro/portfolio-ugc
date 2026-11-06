@@ -41,6 +41,7 @@
     loja: { nome: "Relatório de vendas da loja (por produto)", onde: "tela Vendas da loja", abrir: (ctx, a) => { ctx.ir("loja"); F.abrirImportacaoLoja(ctx, a[0]); } },
     cte: { nome: "Fretes (CT-e)", onde: "tela Fretes (CT-e)", abrir: (ctx, a) => { ctx.ir("cte"); F.abrirImportacaoCte(ctx, a); } },
     canal: { nome: "Relatório de notas de um canal (Shopee, Amazon, Mercado Livre...)", onde: "tela Canais de venda", abrir: (ctx, a) => { ctx.ir("canais"); F.abrirImportacaoCanal(ctx, a[0]); } },
+    boletos: { nome: "Boletos em PDF", onde: "tela Boletos (PDF)", abrir: (ctx, a) => { ctx.ir("boletos"); F.abrirImportacaoBoletos(ctx, a); } },
     notas: { nome: "Notas fiscais (XML)", onde: "tela Notas fiscais", abrir: (ctx, a) => { ctx.ir("notas"); F.abrirImportacao(ctx, a); } },
     pagar: { nome: "Contas a pagar", onde: "tela Contas a pagar", abrir: (ctx, a) => { ctx.ir("pagar"); F.abrirImportacaoPlanilha(ctx, "pagar", a[0]); } },
     receber: { nome: "Contas a receber", onde: "tela Contas a receber", abrir: (ctx, a) => { ctx.ir("receber"); F.abrirImportacaoPlanilha(ctx, "receber", a[0]); } }
@@ -56,14 +57,14 @@
   }
 
   F.importarPlanilha = function (ctx) {
-    const input = h("input", { type: "file", multiple: true, accept: ".xlsx,.xls,.csv,.xml,.zip,text/csv,text/xml,application/zip", id: "finPlanilhaAuto", style: "display:none" });
+    const input = h("input", { type: "file", multiple: true, accept: ".xlsx,.xls,.csv,.xml,.zip,.pdf,text/csv,text/xml,application/zip,application/pdf", id: "finPlanilhaAuto", style: "display:none" });
     const zona = h("label", { class: "fin-zona", for: "finPlanilhaAuto", tabindex: "0" },
       h("div", { class: "fin-zona-ic" }, P.ic("subir")),
       h("b", { text: "Escolha os arquivos ou arraste até aqui" }),
-      h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML ou pasta .zip. Eu descubro sozinha de que tipo é." }));
+      h("span", { class: "fraco", text: "Planilha (Excel ou CSV), XML, pasta .zip ou boleto em PDF. Eu descubro sozinha de que tipo é." }));
     const aviso = h("p", { class: "fraco", role: "status" }), escolhas = h("div", { class: "fin-chips-cnpj" });
     const corpo = h("div", null,
-      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
+      h("p", { class: "dica", text: "Serve para: vendas do Mercado Livre, relatório de vendas da loja, fretes (CT-e), notas fiscais em XML, boletos em PDF e contas a pagar ou a receber. Cada uma vai para a tela certa do Financeiro." }),
       input, zona, aviso, escolhas);
     let janela = null;
 
@@ -81,6 +82,13 @@
       if (!arquivos.length) return;
       P.limpar(escolhas); aviso.textContent = "Lendo os arquivos...";
       const planilhas = arquivos.filter((a) => /\.(xlsx?|csv)$/i.test(a.name)), xmls = arquivos.filter((a) => /\.(xml|zip)$/i.test(a.name));
+      const pdfs = arquivos.filter((a) => /\.pdf$/i.test(a.name) || a.type === "application/pdf");
+
+      /* PDF: boletos (aceita vários de uma vez) */
+      if (pdfs.length) {
+        if (pdfs.length !== arquivos.length) { aviso.textContent = "Escolha só PDFs de boletos, ou só os outros tipos de arquivo, de cada vez."; return; }
+        aviso.textContent = "Identifiquei: boletos em PDF. Abrindo..."; irPara("boletos", pdfs); return;
+      }
 
       /* XML e pastas .zip: notas fiscais e/ou CT-e */
       if (xmls.length && !planilhas.length) {
