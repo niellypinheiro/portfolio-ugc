@@ -834,3 +834,7 @@ a{color:var(--bordo)}
 .fin-boleto-nota.aviso{color:var(--amarelo)}.fin-boleto-nota.ruim{color:var(--vermelho)}.fin-boleto-nota.info{color:var(--tinta-3)}
 
 .fin-subtitulo{margin:24px 0 4px;font-size:16px;font-weight:600;color:var(--tinta-2)}
+
+/* Dívidas e impostos */
+.fin-divida-arq{border:1px solid var(--linha-forte);border-radius:16px;padding:12px 14px;margin-top:14px;background:var(--papel)}
+.fin-divida-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 12px}

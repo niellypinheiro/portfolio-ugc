@@ -574,7 +574,7 @@
   };
 
   /* ---------- a aba ---------- */
-  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["amazon", "Amazon"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["boletos", "Boletos (PDF)"], ["extrato", "Extrato do banco"], ["receber", "Contas a receber"], ["impostos", "Impostos"],
+  const TELAS = [["geral", "Visão geral"], ["notas", "Notas fiscais"], ["canais", "Canais de venda"], ["ml", "Mercado Livre"], ["amazon", "Amazon"], ["loja", "Vendas da loja"], ["cte", "Fretes (CT-e)"], ["pagar", "Contas a pagar"], ["boletos", "Boletos (PDF)"], ["extrato", "Extrato do banco"], ["receber", "Contas a receber"], ["impostos", "Impostos"], ["dividas", "Dívidas e impostos"],
     ["estoque", "Estoque e custos"], ["dre", "DRE e lucratividade"], ["caixa", "Fluxo de caixa"], ["parceiros", "Fornecedores e clientes"], ["metas", "Metas e indicadores"]];
   const lerLocal = (k, padrao) => { try { return localStorage.getItem(k) || padrao; } catch (e) { return padrao; } };
   const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } };
@@ -588,7 +588,7 @@
       const area = h("div", { class: "fin-area" });
 
       async function carregar() {
-        const [rn, rl, rc, rm, rv, rt, rk, ra, rx, rr] = await Promise.all([
+        const [rn, rl, rc, rm, rv, rt, rk, ra, rx, rr, rp] = await Promise.all([
           lerTudo("fin_notas", COLUNAS_NOTA, "data_emissao", false),
           lerTudo("fin_lancamentos", "*", "vencimento", true),
           P.carregar("fin_config", (t) => t.select("chave,valor")),
@@ -598,8 +598,11 @@
           lerTudo("fin_notas", "id,canal,canal_origem", "id", true),
           lerTudo("fin_vendas_amazon", "id,chave,data,liberacao,liquidacao,tipo,categoria,pedido,sku,descricao,quantidade,atendimento,cidade,uf,vendas_produto,creditos_remessa,creditos_presente,descontos,imposto_coletado,tarifas_venda,tarifas_fba,outras_taxas,outro,total,status", "data", false),
           lerTudo("fin_extrato", "id,chave,conta,data,descricao,valor,saldo,categoria,categoria_origem,arquivo", "data", false),
-          lerTudo("fin_extrato_regras", "id,padrao,categoria", "padrao", true)
+          lerTudo("fin_extrato_regras", "id,padrao,categoria", "padrao", true),
+          lerTudo("fin_pendencias", "id,chave,empresa_doc,empresa_nome,tributo,descricao,competencia,vencimento,valor,situacao,pagamento,origem,arquivo,obs", "vencimento", true)
         ]);
+        ctx.pendOk = rp.ok;   /* tabela separada: se faltar, só a tela de dívidas avisa */
+        ctx.pendencias = rp.dados.map((v) => numerar(v, ["valor"]));
         ctx.extratoOk = rx.ok && rr.ok;   /* tabelas separadas: se faltarem, só a tela do extrato avisa */
         ctx.extrato = rx.dados.map((v) => numerar(v, ["valor"]));
         ctx.regrasExtrato = rr.ok ? rr.dados : [];
@@ -641,7 +644,7 @@
         P.limpar(area);
         const fn = F.telas[ctx.tela];
         if (!fn) { area.append(F.aviso("Esta tela ainda não foi carregada. Atualize a página (Ctrl+F5).", "erro")); return; }
-        if (["estoque", "geral", "metas", "parceiros", "canais", "ml"].includes(ctx.tela) && ctx.itens === null) carregarItens();
+        if (["estoque", "geral", "metas", "parceiros", "canais", "ml", "dividas"].includes(ctx.tela) && ctx.itens === null) carregarItens();
         try { area.append(fn(ctx)); } catch (e) { console.error(e); area.append(F.aviso("Esta tela encontrou um problema e não abriu direito. As outras continuam funcionando.", "erro")); }
       }
       function desenhar() {

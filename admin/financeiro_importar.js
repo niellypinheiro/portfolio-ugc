@@ -37,6 +37,7 @@
     return c.some((x) => /^(data de |data )?(vencimento|vcto|venc)$/.test(x)) && c.some((x) => /valor|total|parcela/.test(x));
   });
   const DESTINOS = {
+    dividas: { nome: "Pendências e impostos em aberto (PDF)", onde: "tela Dívidas e impostos", abrir: (ctx, a) => { ctx.ir("dividas"); F.abrirImportacaoDividas(ctx, a); } },
     extrato: { nome: "Extrato bancário", onde: "tela Extrato do banco", abrir: (ctx, a) => { ctx.ir("extrato"); F.abrirImportacaoExtrato(ctx, a); } },
     amazon: { nome: "Transações da Amazon", onde: "tela Amazon", abrir: (ctx, a) => { ctx.ir("amazon"); F.abrirImportacaoAmazon(ctx, a[0]); } },
     ml: { nome: "Vendas do Mercado Livre", onde: "tela Mercado Livre", abrir: (ctx, a) => { ctx.ir("ml"); F.abrirImportacaoML(ctx, a[0]); } },
@@ -102,6 +103,9 @@
         try { r = await F.lerPdfBoletos(pdfs[0]); }
         catch (e) { aviso.textContent = ""; P.toast(e && /carregar/.test(e.message || "") ? e.message : "Não consegui abrir esse PDF. Se ele tiver senha, salve uma cópia sem senha.", true); return; }
         if (r.boletos.length || r.semTexto) { aviso.textContent = "Identifiquei: boletos em PDF. Abrindo..."; irPara("boletos", pdfs); return; }
+        let paginas = [];
+        try { paginas = await F.linhasDoPdf(pdfs[0]); } catch (e) { /* segue como extrato */ }
+        if (F.pareceDividaPdf && F.pareceDividaPdf(paginas)) { aviso.textContent = "Identifiquei: pendências e impostos em aberto. Abrindo..."; irPara("dividas", pdfs); return; }
         aviso.textContent = "Identifiquei: extrato bancário em PDF. Abrindo..."; irPara("extrato", pdfs); return;
       }
 

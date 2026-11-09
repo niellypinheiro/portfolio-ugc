@@ -100,6 +100,8 @@
     return m;
   }
 
+  F.nomesEmpresas = nomesEmpresas;
+
   /* ---------- grava o canal em várias notas ---------- */
   F.gravarCanal = async function (ctx, ids, canal, origem) {
     for (let i = 0; i < ids.length; i += 100) {
