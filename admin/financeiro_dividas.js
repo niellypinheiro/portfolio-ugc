@@ -34,23 +34,107 @@
   const isoData = (d, m, a) => (+m >= 1 && +m <= 12 && +d >= 1 && +d <= 31 ? a + "-" + m + "-" + d : null);
 
   /* de qual empresa é o PDF: pelo CNPJ (inteiro ou só a raiz) ou pelo nome escrito nele */
-  function empresaDoTexto(ctx, texto) {
+  function empresaDoTexto(ctx, texto, nomeArquivo) {
     const t = texto, tn = norm(texto), nomes = F.nomesEmpresas ? F.nomesEmpresas(ctx) : new Map();
+    const digArq = String(nomeArquivo || "").replace(/\D/g, ""), nomeArq = norm(nomeArquivo || "");
     let melhor = "", pontos = 0;
     F.meusCnpjs(ctx).forEach((d) => {
       let p = 0;
-      const completo = d.slice(0, 2) + "." + d.slice(2, 5) + "." + d.slice(5, 8) + "/" + d.slice(8, 12) + "-" + d.slice(12);
-      if (t.includes(completo) || t.includes(d)) p += 10;
-      else if (t.includes(d.slice(0, 2) + "." + d.slice(2, 5) + "." + d.slice(5, 8))) p += 4;
+      /* aceita o CNPJ com ou sem pontos, barra e traço (alguns PDFs perdem o traço) */
+      const sep = "\\D{0,2}", raiz = d.slice(0, 2) + sep + d.slice(2, 5) + sep + d.slice(5, 8);
+      if (new RegExp(raiz + sep + d.slice(8, 12) + sep + d.slice(12)).test(t)) p += 10;
+      else if (new RegExp(raiz).test(t)) p += 6;
+      if (digArq.includes(d)) p += 10;
       const nome = norm(nomes.get(d) || "").replace(/\b(ltda|me|eireli|epp|s a)\b/g, "").trim();
       if (nome.length >= 5 && tn.includes(nome)) p += 6;
+      const primeira = nome.split(" ")[0];
+      if (primeira && primeira.length >= 5 && nomeArq.includes(primeira)) p += 3;
       if (p > pontos) { pontos = p; melhor = d; }
     });
     return melhor;
   }
 
-  /* pendências: cada linha com valor em reais e (uma data ou uma competência ou o nome de um imposto) */
+  /* ---- os formatos de PDF que a contabilidade e os órgãos mandam ---- */
+  const VAL = "\\d{1,3}(?:\\.\\d{3})*,\\d{2}", DT = "\\d{2}\\/\\d{2}\\/\\d{4}";
+  const RE_SIEF = new RegExp("^(?:\\d{4}-\\d{2}\\s*-?\\s*)?(.*?)\\s*(?<![\\d\\/])(0[1-9]|1[0-2])\\/(20\\d{2})\\s+(" + DT + ")\\s+((?:" + VAL + "\\s*){2,})(.*)$");
+  const RE_MUN_EX = new RegExp("^(\\d{3,4})\\s*[–-]\\s*(.+?)\\s+\\d{3,}\\/\\d{4}\\s+\\d{1,3}\\s+(" + DT + ")\\s+(.*?)((?:" + VAL + "\\s*){2,})$");
+  const RE_MUN_DA = new RegExp("^(\\d{5,7})\\s+\\d{3,}\\/\\d{4}\\s+(" + DT + ")\\s+((?:" + VAL + "\\s*){3,})$");
+  const RE_PGFN = /^(\d{2}\.\d\.\d{2}\.\d{6}-?)\s*(.*)$/;
+  const RE_PARC = new RegExp("^(\\d{1,3})\\s+(" + DT + ")\\s+(.*?)((?:" + VAL + "\\s*)+)\\s*(Vencido|A\\s*Vencer|Pago|Quitado)?\\s*$", "i");
+  const soValores = (s) => (String(s).match(RE_VALOR) || []);
+  const dataIsoDe = (s) => { const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(s); return m ? isoData(m[1], m[2], m[3]) || "" : ""; };
+  function nomeTributo(txt) {
+    const bruto = String(txt || "").replace(/^\d{4}-\d{2}\s*-?\s*/, "").replace(/\s+/g, " ").trim(), n = norm(bruto);
+    if (/^simples( nac\w*)?$/.test(n) || /simples nac/.test(n)) return "DAS (Simples Nacional)";
+    if (/cp segur/.test(n)) return "CP-Segurados (INSS)";
+    if (/cp patron/.test(n)) return "CP-Patronal (INSS)";
+    return tributoDe(bruto) || bruto;
+  }
+
+  /* leitura "inteligente": reconhece as linhas de tabela dos formatos que já vi.
+     Devolve null se não achar nenhuma, e aí vale a leitura genérica abaixo. */
+  function pendenciasEstruturadas(paginas) {
+    const linhas = paginas.flat().map((l) => String(l).replace(/\s+/g, " ").trim()).filter(Boolean);
+    const itens = [], totais = [];
+    let nomeMun = "", tituloDA = "";
+    linhas.forEach((t, i) => {
+      const n = norm(t), prox = linhas[i + 1] || "";
+      if (/^total\b/.test(n)) { soValores(t).forEach((v) => totais.push(dois(valorNum(v)))); return; }
+      /* títulos de seção */
+      let m = /^d[ií]vida ativa municipal\s*[–-]\s*(.+)$/i.exec(t); if (m) { tituloDA = m[1]; return; }
+      m = /^(\d{4})\s*([A-Za-zÀ-ú].*)$/.exec(t); if (m && !/\d,\d{2}/.test(t) && !/\d{2}\/\d{2}\/\d{4}/.test(t)) { nomeMun = m[2].trim(); return; }
+      const sit = /\b(pago|paga|quitad|liquidad)/.test(n) ? "paga" : "aberta";
+      /* Receita Federal: tributo, competência (PA), vencimento e valores; o último valor é o saldo consolidado */
+      m = RE_SIEF.exec(t);
+      if (m) {
+        let nome = m[1].replace(/\s+/g, " ").trim();
+        if (/^simples$/i.test(nome) && /^nacional$/i.test(prox)) nome = "Simples Nacional";
+        const vs = soValores(m[5]), cons = dois(valorNum(vs[vs.length - 1]));
+        if (cons > 0) itens.push({ tributo: nomeTributo(nome) || "Imposto federal", descricao: [nome, m[6] && m[6].trim(), vs.length >= 5 ? "original " + vs[0] + ", multa " + vs[2] + ", juros " + vs[3] : ""].filter(Boolean).join(" | ").slice(0, 300), competencia: m[3] + "-" + m[2], vencimento: dataIsoDe(m[4]), valor: cons, situacao: sit });
+        return;
+      }
+      /* Prefeitura: tributos do exercício (a segunda linha completa o nome) */
+      m = RE_MUN_EX.exec(t);
+      if (m) {
+        let nome = m[2].trim();
+        if (prox && !/\d{2}\/\d{2}\/\d{4}|\d,\d{2}/.test(prox) && prox.split(" ").length <= 5) nome += " " + prox.replace(/\bvencer\b/i, "").trim();
+        const vs = soValores(m[5]), tot = dois(valorNum(vs[vs.length - 1]));
+        if (tot > 0) itens.push({ tributo: (tributoDe(nome) || nome.replace(/\s+/g, " ").trim()) + " (Prefeitura)", descricao: "Código " + m[1] + " - " + nome.trim(), competencia: "", vencimento: dataIsoDe(m[3]), valor: tot, situacao: sit });
+        return;
+      }
+      /* Prefeitura: dívida ativa */
+      m = RE_MUN_DA.exec(t);
+      if (m) {
+        const vs = soValores(m[3]), tot = dois(valorNum(vs[vs.length - 1]));
+        if (tot > 0) itens.push({ tributo: "Dívida ativa municipal (Prefeitura)", descricao: ("Inscrição " + m[1] + (tituloDA ? " - " + tituloDA : "")).slice(0, 300), competencia: "", vencimento: dataIsoDe(m[2]), valor: tot, situacao: sit });
+        return;
+      }
+      /* PGFN: inscrições em dívida ativa da União (o valor é o último número da linha) */
+      m = RE_PGFN.exec(t);
+      if (m) {
+        const vs = soValores(t), tot = vs.length ? dois(valorNum(vs[vs.length - 1])) : 0, suf = /^(\d{1,2})\b/.exec(prox);
+        const natureza = (m[2].split(/\s+\d{3,4}\s*[–-]/)[0] || "").trim();
+        if (tot > 0) itens.push({ tributo: "Dívida ativa (PGFN)", descricao: ("Inscrição " + m[1] + (suf && /-$/.test(m[1]) ? suf[1] : "") + (natureza ? " - " + natureza : "")).slice(0, 300), competencia: "", vencimento: "", valor: tot, situacao: sit });
+        return;
+      }
+      /* parcelas do extrato da Prefeitura: nº da parcela, vencimento, valores e situação */
+      m = RE_PARC.exec(t);
+      if (m && nomeMun) {
+        const vs = soValores(m[4]), tot = vs.length ? dois(valorNum(vs[vs.length - 1])) : 0;
+        if (tot > 0) itens.push({ tributo: nomeMun.replace(/\s+/g, " ").trim() + " (Prefeitura)", descricao: "Parcela " + m[1], competencia: "", vencimento: dataIsoDe(m[2]), valor: tot, situacao: m[5] && /pago|quitado/i.test(m[5]) ? "paga" : sit });
+      }
+    });
+    return itens.length ? { itens, totais } : null;
+  }
+
+  /* leitura genérica (para PDFs de outro formato): cada linha com valor em reais e (uma data ou uma competência ou o nome de um imposto) */
   function pendenciasDasLinhas(paginas) {
+    const est = pendenciasEstruturadas(paginas);
+    if (est) return { itens: est.itens, totais: est.totais };
+    const r = pendenciasGenericas(paginas);
+    return { itens: r.itens, totais: r.totalPdf != null ? [r.totalPdf] : [] };
+  }
+  function pendenciasGenericas(paginas) {
     const linhas = paginas.flat(), itens = [];
     let totalPdf = null;
     linhas.forEach((linha, i) => {
@@ -101,6 +185,15 @@
     function opcoesEmpresa(sel, valor) {
       return [h("option", { value: "", text: "Escolha a empresa", selected: !valor })].concat(Array.from(nomes.entries()).map(([d, n]) => h("option", { value: d, text: n, selected: d === valor })));
     }
+    /* compara a soma lida com os totais que o próprio PDF informa */
+    function conferencia(arq) {
+      const lidas = soma(arq.itens.filter((x) => x.valor > 0), (x) => x.valor), tot = arq.totais || [];
+      if (!tot.length || !lidas) return null;
+      const bate = tot.find((t) => Math.abs(t - lidas) < 0.02);
+      if (bate != null) return h("p", { class: "fin-boleto-nota info", text: "Conferido: as pendências lidas somam " + F.dinheiro(lidas) + ", o mesmo total que está no PDF." });
+      const unicos = Array.from(new Set(tot)).slice(0, 6).map((t) => F.dinheiro(t)).join(", ");
+      return h("p", { class: "fin-boleto-nota aviso", text: "As pendências lidas somam " + F.dinheiro(lidas) + ". Os totais que aparecem no PDF são: " + unicos + ". Se nenhum for igual, olhe se faltou ou sobrou alguma linha." });
+    }
     function desenhar() {
       P.limpar(lista);
       if (falhas.length) lista.append(h("div", { class: "aviso-pagina" }, h("b", { text: "Arquivo(s) com problema" }), falhas.map((t) => h("p", { text: t }))));
@@ -110,8 +203,7 @@
         lista.append(h("div", { class: "fin-divida-arq" },
           h("div", { class: "fin-boleto-topo" }, h("b", { text: arq.nome }), h("span", { class: "fraco", text: arq.itens.length + " pendência(s), " + F.dinheiro(soma(marcados, (x) => x.valor)) + " para importar" })),
           h("div", { class: "grade2" }, P.campo("Empresa deste arquivo", selEmp, arq.doc ? "Reconheci pelo CNPJ ou pelo nome no PDF." : "Não consegui descobrir a empresa pelo PDF. Escolha.")),
-          arq.totalPdf != null ? h("p", { class: "fin-boleto-nota " + (Math.abs(arq.totalPdf - soma(arq.itens, (x) => x.valor)) < 0.02 ? "info" : "aviso"),
-            text: "O PDF informa um total de " + F.dinheiro(arq.totalPdf) + "; as pendências lidas somam " + F.dinheiro(soma(arq.itens, (x) => x.valor)) + (Math.abs(arq.totalPdf - soma(arq.itens, (x) => x.valor)) < 0.02 ? ". Bate." : ". Confira se faltou ou sobrou alguma.") }) : null,
+          conferencia(arq),
           arq.vazio ? h("p", { class: "fin-boleto-nota aviso", text: "Não consegui separar as pendências desse PDF (ou ele é uma imagem). Preencha à mão a linha abaixo e use \"Adicionar outra\". Se quiser, me mande o PDF que eu ajusto a leitura." }) : null,
           arq.itens.map((it) => cartao(it, arq)),
           h("button", { type: "button", class: "btn", style: "margin-top:8px", onclick: () => { arq.itens.push(novoItem(arq)); desenhar(); } }, P.ic("mais"), "Adicionar outra")));
@@ -145,9 +237,9 @@
         let paginas;
         try { paginas = await F.linhasDoPdf(a); }
         catch (e) { const senha = e && (e.name === "PasswordException" || /password/i.test(e.message || "")); falhas.push(a.name + ": " + (senha ? "o PDF tem senha. Salve uma cópia sem senha." : e && /carregar/.test(e.message || "") ? e.message : "não consegui abrir esse PDF.")); continue; }
-        if (!paginas.flat().length) { falhas.push(a.name + ": o PDF parece ser uma imagem (sem texto). Não dá para ler sozinho. Peça à contabilidade o PDF original ou preencha à mão."); lidos.push({ nome: a.name, doc: "", itens: [], totalPdf: null, vazio: true }); lidos[lidos.length - 1].itens.push(novoItem(lidos[lidos.length - 1])); continue; }
-        const doc = empresaDoTexto(ctx, paginas.flat().join("\n")), r = pendenciasDasLinhas(paginas);
-        const arq = { nome: a.name, doc, itens: [], totalPdf: r.totalPdf, vazio: !r.itens.length };
+        if (!paginas.flat().length) { falhas.push(a.name + ": o PDF parece ser uma imagem (sem texto). Não dá para ler sozinho. Peça à contabilidade o PDF original ou preencha à mão."); lidos.push({ nome: a.name, doc: "", itens: [], totais: [], vazio: true }); lidos[lidos.length - 1].itens.push(novoItem(lidos[lidos.length - 1])); continue; }
+        const doc = empresaDoTexto(ctx, paginas.flat().join("\n"), a.name), r = pendenciasDasLinhas(paginas);
+        const arq = { nome: a.name, doc, itens: [], totais: r.totais, vazio: !r.itens.length };
         r.itens.forEach((x) => { const it = Object.assign(novoItem(arq), x); it.dup = jaTem.has(chave(it)); it.incluir = !it.dup; arq.itens.push(it); });
         if (!arq.itens.length) arq.itens.push(novoItem(arq));
         lidos.push(arq);
@@ -163,10 +255,16 @@
     P.modal({ titulo: "Subir pendências (PDF)", larga: true, corpo, botoes: [
       { texto: "Cancelar" },
       { texto: "Importar", classe: "p", aoClicar: async () => {
-        const todos = lidos.flatMap((a) => a.itens).filter((x) => x.incluir);
-        if (!todos.length) { P.toast("Não há nenhuma pendência marcada para importar.", true); return false; }
-        const ruins = todos.filter((x) => !x.empresa_doc || !x.tributo.trim() || !(x.valor > 0));
-        if (ruins.length) { P.toast("Faltam dados em " + ruins.length + " pendência(s): empresa, imposto e valor são obrigatórios.", true); return false; }
+        /* linhas em branco (as que eu deixo para preencher à mão) são ignoradas, não travam nada */
+        const marcados = lidos.flatMap((a) => a.itens).filter((x) => x.incluir);
+        const preenchidos = marcados.filter((x) => x.valor > 0 || x.tributo.trim());
+        preenchidos.forEach((x) => { if (!x.tributo.trim()) x.tributo = (x.descricao || "Imposto").slice(0, 60); });
+        const semValor = preenchidos.filter((x) => !(x.valor > 0));
+        const todos = preenchidos.filter((x) => x.valor > 0);
+        if (!todos.length) { P.toast("Não há nenhuma pendência com valor marcada para importar.", true); return false; }
+        /* a única coisa que não dá para adivinhar é a empresa: aponto qual arquivo precisa */
+        const semEmpresa = lidos.filter((a) => a.itens.some((x) => todos.includes(x) && !x.empresa_doc));
+        if (semEmpresa.length) { P.toast("Falta escolher a empresa de: " + semEmpresa.map((a) => a.nome).join(", ") + ". É só escolher na lista \"Empresa deste arquivo\".", true); return false; }
         const linhas = [], vistos = new Set();
         todos.forEach((x) => { const k = chave(x); if (vistos.has(k) || jaTem.has(k)) return; vistos.add(k);
           linhas.push({ chave: k.slice(0, 400), empresa_doc: x.empresa_doc, empresa_nome: (nomes.get(x.empresa_doc) || "").slice(0, 200), tributo: x.tributo.trim().slice(0, 120), descricao: (x.descricao || "").slice(0, 300) || null,
@@ -174,7 +272,7 @@
         if (!linhas.length) { P.toast("Tudo isso já estava no painel.", true); return false; }
         const r = await P.gravar(() => window.sb.from("fin_pendencias").upsert(linhas, { onConflict: "chave", ignoreDuplicates: true }));
         if (!r.ok) return false;
-        P.toast(linhas.length + " pendência(s) importadas!"); ctx.ir("dividas"); ctx.recarregar();
+        P.toast(linhas.length + " pendência(s) importadas!" + (semValor.length ? " (" + semValor.length + " sem valor ficaram de fora)" : "")); ctx.ir("dividas"); ctx.recarregar();
       } }
     ] });
     if (arquivosPre && arquivosPre.length) ler(arquivosPre);

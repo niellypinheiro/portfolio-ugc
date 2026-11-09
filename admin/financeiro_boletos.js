@@ -131,11 +131,20 @@
   }
   async function linhasDaPagina(pagina) {
     const c = await pagina.getTextContent();
-    const itens = c.items.filter((i) => i.str && i.str.trim() !== "").map((i) => ({ s: i.str.trim(), x: i.transform[4], y: i.transform[5] }));
+    const bruto = c.items.filter((i) => i.str && i.str.trim() !== "");
+    /* alguns PDFs (como o Relatório de Situação Fiscal da Receita) vêm com o texto deitado.
+       Descubro para que lado o texto corre e troco os eixos: u = posição ao longo da linha, v = em que linha está */
+    let h0 = 0, vcima = 0, vbaixo = 0, h180 = 0;
+    bruto.forEach((i) => { const t = i.transform; if (Math.abs(t[1]) > Math.abs(t[0])) { if (t[1] > 0) vcima++; else vbaixo++; } else if (t[0] < 0) h180++; else h0++; });
+    const modo = Math.max(h0, vcima, vbaixo, h180) === h0 ? 0 : Math.max(vcima, vbaixo, h180) === vcima ? 90 : Math.max(vbaixo, h180) === vbaixo ? -90 : 180;
+    const itens = bruto.map((i) => {
+      const x = i.transform[4], y = i.transform[5];
+      return { s: i.str.trim(), u: modo === 0 ? x : modo === 90 ? y : modo === -90 ? -y : -x, v: modo === 0 ? -y : modo === 90 ? x : modo === -90 ? -x : y };
+    });
     const grupos = [];
-    itens.forEach((it) => { const g = grupos.find((k) => Math.abs(k.y - it.y) <= 2.5); if (g) g.p.push(it); else grupos.push({ y: it.y, p: [it] }); });
-    grupos.sort((a, b) => b.y - a.y);
-    return grupos.map((g) => g.p.sort((a, b) => a.x - b.x).map((i) => i.s).join(" "));
+    itens.forEach((it) => { const g = grupos.find((k) => Math.abs(k.v - it.v) <= 2.5); if (g) g.p.push(it); else grupos.push({ v: it.v, p: [it] }); });
+    grupos.sort((a, b) => a.v - b.v);
+    return grupos.map((g) => g.p.sort((a, b) => a.u - b.u).map((i) => i.s).join(" "));
   }
   /* texto de um PDF, linha por linha, página por página (serve também para o extrato bancário em PDF) */
   F.linhasDoPdf = async function (arquivo) {
