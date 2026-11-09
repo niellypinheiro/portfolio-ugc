@@ -317,7 +317,19 @@
     });
     return melhor;
   }
-  P.lerCSV = function (texto, separador) { return analisarCSV(texto, separador || escolherSeparador(texto)); };
+  /* Alguns CSV (salvos de novo pelo Excel) trazem cada linha inteira dentro de UMA célula, com aspas duplicadas:
+     "11 de set...,""2167..."",""Pedido""". Nesse caso a linha vira uma coluna só. Aqui eu desfaço: as linhas de uma célula só
+     com várias vírgulas (ou ; ou tabulação) são lidas de novo como linhas de verdade. Explicações em texto corrido têm poucas vírgulas e ficam como estão. */
+  function desembrulhar(linhas) {
+    const inner = (l) => {
+      if (l.length !== 1) return "";
+      const t = l[0], c = [",", ";", "\t"].map((d) => [d, t.split(d).length - 1]).sort((a, b) => b[1] - a[1])[0];
+      return c[1] >= 5 ? c[0] : "";
+    };
+    if (linhas.filter((l) => inner(l)).length < 2) return linhas;
+    return linhas.map((l) => { const d = inner(l); if (!d) return l; const r = analisarCSV(l[0], d); return r.length === 1 ? r[0] : l; });
+  }
+  P.lerCSV = function (texto, separador) { return desembrulhar(analisarCSV(texto, separador || escolherSeparador(texto))); };
   function analisarCSV(texto, delim) {
     const linhas = [];
     let campo = "", linha = [], dentroAspas = false, comConteudo = false;
