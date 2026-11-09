@@ -34,11 +34,20 @@
   const isoData = (d, m, a) => (+m >= 1 && +m <= 12 && +d >= 1 && +d <= 31 ? a + "-" + m + "-" + d : null);
 
   /* de qual empresa é o PDF: pelo CNPJ (inteiro ou só a raiz) ou pelo nome escrito nele */
+  /* as empresas da lista: as do painel (configuração e notas), as que já têm pendências
+     e as duas empresas dela, para a lista nunca ficar sem uma delas */
+  const EMPRESAS_CONHECIDAS = [["53650031000154", "Provision Services Ltda"], ["49266274000116", "Smart Brand Tecnologia Ltda"]];
+  function empresasDaTela(ctx) {
+    const m = new Map(F.nomesEmpresas ? F.nomesEmpresas(ctx) : []);
+    (ctx.pendencias || []).forEach((x) => { if (x.empresa_doc && !m.has(x.empresa_doc)) m.set(x.empresa_doc, x.empresa_nome || F.fmtDoc(x.empresa_doc)); });
+    EMPRESAS_CONHECIDAS.forEach(([d, n]) => { if (!m.has(d) || m.get(d) === F.fmtDoc(d)) m.set(d, n); });
+    return m;
+  }
   function empresaDoTexto(ctx, texto, nomeArquivo) {
-    const t = texto, tn = norm(texto), nomes = F.nomesEmpresas ? F.nomesEmpresas(ctx) : new Map();
+    const t = texto, tn = norm(texto), nomes = empresasDaTela(ctx);
     const digArq = String(nomeArquivo || "").replace(/\D/g, ""), nomeArq = norm(nomeArquivo || "");
     let melhor = "", pontos = 0;
-    F.meusCnpjs(ctx).forEach((d) => {
+    Array.from(nomes.keys()).forEach((d) => {
       let p = 0;
       /* aceita o CNPJ com ou sem pontos, barra e traço (alguns PDFs perdem o traço) */
       const sep = "\\D{0,2}", raiz = d.slice(0, 2) + sep + d.slice(2, 5) + sep + d.slice(5, 8);
@@ -167,7 +176,7 @@
 
   /* ---------- janela de importação ---------- */
   F.abrirImportacaoDividas = function (ctx, arquivosPre) {
-    const nomes = F.nomesEmpresas ? F.nomesEmpresas(ctx) : new Map();
+    const nomes = empresasDaTela(ctx);
     const lidos = [];   /* { nome, doc, itens, totalPdf, vazio } */
     const falhas = [];
     const input = h("input", { type: "file", multiple: true, accept: ".pdf,application/pdf", id: "finDividasPdf", style: "display:none" });
@@ -280,7 +289,7 @@
 
   /* ---------- editar ou adicionar à mão ---------- */
   function formulario(ctx, x) {
-    const novo = !x, nomes = F.nomesEmpresas ? F.nomesEmpresas(ctx) : new Map();
+    const novo = !x, nomes = empresasDaTela(ctx);
     const l = x || { empresa_doc: "", tributo: "", descricao: "", competencia: "", vencimento: "", valor: "", situacao: "aberta", pagamento: "", obs: "" };
     const emp = h("select", null, h("option", { value: "", text: "Escolha a empresa", selected: !l.empresa_doc }), Array.from(nomes.entries()).map(([d, n]) => h("option", { value: d, text: n, selected: d === l.empresa_doc })));
     const trib = h("input", { type: "text", value: l.tributo, maxlength: "120", list: "finTributos2", placeholder: "Ex.: DAS (Simples Nacional)" });
@@ -325,7 +334,7 @@
       return raiz;
     }
     ctx.estadoDividas = ctx.estadoDividas || { empresa: "", filtro: "aberto", busca: "" };
-    const e = ctx.estadoDividas, todas = ctx.pendencias || [], nomes = F.nomesEmpresas ? F.nomesEmpresas(ctx) : new Map();
+    const e = ctx.estadoDividas, todas = ctx.pendencias || [], nomes = empresasDaTela(ctx);
     const nomeEmp = (d) => nomes.get(d) || (d ? F.fmtDoc(d) : "Sem empresa");
     const devendo = (x) => x.situacao !== "paga", vencida = (x) => devendo(x) && x.vencimento && x.vencimento < hoje;
     const doTexto = (x) => !e.empresa || x.empresa_doc === e.empresa;
