@@ -1452,9 +1452,12 @@ const DEPOIMENTOS = [
       });
     });
 
+    /* O cartão não abre mais sozinho (era um pop-up que podia afastar visitantes).
+       Para voltar a abrir depois de alguns segundos, tire as barras destas 3 linhas:
     var jaViu = false;
     try { jaViu = sessionStorage.getItem(CHAVE) === "1"; } catch (e) {}
     if (!jaViu) setTimeout(abrir, CONFIG.segundosCartao * 1000);
+    */
   }
 
   /* ---------- ligação com o painel: vídeos vindos do banco ---------- */
