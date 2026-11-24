@@ -124,7 +124,15 @@
         if (!temItem) rotulo.remove();
       });
     }
-    menu.querySelectorAll(".item").forEach((b) => {
+    /* Atalhos que abrem um site fora do painel (ex.: a planilha dos Roteiros UGC) */
+    const ATALHOS = { roteiros_ugc: ["Roteiros UGC", "roteiro"] };
+    menu.querySelectorAll(".item[data-link]").forEach((a) => {
+      const def = ATALHOS[a.dataset.link];
+      if (!def) { a.remove(); return; }
+      a.append(P.ic(def[1]), h("span", { text: def[0] }), P.ic("externo"));
+      a.addEventListener("click", fecharGaveta);
+    });
+    menu.querySelectorAll(".item[data-aba]").forEach((b) => {
       const def = ABAS.find((a) => a[0] === b.dataset.aba);
       b.append(P.ic(def[2]), h("span", { text: def[1] }));
       b.addEventListener("click", () => ir(def[0]));
