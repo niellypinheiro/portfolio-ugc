@@ -54,11 +54,14 @@ main,.rodape{position:relative;z-index:1}
 /* enfeites do tema antigo (diário de couro) */
 .fitas,.elastico,.selo,.cantos,.ornamento{display:none!important}
 
-/* ---------- faixa da Black Friday ---------- */
-.aviso-topo{position:fixed;top:0;left:0;right:0;z-index:52;height:var(--aviso-h);background:linear-gradient(90deg,#ee2a7b,#6228d7);color:#fff}
+/* neve caindo sobre a página inteira (não atrapalha os cliques) */
+.neve{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
+
+/* ---------- faixa de Natal ---------- */
+.aviso-topo{position:fixed;top:0;left:0;right:0;z-index:52;height:var(--aviso-h);background:linear-gradient(90deg,#b3122f,#8c0f28 50%,#0f5c3a);color:#fff}
 html.sem-aviso .aviso-topo{display:none}
 .aviso-in{height:100%;display:flex;align-items:center;justify-content:center;gap:clamp(8px,1.6vw,18px);padding:0 var(--gutter);font-size:.88rem;line-height:1;white-space:nowrap}
-.aviso-pilula{background:#fff;color:#6228d7;font:800 .64rem/1 var(--fonte);letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border-radius:999px}
+.aviso-pilula{background:#fff;color:#a30f2b;font:800 .64rem/1 var(--fonte);letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border-radius:999px}
 .aviso-dias{font-weight:800;color:#fff}
 .aviso-ponto{opacity:.6}
 .aviso-texto{color:rgba(255,255,255,.92)}
@@ -121,11 +124,11 @@ html.sem-aviso .aviso-topo{display:none}
 .capa{position:relative;padding-top:calc(var(--topo-h) + var(--aviso-h) + clamp(24px,5vw,56px))}
 .capa-grade{display:grid;grid-template-columns:1fr;gap:clamp(22px,4vw,40px);align-items:center;padding-bottom:clamp(30px,5vw,52px);justify-items:center;text-align:center}
 @media (min-width:900px){.capa-grade{grid-template-columns:auto 1fr;gap:clamp(40px,6vw,76px);justify-items:stretch;text-align:left}}
-.capa-foto{order:-1;justify-self:center;width:clamp(200px,60vw,250px)}
-@media (min-width:900px){.capa-foto{width:clamp(250px,26vw,320px)}}
-.capa-foto .foto-moldura{padding:6px;border-radius:50%;background:var(--gradiente);box-shadow:0 14px 34px -12px rgba(238,42,123,.45)}
-.capa-foto .foto{aspect-ratio:1/1;border-radius:50%;padding:0;border:6px solid #fff;background:#f3f1f8}
-.capa-foto .foto img{object-position:50% 20%}
+/* foto da capa: recortada, sem fundo e sem moldura */
+.capa-foto{order:-1;justify-self:center;width:clamp(220px,68vw,290px)}
+@media (min-width:900px){.capa-foto{width:clamp(280px,29vw,360px)}}
+.capa-foto .foto{aspect-ratio:auto;overflow:visible;border-radius:0;padding:0;background:none}
+.capa-foto .foto img{position:static;width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 16px 22px rgba(20,20,40,.18))}
 .capa-etiqueta{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:8px 12px;font:800 .78rem/1.3 var(--fonte);letter-spacing:.14em;text-transform:uppercase;color:var(--suave)}
 @media (min-width:900px){.capa-etiqueta{justify-content:flex-start}}
 .capa-etiqueta .sep{opacity:.5;font-weight:400}
@@ -157,6 +160,10 @@ html.sem-aviso .aviso-topo{display:none}
 @keyframes correr{to{transform:translateX(-50%)}}
 .faixa-item{display:flex;align-items:center;gap:clamp(22px,3vw,38px);padding-right:clamp(22px,3vw,38px);white-space:nowrap}
 .faixa-logo{width:clamp(56px,8vw,72px);height:clamp(56px,8vw,72px);border-radius:50%;object-fit:cover;padding:3px;border:3px solid transparent;background:linear-gradient(#fff,#fff) padding-box,var(--gradiente) border-box}
+/* cada logo vira uma bolinha de árvore de Natal: o pino dourado (::before) e a argolinha (::after) */
+.bolinha{position:relative;display:block;flex:none;line-height:0;padding-top:17px}
+.bolinha::before{content:"";position:absolute;z-index:1;left:50%;top:10px;width:22px;height:10px;margin-left:-11px;border-radius:3px 3px 2px 2px;background:repeating-linear-gradient(90deg,rgba(120,84,10,0) 0 3px,rgba(120,84,10,.28) 3px 4px),linear-gradient(180deg,#fbe7a1,#d9ac3c 60%,#b4861f);box-shadow:0 1px 2px rgba(60,40,0,.3)}
+.bolinha::after{content:"";position:absolute;left:50%;top:1px;width:11px;height:11px;margin-left:-5.5px;border:2px solid #c79a2e;border-radius:50%}
 
 /* ---------- 2. sobre mim ---------- */
 .sobre-grade{display:grid;grid-template-columns:1fr;gap:clamp(26px,4vw,52px);padding:clamp(22px,4vw,46px);align-items:center}
@@ -352,17 +359,12 @@ a.trab:hover .trab-midia{transform:translateY(-3px);box-shadow:0 14px 28px -12px
 </style>
 <noscript><style>.revela{opacity:1!important;transform:none!important}</style></noscript>
 <script>
-/* Faixa da Black Friday: conta sozinha os dias que faltam (a Black Friday é a sexta depois da 4ª quinta de novembro).
-   Aparece quando faltam 120 dias ou menos, e some depois da Black Friday até a próxima temporada. */
+/* Faixa de Natal: conta sozinha os dias que faltam para o dia 25 de dezembro.
+   Aparece quando faltam 120 dias ou menos, e some depois do Natal até a próxima temporada. */
 (function () {
-  function sextaNegra(ano) {
-    var primeira = 1 + ((4 - new Date(ano, 10, 1).getDay() + 7) % 7);
-    return new Date(ano, 10, primeira + 21 + 1);
-  }
   var hoje = new Date(), ano = hoje.getFullYear();
   function dias(a) {
-    var bf = sextaNegra(a);
-    return Math.round((Date.UTC(bf.getFullYear(), bf.getMonth(), bf.getDate()) - Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / 86400000);
+    return Math.round((Date.UTC(a, 11, 25) - Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / 86400000);
   }
   var d = dias(ano);
   if (d < 0) d = dias(ano + 1);
@@ -371,7 +373,7 @@ a.trab:hover .trab-midia{transform:translateY(-3px);box-shadow:0 14px 28px -12px
   document.addEventListener("DOMContentLoaded", function () {
     var el = document.getElementById("avisoDias");
     if (!el || !mostrar) return;
-    el.textContent = d === 0 ? "Hoje é Black Friday!" : d === 1 ? "Falta 1 dia pra Black Friday" : "Faltam " + d + " dias pra Black Friday";
+    el.textContent = d === 0 ? "Hoje é Natal!" : d === 1 ? "Falta 1 dia pro Natal" : "Faltam " + d + " dias pro Natal";
   });
 })();
 </script>
@@ -385,10 +387,10 @@ a.trab:hover .trab-midia{transform:translateY(-3px);box-shadow:0 14px 28px -12px
 
 <div class="aviso-topo" id="avisoTopo" role="region" aria-label="Aviso">
   <div class="aviso-in">
-    <span class="aviso-pilula">Black Friday</span>
+    <span class="aviso-pilula">Natal</span>
     <b class="aviso-dias" id="avisoDias"></b>
     <span class="aviso-ponto" aria-hidden="true">·</span>
-    <span class="aviso-texto">conteúdo UGC que vende no dia</span>
+    <span class="aviso-texto">conteúdo UGC que vende no fim de ano</span>
     <a class="aviso-link" href="#contato">reservar agenda →</a>
   </div>
 </div>
@@ -704,7 +706,7 @@ const PERFIL = {
   /* FOTOS DA CREATOR: coloque a imagem na mesma pasta do index.html e escreva o nome do arquivo aqui.
      Exemplo: fotoCapa: "nielly-capa.jpg". Formato 4:5 (retrato), de preferência até 200 KB.
      Deixando vazio, o site mostra o bloco com degradê e a legenda do formato. */
-  fotoCapa: "foto-capa.jpg",
+  fotoCapa: "foto-capa-recorte.webp",
   fotoSobre: "foto-sobre.jpg"
 };
 
@@ -960,7 +962,8 @@ const DEPOIMENTOS = [
     [["capa", PERFIL.fotoCapa, "eager"], ["sobre", PERFIL.fotoSobre, "lazy"]].forEach(function (f) {
       var caixa = $('[data-foto="' + f[0] + '"]');
       if (!caixa || !f[1]) return;
-      caixa.replaceChildren(h("img", { src: f[1], alt: "Foto de " + PERFIL.nome, width: 800, height: 1000, decoding: "async", loading: f[2] }));
+      var capa = f[0] === "capa";   /* a foto recortada da capa é mais alta que a de 4:5 */
+      caixa.replaceChildren(h("img", { src: f[1], alt: "Foto de " + PERFIL.nome, width: capa ? 720 : 800, height: capa ? 1215 : 1000, decoding: "async", loading: f[2] }));
       caixa.removeAttribute("role");
       caixa.removeAttribute("aria-label");
     });
@@ -983,7 +986,7 @@ const DEPOIMENTOS = [
     for (var rep = 0; rep < 6; rep++) {
       MARCAS.forEach(function (m) {
         trilho.append(h("span", { class: "faixa-item" + (rep ? " dup" : "") },
-          h("img", { class: "faixa-logo", src: "marcas/" + m.logo, alt: "", "aria-hidden": "true", decoding: "async", width: 96, height: 96 })));
+          h("span", { class: "bolinha" }, h("img", { class: "faixa-logo", src: "marcas/" + m.logo, alt: "", "aria-hidden": "true", decoding: "async", width: 96, height: 96 }))));
       });
     }
   }
@@ -1608,6 +1611,80 @@ const DEPOIMENTOS = [
 })();
 </script>
 
+<!-- ============ NEVE DE NATAL ============ -->
+<script>
+/* Flocos de neve bem clarinhos caindo sobre a página. Para tirar a neve depois do Natal, apague este bloco.
+   Ela já para sozinha fora da época (aparece de novembro até 6 de janeiro) e não aparece
+   para quem desligou as animações no aparelho. */
+(function () {
+  "use strict";
+  var hoje = new Date(), mes = hoje.getMonth();
+  var epoca = mes === 10 || mes === 11 || (mes === 0 && hoje.getDate() <= 6);
+  if (!epoca || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+
+  var tela = document.createElement("canvas");
+  tela.className = "neve";
+  tela.setAttribute("aria-hidden", "true");
+  var ctx = tela.getContext("2d");
+  if (!ctx) return;
+  document.body.appendChild(tela);
+
+  var L = 0, A = 0, flocos = [], antes = 0;
+  function entre(a, b) { return a + Math.random() * (b - a); }
+  function novo(noAlto) {
+    var estrela = Math.random() < 0.35;
+    var r = estrela ? entre(4, 8) : entre(1.2, 3.4);
+    return { x: entre(0, L), y: noAlto ? entre(-40, -10) : entre(0, A), r: r, estrela: estrela,
+      queda: entre(18, 34) + r * 3, balanco: entre(8, 26), fase: entre(0, 6.28), vel: entre(0.4, 1),
+      giro: entre(0, 6.28), gira: entre(-0.5, 0.5), forca: entre(0.35, 0.7) };
+  }
+  function ajustar() {
+    var escala = Math.min(window.devicePixelRatio || 1, 2);
+    L = document.documentElement.clientWidth; A = window.innerHeight;
+    tela.width = L * escala; tela.height = A * escala;
+    ctx.setTransform(escala, 0, 0, escala, 0, 0);
+    var quantos = Math.round(Math.max(28, Math.min(90, L / 15)));
+    while (flocos.length < quantos) flocos.push(novo(false));
+    flocos.length = quantos;
+  }
+  function estrelinha(r) {
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      ctx.moveTo(0, 0); ctx.lineTo(0, -r);
+      ctx.moveTo(0, -r * 0.55); ctx.lineTo(r * 0.28, -r * 0.82);
+      ctx.moveTo(0, -r * 0.55); ctx.lineTo(-r * 0.28, -r * 0.82);
+    }
+    ctx.stroke();
+  }
+  function desenhar(agora) {
+    var dt = Math.min((agora - antes) / 1000 || 0, 0.05);
+    antes = agora;
+    ctx.clearRect(0, 0, L, A);
+    for (var i = 0; i < flocos.length; i++) {
+      var f = flocos[i];
+      f.y += f.queda * dt; f.fase += f.vel * dt; f.giro += f.gira * dt;
+      if (f.y > A + 12) f = flocos[i] = novo(true);
+      var x = f.x + Math.sin(f.fase) * f.balanco;
+      ctx.save();
+      ctx.translate(x, f.y);
+      ctx.globalAlpha = f.forca;
+      if (f.estrela) {   /* azul bem claro, para aparecer também no fundo branco */
+        ctx.rotate(f.giro); ctx.strokeStyle = "#9cc4ee"; ctx.lineWidth = 1.1; ctx.lineCap = "round"; estrelinha(f.r);
+      } else {
+        ctx.fillStyle = "#e6f2ff"; ctx.shadowColor = "rgba(90,140,200,.65)"; ctx.shadowBlur = 4;
+        ctx.beginPath(); ctx.arc(0, 0, f.r, 0, 6.2832); ctx.fill();
+      }
+      ctx.restore();
+    }
+    window.requestAnimationFrame(desenhar);
+  }
+  ajustar();
+  window.addEventListener("resize", ajustar);
+  window.requestAnimationFrame(desenhar);
+})();
+</script>
+
 <!-- ============ IDIOMA: português / inglês ============ -->
 <script>
 /* Troca de idioma. O site é escrito em português. Quando a pessoa clica em EN, cada texto que está
@@ -1624,10 +1701,11 @@ const DEPOIMENTOS = [
     "Sobre": "About", "Cases de sucesso": "Success stories", "Trabalhos": "Work", "Fotos": "Photos",
     "Serviços": "Services", "Números": "Numbers", "Contato": "Contact",
     "Portfólio UGC": "UGC Portfolio",
-    "conteúdo UGC que vende no dia": "UGC content that sells on the day",
+    "conteúdo UGC que vende no fim de ano": "UGC content that sells during the holidays",
     "reservar agenda →": "book your spot →",
-    "Hoje é Black Friday!": "Today is Black Friday!",
-    "Falta 1 dia pra Black Friday": "1 day until Black Friday",
+    "Natal": "Christmas",
+    "Hoje é Natal!": "Today is Christmas!",
+    "Falta 1 dia pro Natal": "1 day until Christmas",
     "Vídeos UGC orgânicos e naturais que humanizam a sua marca e criam conexão de verdade com o público.": "Organic, natural UGC videos that humanize your brand and create a real connection with your audience.",
     "Falar comigo": "Talk to me", "Ver os trabalhos": "See my work",
     "Números da Nielly": "Nielly's numbers",
@@ -1723,7 +1801,7 @@ const DEPOIMENTOS = [
   ];
   var REGRAS = [
     [/^Tudo certo, (.+)!$/, "All set, $1!"],
-    [/^Faltam (\d+) dias pra Black Friday$/, "$1 days until Black Friday"],
+    [/^Faltam (\d+) dias pro Natal$/, "$1 days until Christmas"],
     [/^([\d.,]+)\s*mil\s+(?:visualizações|views)$/i, function (m, n) { return n.replace(",", ".") + " thousand views"; }],
     [/^([\d.,]+\s*[KkMm]?)\s+visualizações$/, "$1 views"]
   ];
